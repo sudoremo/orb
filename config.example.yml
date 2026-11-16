@@ -1,0 +1,559 @@
+# Orb configuration, with every key.
+#
+# Copy to ~/.config/orb/config.yml and keep what you need: every key that is
+# marked optional has the default shown here. A key Orb does not know is an
+# error at launch, so a typo cannot pass as a setting that quietly does nothing.
+#
+# Some sections are read but not yet used by the app; they say so. Everything
+# else is what the app does today.
+#
+# Most values can be written bare. Quote a key or a value that begins with
+# ! & * # [ ] { } | > % @ ~ ' " or a backtick, that is - or ? followed by a
+# space, or that contains ": " or " #". Bracketed keys such as <c-r> and bare
+# letters need no quotes.
+
+# Path to the local SQLite cache. Required; ~ is expanded.
+db_path: ~/.local/share/orb/mail.db
+
+# Log file for warnings and debug output. Optional; no log without it.
+log_file: ~/.local/share/orb/orb.log
+
+# Sidebar layout: multi_account or single_account. Optional, default
+# multi_account. Parsed but not used by the app, which always shows every
+# account.
+sidebar_mode: multi_account
+
+# Which rendering a message opens in when it carries both an HTML and a
+# plain-text version: html or plain. Optional, default html. The toggle in the
+# reader still switches between them for the message on screen.
+default_message_view: html
+
+# How the windows look. Optional.
+appearance:
+  theme: system          # follow the system (default), or dark, or light
+  font_size: 13          # pixels; ⌘+ and ⌘- change it on this machine
+  # editor_font_size: 15 # Neovim in the compose window; unset follows font_size
+  dark_html_mail: true   # draw HTML mail dark in a dark window
+  look: hybrid           # hybrid (default), or terminal: monospace, denser rows
+
+# Directory holding the embedding model used by `~` semantic search. Optional;
+# unset means semantic search is off, and exact search is unaffected. The
+# packaged app finds the model inside its own bundle without this key.
+embedding_model: ~/.config/orb/model
+
+# Seconds a message must stay on screen before it is marked read. Optional,
+# default 2.0. Moving the cursor cancels it; 0 never marks automatically.
+mark_read_after_seconds: 2.0
+
+# Where Ctrl+H/J/K/L go once Orb has nothing to move to that way. Optional;
+# without it they stop at Orb's edges. Run with left, right, up or down.
+navigation:
+  escalate_command: ~/bin/navigate
+
+# How the message list is laid out. Optional.
+list:
+  columns: [meta, tasks, from, subject, date]  # in this order; `to` for recipients
+  date_format: auto                            # as fully as fits, the year always; or strftime-style
+  density: comfortable                         # or compact, or spacious
+
+# How search results are shown. Optional.
+search:
+  sort: relevance        # or date_newest, date_oldest, subject_asc, subject_desc,
+                         # sender_asc, sender_desc
+
+# -----------------------------------------------------------------------------
+# Accounts. At least one.
+# -----------------------------------------------------------------------------
+
+accounts:
+    # Display name, and what the other sections refer to the account by.
+    # Required.
+  - name: Personal
+    # IMAP server and port; the connection is always TLS. Required.
+    imap_server: imap.example.com
+    imap_port: 993
+    # IMAP login. Required.
+    imap_username: user@example.com
+    # Shell command that prints the password to stdout. Optional: without
+    # it the password is read from the Keychain, where Orb filed it on an
+    # earlier run, and failing that asked for when the account first
+    # connects, with the offer to keep it in the Keychain.
+    imap_password_command: pass email/example.com
+    # Address used for outgoing mail. Required.
+    from: Your Name <user@example.com>
+    # SMTP settings. Each is optional and defaults to its IMAP counterpart,
+    # except the port, which defaults to 587 (STARTTLS). Without any password
+    # command, the IMAP password serves the same login on the same server and
+    # another login is asked for at the first send.
+    smtp_server: smtp.example.com
+    smtp_port: 587
+    smtp_username: user@example.com
+    smtp_password_command: pass email/example.com
+    # How the connections are secured and the logins made. Optional.
+    imap_encryption: tls           # or starttls (a plain port 143, upgraded first)
+    imap_auth: password            # or xoauth2: the password command prints a token
+    smtp_encryption: starttls      # or tls (port 465); unset, the port decides
+    smtp_auth: password            # or xoauth2
+    # Signature of the account's own address. Optional; the "-- " line that
+    # marks it off is added unless the file starts with one.
+    signature_file: ~/.config/orb/signature.txt
+    # Further addresses the account sends as. Optional. A reply or forward is
+    # written as the identity the original was sent to (To, Cc, then
+    # Delivered-To), otherwise as the account's own address; ⌘I in the
+    # compose window chooses among every account's identities. Each needs a
+    # name and a from; the signature is a file or inline text, `addresses` are
+    # further addresses that select it, and `domains` the recipient domains
+    # written to as it: writing to one as another identity is warned about.
+    # The account's own `domains` does the same for its own address.
+    domains:
+      - example.com
+    identities:
+      - name: Support
+        from: Example Support <support@example.com>
+        signature_file: ~/.config/orb/signatures/support.txt
+        reply_to: support@example.com
+        addresses:
+          - help@example.com
+        domains:
+          - customer.example
+      - name: Short
+        from: Your Name <user@example.com>
+        signature: |
+          Your Name
+    # Open the account's folders as conversations (default: false); a
+    # folder's own `threads` overrides it, and `zt` switches in the open one.
+    threads: false
+    # Special folders by their server-side names. Optional, defaults shown.
+    drafts_folder: Drafts
+    sent_folder: Sent
+    trash_folder: Trash
+    # Where `archive` files a message and where `spam` puts one. Optional;
+    # unset means Archive and Junk. Only a folder named here is checked
+    # against the server at launch, since not every server has one.
+    archive_folder: Archive
+    junk_folder: Junk
+    # Sort order for every folder of this account that has none of its own.
+    # Optional, default date_newest. One of date_newest, date_oldest,
+    # subject_asc, subject_desc, sender_asc, sender_desc.
+    default_sort: date_newest
+    # Folders listed here come first, in this order; the rest follow
+    # alphabetically. Optional.
+    folder_order: [INBOX, Drafts, Sent, Archive, Trash]
+
+    # Per-folder overrides, keyed by the server-side name. Every key is
+    # optional; defaults are shown on INBOX.
+    folders:
+      INBOX:
+        visible: true          # show in the sidebar
+        sync: true             # fetch from IMAP
+        show_unread: true      # unread-count badge
+        show_total: false      # total-count badge
+        display_name: Inbox    # what the sidebar calls it; the server name otherwise
+        sort: date_newest      # overrides default_sort for this folder
+      Mailing Lists:
+        show_unread: false
+        sort: date_oldest
+        threads: true          # open as conversations (default: the account's `threads`)
+      Sent:
+        columns: [meta, to, subject, date]  # this folder's own columns
+
+  - name: Work
+    imap_server: imap.work.example
+    imap_port: 993
+    imap_username: you@work.example
+    imap_password_command: security find-generic-password -a you@work.example -s imap.work.example -w
+    from: Your Name <you@work.example>
+
+# -----------------------------------------------------------------------------
+# Tasks. Optional; without this section task management is off.
+# -----------------------------------------------------------------------------
+
+tasks:
+  # The account whose IMAP folder holds the tasks. Required in this section.
+  account: Work
+  # Server-side folder name, used verbatim: no prefix and no leading dot. It
+  # is created on first sync, and resolved against the server's namespace, so
+  # a server that keeps everything under INBOX gets INBOX.Tasks on its own.
+  # Optional, default Tasks.
+  folder: Tasks
+  # Language of the date picker: en or de. Optional, default en.
+  locale: en
+  # Whether Today keeps the tasks completed today, struck through, until
+  # midnight. Optional, default true; clear-completed hides them sooner.
+  keep_completed_in_today: true
+  # Whether Today lists its completed tasks above the open ones rather than
+  # in their place in the order. Optional, default false.
+  completed_first_in_today: false
+  # Days after which a completed task leaves Completed for Archived. Optional,
+  # default 30; 0 never archives. Nothing on the server changes.
+  archive_after_days: 30
+  # Snapshots of every task, written to a directory on a schedule. Optional;
+  # absent means no export. See "Exporting tasks" in the README.
+  # export:
+  #   directory: ~/Backups/orb-tasks
+  #   interval_hours: 24   # how old the newest complete snapshot may get
+  #   keep: 30             # complete snapshots of this Mac kept
+
+# -----------------------------------------------------------------------------
+# Chat. Optional; without this section chat is off.
+# -----------------------------------------------------------------------------
+
+chat:
+  # The Rocket.Chat server, https:// and the host. Required in this section.
+  server: https://chat.example.com
+  # How Orb signs in: sso opens the server's own sign-in page in a window and
+  # keeps the session in the Keychain; token_command runs token_command, which
+  # prints a user id and a personal access token. Optional, default sso.
+  sign_in: sso
+  # token_command: security find-generic-password -s orb-chat -w
+  # How many days back a thread can start waiting the first time Orb sees the
+  # server. Optional, default 14.
+  waiting_days: 14
+  # Per room, by its name in the server's addresses. waiting: false keeps the
+  # room out of Waiting; notify: false only silences it, as does the room's
+  # own notification setting in Rocket.Chat. Both default to true.
+  rooms:
+    general: { waiting: false }
+    ci-builds: { waiting: false, notify: false }
+    support: { notify: false }
+  # The reactions offered on a message, as Rocket.Chat's shortcodes, in order.
+  # Optional, default :+1: :heart: :joy: :tada: :eyes:.
+  reactions: [":+1:", ":pray:", ":tada:", ":ok_hand:"]
+  # Text in a message that becomes a link: pattern is a JavaScript regular
+  # expression, url the address it opens, with $1 to $9 for its groups and $0
+  # for the whole match. Not inside a link or code. Optional, default none.
+  links:
+    - { pattern: '#(\d+)', url: 'https://tracker.example.com/issues/$1' }
+  # Whether the Dock badge counts the threads in Waiting besides the mail.
+  # Optional, default false.
+  badge: true
+
+# -----------------------------------------------------------------------------
+# Reading list. Optional; without this section there is none.
+# -----------------------------------------------------------------------------
+
+reading:
+  # The account whose folders hold the reading list. Required in this section.
+  account: Personal
+  # What is still to read, and what has been read: two sibling folders,
+  # created on first sync and resolved against the server's namespace like
+  # the tasks folder. Optional, defaults shown.
+  folder: Reading
+  archive_folder: Reading Archive
+  # RSS, Atom and JSON feeds whose new items arrive in the reading folder.
+  # Optional. `name` is the sender the items show; the feed's title otherwise.
+  feeds:
+    - url: https://this-week-in-rust.org/rss.xml
+    - url: https://example.com/feed.xml
+      name: Example
+  # How often each feed is asked for new items. Optional, default 60, at least 5.
+  poll_minutes: 60
+
+# -----------------------------------------------------------------------------
+# Replies. Optional; defaults shown.
+# -----------------------------------------------------------------------------
+
+reply:
+  quote: true                                # include the original at all
+  prefix: "> "                               # what each quoted line begins with
+  attribution: "On {date}, {sender} wrote:"  # {date} and {sender} are replaced;
+                                             # empty for no attribution line
+  signature: below                           # or `above`: before the quote
+
+# -----------------------------------------------------------------------------
+# What the compose window checks before a message is sent. Optional.
+compose:
+  # Words that mention an attachment: own text with one of them and nothing
+  # attached is warned about. Each matches at the start of a word, so
+  # `attach` finds `attached`; [] turns the check off. The default:
+  attachment_words: [attach, enclos, anbei, anhang, anhäng, angehängt,
+    beigefügt, beiliegend, ci-joint, pièce jointe, pièces jointes, allegat]
+
+# -----------------------------------------------------------------------------
+# Filter rules. Optional. Run on mail as it arrives in a synced folder, once
+# per message, in order; `:filter` runs them on mail already here.
+# -----------------------------------------------------------------------------
+filters:
+  - name: Newsletters
+    accounts: [Work]             # default: every account
+    folders: [INBOX]             # default: INBOX
+    when:                        # every condition must hold; use two rules for OR
+      from: "*@news.example.com" # glob, case-insensitive, on the address;
+                                 # "name:Anna *" matches the display name
+      subject: "re:^\\[news\\]"  # `re:` selects a regular expression
+      list_id: "*"               # any List-Id header
+      header:                    # any header, by name; quote YES/no/1.0
+        X-Spam-Flag: "YES"
+      has_attachment: true
+    then:
+      move: Newsletters          # a folder of the same account
+      reading: false             # to the reading list, from any account; at
+                                 # most one of move, reading and delete
+      read: true
+      flag: false                # false is the same as leaving the key out
+      delete: false              # to Trash, never for good
+      task: false                # a task linked to the message (needs `tasks`)
+      stop: true                 # no later rule sees this message
+
+# -----------------------------------------------------------------------------
+# Highlight rules. Optional. Change how a message looks, as it is drawn.
+# -----------------------------------------------------------------------------
+highlights:
+  - name: Boss
+    accounts: [Work]                  # default: every account
+    when:                             # a filter's `when`, plus any/unread/
+      from: anna@example.com          # flagged/folder/older_than/newer_than/body
+    style:
+      color: "#e6b422"                # or accent, warning, danger, success, muted
+      icon: fa-crown                  # any Font Awesome icon the app bundles
+      sidebar_badge: true             # count its unread messages per folder
+  - name: Invoices
+    when:
+      any:                            # OR, for the rule that needs it
+        - subject: "re:(?i)invoice|rechnung"
+        - has_attachment: true
+          from: "*@billing.example.com"
+      body: payment due               # the body contains this, once fetched
+    style:
+      background: rgba(76, 141, 255, 0.10)
+      label: invoice                  # a chip after the subject
+      label_color: "#4c8dff"
+      bold: true
+  - name: Stale
+    when:
+      folder: INBOX
+      unread: true
+      older_than: 7d                  # 30m, 12h, 7d, 2w
+    style:
+      dim: true                       # the row recedes instead of standing out
+      italic: true
+
+# -----------------------------------------------------------------------------
+# Recipients. Optional.
+# -----------------------------------------------------------------------------
+
+contacts:
+  # Learn addresses from the mail itself. Optional, default true; false uses
+  # only the entries below and the system address book.
+  auto_extract: true
+  # A shortcut that completes to one address.
+  aliases:
+    - shortcut: ns
+      email: nina.berger@example.com
+      name: Nina Berger          # optional
+  # A shortcut that inserts everyone in the group.
+  groups:
+    - shortcut: team
+      emails: [ada@example.com, grace@example.com]
+      description: Development Team   # optional
+
+# -----------------------------------------------------------------------------
+# Views and pins. Optional.
+# -----------------------------------------------------------------------------
+
+# A merged view across accounts. source is one of all_inboxes, all_unread and
+# custom; only custom reads folders.
+# Views in the sidebar: merged views, and saved searches in the search
+# language (`OR` between alternatives, `NOT` before a term, in capitals).
+virtual_folders:
+  - name: All Inboxes
+    icon: fa-inbox         # optional, a Font Awesome icon or an emoji; the search glass otherwise
+    source: all_inboxes
+  - name: Work Mail
+    source: custom
+    folders:
+      - { account: Work, folder: INBOX }
+      - { account: Work, folder: Archive }
+  - name: Invoices
+    source: search
+    query: s:invoice OR b:rechnung has:attachment
+
+# The top of the sidebar, in this order, opened with Ctrl-1 … Ctrl-9. A bare name pins
+# a built-in view: today, upcoming, someday, completed, reading, must-read,
+# waiting. Without this, Today alone.
+pinned:
+  - today
+  - account: Personal
+    folder: Archive
+    display_name: Personal Archive   # optional; "Account: Folder" otherwise
+  - { view: All Inboxes }            # one of virtual_folders, by its name
+
+# -----------------------------------------------------------------------------
+# Subject rewriting. Optional.
+# -----------------------------------------------------------------------------
+
+# Regex rules applied to subjects in the message list, in order, for display
+# only; the stored subject is untouched. replacement may use $1, $2 for
+# capture groups, and may be left out to keep the subject as it is. icon is a
+# Font Awesome name (nf-fa-… Nerd Font names work too), drawn before the
+# subject, and icon_color any colour a highlight takes. Single quotes keep a
+# backslash a backslash.
+subject_munges:
+  - pattern: '^\[JIRA\] \((\w+-\d+)\) '
+    replacement: '$1 '
+    icon: fa-bug
+    icon_color: "#4c8dff"
+  - pattern: '^(Re|Fwd): (Re|Fwd): '
+    replacement: '$1: '
+  - pattern: '^Build failed'
+    icon: fa-circle-xmark
+    icon_color: danger
+
+# Web addresses a message points to, opened with gx (open-link). url may use
+# $1, $2 for the pattern's capture groups, and is the whole match when left
+# out; name lets `open-link issue` pick a rule when several match. match is
+# subject (the default) or body; from limits a rule to a sender, as in filters.
+message_links:
+  - name: issue
+    pattern: 'Issue #(\d+)'
+    url: 'https://tracker.example.com/go/$1'
+  - name: ci-run
+    match: body
+    from: '*@ci.example.com'
+    pattern: 'https://ci\.example\.com/\S+/runs/\d+'
+
+# -----------------------------------------------------------------------------
+# Key bindings. Optional; each table is merged over the built-in one, so only
+# the keys you change need to be here. Bind a key to noop to switch a default
+# off. Keys are written as a bare character or as a bracketed name: <c-r>,
+# <enter>, <down>, <space>. Commands chain with &&.
+# -----------------------------------------------------------------------------
+
+bindings:
+  # Browsing the message list.
+  index_normal:
+    <c-r>: sync
+    d: mark-delete
+    D: delete-immediate
+    "!": toggle-flag
+    a: stage-read && mark-move Archive && next-message
+    # A task for the message, in Today, and the message filed, in one key.
+    A: create-task-from-message && stage-read && mark-move Archive && next-message
+    # The same, postponed to a date the picker asks for.
+    <c-t>: create-task-from-message postpone
+
+  # Layered over index_normal while the reader has focus. Empty by default.
+  index_detail:
+    q: back
+
+  # Browsing the task list, viewing one task, and editing its fields.
+  task_normal:
+    <enter>: edit-task
+  task_detail:
+    <enter>: edit-task
+  task_edit:
+    <c-s>: accept-edit
+
+  # The date picker. Only bracketed keys can be bound here: a bare character
+  # belongs to the text input.
+  date_picker:
+    <c-t>: today
+
+  # The compose window, whether the keyboard is in a field or in Neovim:
+  # send, save, save-and-close, discard, pick-sender, cycle-identity,
+  # follow-up, next-field and prev-field. A key bound here is taken before
+  # Neovim sees it.
+  compose_normal:
+    <d-enter>: send
+    <d-s>: save
+    <d-s-s>: save-and-close
+    <d-i>: pick-sender
+    # A task to follow the message up, made once it is sent.
+    <c-t>: follow-up
+
+  # The remaining tables are parsed but not used by the app.
+  compose_terminal: {}
+  message_detail_terminal: {}
+  compose_edit: {}
+  command: {}
+  task_detail_terminal: {}
+
+# -----------------------------------------------------------------------------
+# Theme. Optional, defaults shown. Parsed but not used by the app, whose
+# appearance is fixed; see PLAN.md for where this is going.
+# -----------------------------------------------------------------------------
+
+theme:
+  date_format: auto            # auto, or a strftime format, for the date column
+  use_nerd_fonts: true         # false selects the fallback_* icons below
+
+  # Column widths in the message list. from is auto or a number of
+  # characters; auto is clamped to from_min and from_max.
+  column_widths:
+    from: auto
+    from_max: 30
+    from_min: 12
+    date: 14
+
+  # Colours as hex strings. Catppuccin Mocha by default.
+  colors:
+    bg_base: "#1e1e2e"             # main background
+    bg_surface: "#313244"          # elevated elements, selection
+    text_primary: "#cdd6f4"
+    text_secondary: "#a6adc8"
+    text_muted: "#6c7086"
+    accent_active: "#89b4fa"       # selection, focus
+    accent_unread: "#f38ba8"       # unread indicators, errors
+    accent_attachment: "#f9e2af"   # attachments, warnings
+    accent_success: "#a6e3a1"
+    accent_flagged: "#cba6f7"
+    border: "#45475a"
+    border_active: "#89b4fa"
+    scrollbar_track: "#313244"
+    scrollbar_thumb: "#6c7086"
+
+  # Icons: Nerd Font glyphs, and the fallback_* ASCII used when use_nerd_fonts
+  # is false. Double quotes make \uXXXX an escape.
+  icons:
+    folder_inbox: ""
+    folder_archive: ""
+    folder_drafts: ""
+    folder_sent: ""
+    folder_trash: ""
+    folder_default: ""
+    folder_pinned: ""
+    account_personal: ""
+    account_work: ""
+    status_unread: ""
+    status_read: ""
+    status_attachment: ""
+    status_flagged: ""
+    action_delete: ""
+    action_move: ""
+    external_change: ""
+    compose: ""
+    check: ""
+    spinner_frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    fallback_folder_inbox: ">"
+    fallback_folder_archive: ">"
+    fallback_folder_drafts: ">"
+    fallback_folder_sent: ">"
+    fallback_folder_trash: ">"
+    fallback_folder_default: ">"
+    fallback_folder_pinned: "*"
+    fallback_account_personal: "@"
+    fallback_account_work: "#"
+    fallback_status_unread: "*"
+    fallback_status_read: o
+    fallback_status_attachment: "@"
+    fallback_status_flagged: "!"
+    fallback_action_delete: D
+    fallback_action_move: M
+    fallback_external_change: "~"
+    fallback_compose: "+"
+    fallback_check: v
+    fallback_spinner_frames: ["|", "/", "-", "\\"]
+
+  # Box-drawing characters for borders. Rounded corners by default.
+  borders:
+    top_left: ╭
+    top_right: ╮
+    bottom_left: ╰
+    bottom_right: ╯
+    horizontal: ─
+    vertical: │
+    t_left: ├
+    t_right: ┤
+    t_top: ┬
+    t_bottom: ┴
+    cross: ┼

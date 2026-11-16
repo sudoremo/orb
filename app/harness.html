@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Orb — virtual list harness</title>
+    <!--
+      Drives the real frontend against a stubbed Tauri IPC, so the virtual list
+      can be exercised in a browser with a folder far larger than any test
+      mailbox. Each row's subject encodes its global index, which is what lets a
+      test assert that the row drawn at a given scroll offset is the right one.
+
+      Served by `pnpm dev` at /harness.html. Not part of the app bundle.
+    -->
+    <script>
+      let TOTAL = Number(new URLSearchParams(location.search).get('total') || 198589);
+      // ?empty=1: no task and no message in any inbox, for the empty views.
+      const EMPTY = new URLSearchParams(location.search).get('empty') === '1';
+      // A reading list in the Private account.
+      const READING = new URLSearchParams(location.search).get('reading') === '1';
+      // ?look=terminal: the Terminal look; ?theme=dark|light fixes the theme.
+      // Tests set window.__mock.removed to simulate messages leaving the
+      // folder, as an executed move or delete does.
+
+      // The task fixture. `TODAY` is fixed rather than taken from the clock so
+      // that a relative date the UI prints ("Tomorrow", "Thursday") is the same
+      // string on every run — a test asserting on it must not start failing
+      // because it is now Wednesday.
+      const TODAY = "2026-08-07";
+      // ?spread=1: the mail dated an hour apart, newest at 12:30 UTC on
+      // TODAY, so that Today mixed has threads and reading to place among it.
+      const SPREAD = new URLSearchParams(location.search).has("spread");
+      // What was moved out of an inbox or the reading list, spread out.
+      const gone = new Set();
+      const mailDate = (i) =>
+        SPREAD ? new Date(Date.UTC(2026, 7, 7, 12, 30) - i * 3_600_000).toISOString().replace(".000Z", "Z") : "2026-01-01T00:00:00Z";
+
+      // The highlight rules of the harness, exercising every style option.
+      const HIGHLIGHT_STYLES = [
+        { name: "Boss", style: { color: "#e6b422", background: null, icon: "fa-crown",
+            icon_color: null, label: null, label_color: null, bold: true, italic: false,
+            dim: false, sidebar_badge: true } },
+        { name: "Invoices", style: { color: null, background: "rgba(76, 141, 255, 0.10)",
+            icon: null, icon_color: null, label: "invoice", label_color: "#4c8dff",
+            bold: false, italic: true, dim: false, sidebar_badge: false } },
+        { name: "Newsletters", style: { color: null, background: null, icon: null,
+            icon_color: null, label: null, label_color: null, bold: false, italic: false,
+            dim: true, sidebar_badge: false } },
+        { name: "Urgent", style: { color: "var(--danger)", background: null,
+            icon: "fa-triangle-exclamation", icon_color: "var(--warning)", label: "urgent",
+            label_color: "var(--danger)", bold: false, italic: false, dim: false,
+            sidebar_badge: false } },
+        { name: "Nonsense", style: { color: null, background: null, icon: "fa-no-such-icon",
+            icon_color: null, label: "a label long enough to be cut short", label_color: null,
+            bold: false, italic: false, dim: false, sidebar_badge: false } },
+      ];
+      // Which rules a message matches: the first rows show every combination.
+      // A subject rewriting rule's icons on every tenth message: one of them a
+      // name Font Awesome does not have, which must be left out, and one a
+      // brand icon, which only the brands font has.
+      const subjectIconsOf = (i) =>
+        i % 10 === 2
+          ? [{ icon: "fa-gears", color: "#d33" }, { icon: "fa-no-such-icon", color: null }, { icon: "fa-linux", color: null }]
+          : [];
+      const highlightsOf = (i) => {
+        const names = [];
+        if (i % 7 === 1) names.push("Boss");
+        if (i % 5 === 2) names.push("Invoices");
+        if (i % 9 === 3) names.push("Newsletters");
+        if (i % 11 === 4) names.push("Urgent");
+        if (i === 5) names.push("Boss", "Invoices", "Urgent", "Nonsense");
+        if (i === 6) names.push("Nonsense");
+        return names;
+      };
+      let nextTaskId = 100;
+      // The tag registry, and task 1 tagged with one of them.
+      const TAGS = [
+        { id: "tag-work", name: "work", colour: null, position: 1, is_known: true },
+        { id: "tag-home", name: "home", colour: null, position: 2, is_known: true },
+      ];
+      const TASK_TAGS = { 1: [TAGS[0]] };
+      // ?moretags=1: two tags one of which is the other's initials, and task 2 tagged twice.
+      if (new URLSearchParams(location.search).has("moretags")) {
+        TAGS.push(
+          { id: "tag-seedlings", name: "Garden Seedling Inventory", colour: null, position: 3, is_known: true },
+          { id: "tag-gsi", name: "GSI", colour: null, position: 4, is_known: true },
+        );
+        TASK_TAGS[2] = [TAGS[1], TAGS[3]];
+      }
+      // Task 1's checklist, one step of three done.
+      const TASK_STEPS = {
+        1: [
+          { id: "s1", title: "Write the list", done: true },
+          { id: "s2", title: "Check the fridge", done: false },
+          { id: "s3", title: "Go to the shop", done: false },
+        ],
+      };
+      // Task 1 links a message that was answered from Sent and one that was not.
+      const LINKS = {
+        1: [
+          { message_id: "<asked@example.com>", subject: "Groceries for Saturday?", from: "Sara",
+            date: "2026-08-06T10:00:00Z", account_name: "Work", folder_name: "INBOX",
+            answered: true, replied_at: "2026-08-06T12:45:00Z" },
+          { message_id: "<list@example.com>", subject: "The list", from: "Lukas",
+            date: "2026-08-07T08:00:00Z", account_name: "Work", folder_name: "INBOX",
+            answered: false, replied_at: null },
+        ],
+      };
+      const TASKS = [
+        // Scheduled for today and due today: the ordinary Today row.
+        { id: 1, title: "Buy groceries", postpone_date: TODAY, due_date: TODAY,
+          body: null, completed_at: null, deleted_at: null },
+        // Scheduled for today, no due date. In Today this row has nothing to
+        // say in its date column, which is the case the per-view rule is about.
+        { id: 2, title: "Call the plumber", postpone_date: TODAY, due_date: null,
+          body: "https://plumber.example.com/book\nRing before six.\nQuote: message://%3cquote@plumber.example.com%3e", completed_at: null, deleted_at: null },
+        // Both dates, both in the future: the Upcoming row that has to show two.
+        { id: 3, title: "Renew the passport", postpone_date: "2026-08-20",
+          due_date: "2026-08-24", body: null, completed_at: null, deleted_at: null },
+        // Due only, in the future.
+        { id: 4, title: "Book the flights", postpone_date: null, due_date: "2026-08-13",
+          body: null, completed_at: null, deleted_at: null },
+        // Undated: Someday.
+        { id: 5, title: "Learn the piano", postpone_date: null, due_date: null,
+          body: null, completed_at: null, deleted_at: null },
+        // Due last week: overdue, and so in Today.
+        { id: 6, title: "Renew the domain", postpone_date: null, due_date: "2026-08-01",
+          body: null, completed_at: null, deleted_at: null },
+        // Completed long ago: archived, so in Archived and not in Completed.
+        { id: 7, title: "File the taxes", postpone_date: null, due_date: null, body: null,
+          completed_at: "2026-03-01T10:00:00Z", deleted_at: null, archived: true },
+      ];
+      // ?longnotes=1: task 1's notes long enough for its detail to scroll.
+      if (new URLSearchParams(location.search).has("longnotes")) {
+        TASKS[0].body = Array.from({ length: 80 }, (_, i) => `Line ${i + 1} of the notes`).join("\n");
+      }
+      // ?manytasks=N: N more tasks in Today, enough to scroll.
+      for (let i = 0; i < Number(new URLSearchParams(location.search).get("manytasks") ?? 0); i++) {
+        TASKS.push({ id: 1000 + i, title: `Errand ${i}`, postpone_date: TODAY, due_date: null,
+          body: null, completed_at: null, deleted_at: null });
+      }
+      // ?repeat=1: a repeating task completed today, open again for tomorrow.
+      if (new URLSearchParams(location.search).has("repeat")) {
+        TASKS.push({ id: 8, title: "Water the plants", postpone_date: null, due_date: "2026-08-08",
+          body: null, completed_at: null, deleted_at: null, recurring: true, done_today: true });
+      }
+      if (EMPTY) TASKS.length = 0;
+
+      // Mirrors `TaskView::includes` — Upcoming holds every open dated task,
+      // Today those dated at most today, Someday the undated.
+      // A task completed here is in Today, struck through, until a
+      // clear-completed after it (§10.2); `since` is that clear.
+      const inView = (task, view, since = null) => {
+        if (task.deleted_at) return view === "trash";
+        if (view === "trash") return false;
+        if (view === "archive") return !!task.archived;
+        if (view === "completed") return !!task.completed_at && !task.archived;
+        const dated = task.postpone_date || task.due_date;
+        const today =
+          (task.postpone_date && task.postpone_date <= TODAY) ||
+          (task.due_date && task.due_date <= TODAY);
+        if (view === "today") {
+          if (task.done_today) return !since;
+          if (task.completed_at) return !!task.completed_here && (!since || task.completed_at > since);
+          return !!today;
+        }
+        if (view === "upcoming") return !task.completed_at && !!dated;
+        return !task.completed_at && !dated;
+      };
+
+      const summary = (task) => ({
+        id: task.id,
+        uuid: `uuid-${task.id}`,
+        title: task.title,
+        postpone_date: task.postpone_date,
+        due_date: task.due_date,
+        completed_at: task.completed_at,
+        deleted_at: task.deleted_at,
+        tags: TASK_TAGS[task.id] ?? [],
+        is_recurring: !!task.recurring,
+        position: task.id,
+        is_working_on: !!task.working,
+        is_completed: !!task.completed_at,
+        is_overdue: !!task.due_date && task.due_date < TODAY && !task.completed_at,
+        is_dirty: !!task.dirty,
+        linked_email_count: (LINKS[task.id] ?? []).length,
+        steps_total: (TASK_STEPS[task.id] ?? []).length,
+        steps_done: (TASK_STEPS[task.id] ?? []).filter((s) => s.done).length,
+        reminder_count: 0,
+        attachment_count: 0,
+      });
+
+      const detail = (task) => ({
+        task: summary(task),
+        body: task.body,
+        recurrence: null,
+        recurrence_from_completion: false,
+        created_at: "2026-08-07T09:00:00Z",
+        updated_at: "2026-08-07T09:00:00Z",
+        revision: 1,
+        account_name: "Work",
+        reminders: [],
+        links: LINKS[task.id] ?? [],
+        steps: TASK_STEPS[task.id] ?? [],
+        attachments: [],
+        // Two entries, so the timeline's markers are actually drawn and their
+        // geometry can be measured.
+        log: [
+          { entry_uuid: `log-${task.id}-1`, occurred_at: "2026-08-07T09:00:00Z",
+            occurred_at_unix: 1786000000, device_id: null, event_type: "created",
+            text: `Created '${task.title}'` },
+          { entry_uuid: `log-${task.id}-2`, occurred_at: "2026-08-07T09:05:00Z",
+            occurred_at_unix: 1786000300, device_id: null, event_type: "edited",
+            text: "Postpone date set to 2026-08-07" },
+        ],
+      });
+
+      // The `clear_*` flags carry "set this to nothing", which JSON cannot tell
+      // from "leave alone" — the same contract the real `TaskEdit` has.
+      const applyEdit = (task, edit) => {
+        if (!task || !edit) return;
+        if (edit.title !== undefined) task.title = edit.title;
+        if (edit.clear_body) task.body = null;
+        else if (edit.body !== undefined) task.body = edit.body;
+        if (edit.clear_postpone_date) task.postpone_date = null;
+        else if (edit.postpone_date !== undefined) task.postpone_date = edit.postpone_date;
+        if (edit.clear_due_date) task.due_date = null;
+        else if (edit.due_date !== undefined) task.due_date = edit.due_date;
+        if (edit.is_working_on !== undefined) task.working = edit.is_working_on;
+      };
+
+      // ?chat=1: a chat server with threads waiting (PLAN.md, Phase 15);
+      // ?chat=signedout: one that has not been signed in to; ?chat=quiet: one
+      // where nothing waits.
+      // ?outbox=1: one message the server refused and one waiting for it.
+      window.__outbox = new URLSearchParams(location.search).get("outbox") === "1"
+        ? [
+            { id: 7, account: "Work", sending_as: "Work (Support)", from: "Me <it@example.org>",
+              to: ["boss@example.com"], cc: [], bcc: [], subject: "Quarterly report",
+              body: "Here it is.", attachments: ["report.pdf"], queued_at: "2026-10-28T10:29:36Z",
+              attempts: 1, error: "535 Incorrect authentication data", failed_at: "2026-10-28T10:29:36Z" },
+            { id: 8, account: "Work", sending_as: "Work", from: "me@example.com",
+              to: ["team@example.com"], cc: [], bcc: [], subject: "Lunch?",
+              body: "At noon.", attachments: [], queued_at: "2026-10-28T11:00:00Z",
+              attempts: 2, error: "connection refused", failed_at: null },
+          ]
+        : [];
+      const CHAT = new URLSearchParams(location.search).get("chat");
+      const at = (h, m) => Date.UTC(2026, 7, 7, h - 2, m);
+      const room = (rid, kind, name, label) => ({ rid, kind, name, fname: name, label, unread: 0, mentions: 0 });
+      const ORB_DEV = room("r-dev", "c", "orb-dev", "#orb-dev");
+      const LUKAS = room("r-lukas", "d", "lukas", "Direct");
+      const SUPPORT = room("r-sup", "c", "support", "#support");
+      const CHAT_ROWS = [
+        { rid: "r-lukas", thread: "", room: LUKAS, title: null, replies: 0, author: "Lukas Meier",
+          preview: "Can you have a quick look at the PR? The sync test is red again.", newest_at: at(12, 41),
+          waiting_since: at(12, 41), mention: false, unread: true, files: false, task: false },
+        { rid: "r-dev", thread: "t-rel", room: ORB_DEV, title: "Release 0.9 — what is still missing?", replies: 3,
+          author: "Sara Brunner", preview: "@sam the notarisation step fails on CI, see the log", newest_at: at(12, 20),
+          waiting_since: at(12, 5), mention: true, unread: true, files: true, task: false },
+        { rid: "r-sup", thread: "t-login", room: SUPPORT, title: "Customer cannot sign in after the update", replies: 4,
+          author: "Daniel Rossi", preview: "They are on Safari 17, does that ring a bell?", newest_at: at(11, 5),
+          waiting_since: at(11, 5), mention: false, unread: false, files: false, task: true },
+      ];
+      for (const row of CHAT_ROWS) Object.assign(row, { waits: true, mine_last: false });
+      // A thread of #orb-dev answered already: in the room's list, not in Waiting.
+      const ANSWERED = { rid: "r-dev", thread: "t-flaky", room: ORB_DEV, title: "Flaky store_integration test on CI", replies: 6,
+        author: "Sam Taylor", preview: "Fixed in 3f2a1c0.", newest_at: at(11, 58), waiting_since: at(11, 58),
+        mention: false, unread: false, files: false, task: false, waits: false, mine_last: true };
+      LUKAS.presence = "away";
+      const CHAT_ROOMS = [LUKAS, ORB_DEV, SUPPORT, room("r-gen", "c", "general", "#general")];
+      const message = (id, rid, tmid, who, h, m, body, extra = {}) => ({
+        id, rid, tmid, author_id: who === "Sam Taylor" ? "me" : who, author_username: who.split(" ")[0].toLowerCase(),
+        author_name: who, mine: who === "Sam Taylor", body, ts: at(h, m), edited: false, system: null, replies: 0,
+        mentions_me: false, files: [], reactions: [], quotes: [], tasks: [], ...extra,
+      });
+      const CHAT_MESSAGES = {
+        "r-lukas\u0000": [message("m1", "r-lukas", null, "Lukas Meier", 12, 41, "Can you have a quick look at the PR? The sync test is red again.")],
+        "r-dev\u0000t-rel": [
+          message("t-rel", "r-dev", null, "Lukas Meier", 9, 12, "Release 0.9 — what is still missing?", { replies: 3 }),
+          message("m2", "r-dev", "t-rel", "Sam Taylor", 11, 2, "README is done, the migration notice is in review."),
+          message("m3", "r-dev", "t-rel", "Sara Brunner", 12, 18, "@sam the notarisation step fails on CI, see the log and #4711, not https://ci.example.com/runs/#4712 or `#4713`. Maybe #4714.2.",
+            { mentions_me: true, files: [{ name: "ci-notarize.log", size: 18000 }] }),
+          message("m4", "r-dev", "t-rel", "Sara Brunner", 12, 20, "Probably the *expired* certificate again? `codesign` says so.",
+            { reactions: [{ emoji: ":eyes:", count: 1, mine: false }],
+              // A tall screenshot with its preview, and one whose preview the server cannot give.
+              files: [
+                { name: "codesign.png", mime: "image/png", size: 28081, path: "/file-upload/A/codesign.png",
+                  preview: "/file-upload/B/thumb-codesign.png", width: 572, height: 750 },
+                { name: "cert.png", mime: "image/png", size: 9000, path: "/file-upload/C/cert.png",
+                  preview: "/file-upload/D/thumb-cert.png", width: 400, height: 100 },
+              ],
+              quotes: [{ author: "Sam Taylor", text: "README is done, the migration notice is in review.",
+                link: "https://chat.example.com/group/orb-dev?msg=m2" }] }),
+        ],
+        "r-sup\u0000t-login": [
+          message("t-login", "r-sup", null, "Daniel Rossi", 10, 40, "Customer cannot sign in after the update", { replies: 1 }),
+          message("m5", "r-sup", "t-login", "Daniel Rossi", 11, 5, "They are on Safari 17, does that ring a bell?"),
+        ],
+      };
+      // The support thread is long enough to scroll, and Lukas's messages
+      // reach further back than the first page.
+      for (let i = 0; i < 40; i++) {
+        CHAT_MESSAGES["r-sup\u0000t-login"].splice(1, 0, message(`filler-${i}`, "r-sup", "t-login", "Daniel Rossi", 10, 41, `Earlier note ${i}`));
+      }
+      const CHAT_OLDER = {
+        "r-lukas\u0000": [
+          message("old-1", "r-lukas", null, "Lukas Meier", 8, 1, "Morning — the build from last night is green."),
+          message("old-2", "r-lukas", null, "Sam Taylor", 8, 3, "Thanks, I will look after lunch."),
+        ],
+      };
+      const CHAT_DONE = new Map();
+      // The muted rooms, by id: when the mute ends, or null for one the user ends.
+      const CHAT_MUTED = new Map();
+      const applyMutes = () => {
+        for (const r of CHAT_ROOMS) {
+          const ends = CHAT_MUTED.get(r.rid);
+          r.muted = CHAT_MUTED.has(r.rid) && (ends === null || ends > Date.now());
+          r.muted_until = r.muted ? ends : null;
+        }
+        for (const row of [...CHAT_ROWS, ANSWERED]) row.muted = !!row.room.muted && !row.mention;
+      };
+      // The core's undo history, as far as the tests need it: each action
+      // keeps the calls that take it back, made through `invoke` like any
+      // other so a test sees them.
+      const HISTORY = { undo: [], redo: [] };
+      const remember = (label, back) => {
+        HISTORY.undo.push({ label, back });
+        HISTORY.redo = [];
+      };
+
+      // ?window=tasks: the window that shows tasks only; ?window=message-<id>
+      // and ?window=task-<id>, the window of one message or task.
+      const LABEL =new URLSearchParams(location.search).get("window") ?? "main";
+      window.__TAURI_INTERNALS__ = {
+        metadata: {
+          currentWindow: { label: LABEL },
+          currentWebview: { windowLabel: LABEL, label: LABEL },
+        },
+        transformCallback: (cb) => {
+          const id = "cb_" + Math.random().toString(36).slice(2);
+          window[id] = cb;
+          return id;
+        },
+        convertFileSrc: (p) => p,
+
+        invoke: async (cmd, args) => {
+          window.__calls = window.__calls || [];
+          window.__calls.push({ cmd, args });
+
+          // Remember which callback belongs to which event, so a test can push
+          // progress through the real listener rather than faking the display.
+          if (cmd === "plugin:event|listen") {
+            (window.__listeners = window.__listeners || {})[args.event] = args.handler;
+            return 0;
+          }
+          // Tests can slow a command down or make it fail, to observe the
+          // unconfirmed state and the revert path.
+          const mock = (window.__mock = window.__mock || { delay: {}, fail: [] });
+          // ?failsync=1 makes the startup sync fail, to check that what comes
+          // after it still runs.
+          if (new URLSearchParams(location.search).get('failsync') && !mock.fail.includes('sync_all')) {
+            mock.fail.push('sync_all');
+          }
+          // Every call, in the order made, for the tests that check what an
+          // action was sent to act on.
+          (mock.calls = mock.calls ?? []).push([cmd, args]);
+          await new Promise((r) => setTimeout(r, mock.delay[cmd] ?? 8));
+          if (mock.fail.includes(cmd)) throw `mock failure: ${cmd}`;
+          // Answered commands, for a test that has to wait out the redraw
+          // the startup sync ends in. Recorded a little after the answer,
+          // once what it set off has been drawn.
+          setTimeout(() => (mock.answered = mock.answered ?? []).push(cmd), 50);
+
+          // The actions whose undo the tests only need to see recorded.
+          if (args?.undo && ["stage_action", "unstage_action", "move_messages", "delete_messages", "copy_messages",
+              "transfer_messages", "execute_pending", "execute_pending_all", "discard_pending", "run_filters",
+              "run_filters_all"].includes(cmd)) {
+            remember(args.undo, []);
+          }
+
+          switch (cmd) {
+            case "bindings":
+              return {
+                index_normal: {
+                  j: "next-message",
+                  k: "prev-message",
+                  gg: "top",
+                  G: "bottom",
+                  "<C-d>": "next-page",
+                  "<C-u>": "prev-page",
+                  "<enter>": "open-message-detail",
+                  ":": "command-mode",
+                  "<space>": "select-message",
+                  "B": "fetch-bodies",
+                  "!": "toggle-flag",
+                  d: "mark-delete",
+                  u: "unmark && next-message",
+                  x: "expunge",
+                  A: "stage-read && mark-move Archive && next-message",
+                  y: "create-task-from-message && stage-read && mark-move Archive && next-message",
+                  Y: "create-task-from-message postpone && stage-read && mark-move Archive && next-message",
+                  Z: "mark-delete && advance",
+                  "/": "search-mode",
+                  // ?bind=g2:open-pinned%202 — more bindings, as the config adds them.
+                  ...Object.fromEntries((new URLSearchParams(location.search).get("bind") ?? "")
+                    .split(",").filter(Boolean).map((b) => [b.slice(0, b.indexOf(":")), b.slice(b.indexOf(":") + 1)])),
+                },
+                index_detail: null,
+                // ?own=1 — a command of one's own, as bindings.commands names one.
+                commands: new URLSearchParams(location.search).has("own")
+                  ? { "file-and-next": { run: "stage-read && mark-move Archive && next-message", title: "File and Move On" },
+                      "file-twice": { run: "file-and-next && file-and-next", title: null },
+                      loop: { run: "loop", title: null } }
+                  : null,
+              };
+
+            case "accounts":
+              return [{ name: "Work", email: "me@example.com", drafts_folder: "Drafts",
+                        trash_folder: "Trash", archive_folder: "Archive", junk_folder: "Junk" }];
+            case "pending_counts":
+            case "pending_actions":
+            case "account_statuses":
+              return [];
+            case "outbox":
+              return structuredClone(window.__outbox);
+            case "retry_outbox": {
+              const queued = window.__outbox.find((q) => q.id === args.id);
+              if (queued) queued.failed_at = null;
+              return null;
+            }
+            case "discard_outbox":
+              window.__outbox = window.__outbox.filter((q) => q.id !== args.id);
+              return null;
+            case "edit_outbox": {
+              const q = window.__outbox.find((x) => x.id === args.id);
+              return { account: q.account, draft: { to: q.to, cc: q.cc, bcc: q.bcc, subject: q.subject,
+                body: q.body, in_reply_to: null, references: null, forwards: null,
+                attachments: [], identity: "" } };
+            }
+            // Message 6 carries a file that is dangerous to open, and one that is not.
+            case "attachments":
+              return args.id === 6
+                ? [{ filename: "invoice.html", content_type: "text/html", size: 2048, part_id: "1",
+                     is_inline: false, content_id: null,
+                     risk: "opens in the browser, where it can pose as a sign-in page" },
+                   { filename: "report.pdf", content_type: "application/pdf", size: 4096, part_id: "2",
+                     is_inline: false, content_id: null, risk: null }]
+                : [];
+            case "open_attachment":
+              (mock.openedAttachments = mock.openedAttachments ?? []).push(args.part);
+              return { path: `/tmp/${args.part}`, revealed: false };
+            // Message 9, the spoofed one, also failed the server's check.
+            case "sender_check":
+              return args.id === 9
+                ? { failed: "dmarc=fail", reply_elsewhere: "help@paypa1-support.ru" }
+                : { failed: null, reply_elsewhere: null };
+            // The words of the query, as the core's parser would keep them.
+            case "highlight_terms":
+              return args.query.split(/\s+/).filter((w) => w.length >= 2 && !w.includes(":"));
+
+            // ---- Tasks (§4) -------------------------------------------
+            //
+            // A small in-memory task store, kept here rather than as fixed
+            // replies because the task UI reads back what it just wrote: the
+            // list after a create, the detail after an edit. Canned answers
+            // would let a broken write look like a working one.
+            // ?tasks=1 configures tasks, so the window lands in Today.
+            case "tasks_configured":
+              return new URLSearchParams(location.search).get('tasks') === '1';
+            case "chat_server":
+              return CHAT ? "https://chat.example.com" : null;
+            case "chat_status":
+              return { state: CHAT === "signedout" ? "signed_out" : "live" };
+            case "chat_waiting":
+              applyMutes();
+              return CHAT === "signedout" || CHAT === "quiet" ? [] : CHAT_ROWS.filter((r) => !CHAT_DONE.has(`${r.rid}\u0000${r.thread}`));
+            case "chat_conversation": {
+              const key = `${args.rid}\u0000${args.thread}`;
+              const row = CHAT_ROWS.find((r) => `${r.rid}\u0000${r.thread}` === key);
+              const messages = CHAT_MESSAGES[key] ?? [];
+              const theRoom = row?.room ?? CHAT_ROOMS.find((r) => r.rid === args.rid);
+              return theRoom && {
+                rid: args.rid, thread: args.thread, room: theRoom, title: row?.title ?? null, messages,
+                has_older: !!CHAT_OLDER[key],
+                new_after: messages.filter((m) => m.mine).map((m) => m.ts).pop() ?? null,
+                waiting: CHAT_DONE.has(key) ? null : (row ?? null), mark: null,
+              };
+            }
+            case "chat_rooms":
+              applyMutes();
+              return CHAT === "signedout" ? [] : CHAT_ROOMS;
+            case "chat_room_threads":
+              applyMutes();
+              // A room lists its threads whether they wait or not.
+              return [...CHAT_ROWS.filter((r) => r.rid === args.rid)
+                .map((r) => ({ ...r, waits: !CHAT_DONE.has(`${r.rid}\u0000${r.thread}`) })),
+                ...(args.rid === "r-dev" ? [ANSWERED] : [])];
+            case "chat_find": {
+              const term = args.term.toLowerCase();
+              const rooms = CHAT_ROOMS.filter((r) => (r.name ?? "").includes(term))
+                .map((r) => ({ kind: "room", rid: r.rid, username: r.kind === "d" ? r.name : null,
+                  label: r.kind === "d" ? r.fname : r.label, detail: r.kind === "d" ? "direct" : "" }));
+              const people = term.length >= 2 && "lucia ferri".includes(term)
+                ? [{ kind: "person", rid: null, username: "lucia", label: "Lucia Ferri", detail: "@lucia · new message" }] : [];
+              const join = term.length >= 2 && "random".includes(term)
+                ? [{ kind: "join", rid: "r-random", username: null, label: "#random", detail: "join" }] : [];
+              return [...rooms, ...people, ...join];
+            }
+            case "chat_open_group":
+              if (!CHAT_ROOMS.some((r) => r.rid === "r-group")) {
+                CHAT_ROOMS.push(room("r-group", "d", args.usernames.join(","), "Direct"));
+              }
+              return "r-group";
+            case "chat_open_direct":
+              if (!CHAT_ROOMS.some((r) => r.rid === "r-lucia")) CHAT_ROOMS.push(room("r-lucia", "d", "lucia", "Direct"));
+              return "r-lucia";
+            case "chat_leave": {
+              const at = CHAT_ROOMS.findIndex((r) => r.rid === args.rid);
+              const [left] = at >= 0 ? CHAT_ROOMS.splice(at, 1) : [];
+              const undoable = left?.kind !== "p";
+              if (args.undo && left && undoable) remember(args.undo, [["chat_harness_rejoin", { room: left }]]);
+              return undoable;
+            }
+            case "chat_harness_rejoin": {
+              CHAT_ROOMS.push(args.room);
+              return null;
+            }
+            case "chat_create_room":
+              CHAT_ROOMS.push(room("r-made", args.private ? "p" : "c", args.name, `#${args.name}`));
+              return "r-made";
+            case "chat_join":
+              if (!CHAT_ROOMS.some((r) => r.rid === args.rid)) CHAT_ROOMS.push(room(args.rid, "c", "random", "#random"));
+              return null;
+            case "chat_threads":
+              // ?threads=off: a server with threads turned off.
+              return new URLSearchParams(location.search).get("threads") !== "off";
+            case "chat_reactions":
+              return [":+1:", ":pray:", ":tada:", ":ok_hand:"];
+            case "chat_links":
+              return [{ pattern: "#(\\d+(\\.\\d+)?)", url: "https://tracker.example.com/issues/$1" }];
+            case "chat_set_read": {
+              const row = CHAT_ROWS.find((r) => r.rid === args.rid && r.thread === args.thread);
+              if (row) row.unread = !args.read;
+              if (args.undo) remember(args.undo, [["chat_set_read", { rid: args.rid, thread: args.thread, read: !args.read }]]);
+              return null;
+            }
+            case "chat_create_task": {
+              const key = `${args.rid}\u0000${args.thread}`;
+              const messages = CHAT_MESSAGES[key] ?? [];
+              const source = messages.find((m) => m.id === args.message) ?? messages[messages.length - 1];
+              const task = { id: nextTaskId++, title: source.body.split("\n")[0], postpone_date: args.postpone ?? null,
+                due_date: null, body: null, completed_at: null, deleted_at: null };
+              TASKS.unshift(task);
+              const room = CHAT_ROOMS.find((r) => r.rid === args.rid);
+              LINKS[task.id] = [{ message_id: `chat://chat.example.com/${args.rid}/${source.id}${args.thread ? `?thread=${args.thread}` : ""}`,
+                subject: source.body, from: source.author_name, date: new Date(source.ts).toISOString(),
+                account_name: room?.label ?? null, folder_name: null, answered: false, replied_at: null,
+                chat: { rid: args.rid, thread: args.thread, message: source.id } }];
+              source.tasks = [...(source.tasks ?? []), { id: task.id, title: task.title, done: false }];
+              const row = CHAT_ROWS.find((r) => `${r.rid}\u0000${r.thread}` === key);
+              if (row) row.task = true;
+              CHAT_DONE.set(key, true);
+              remember("create 1 task from chat", [["trash_tasks", { ids: [task.id] }], ["chat_restore_mark", { rid: args.rid, thread: args.thread }]]);
+              return detail(task);
+            }
+            case "chat_open_file":
+              return { path: `/tmp/orb-chat/${args.id}/${args.index}`, revealed: false };
+            case "chat_file_preview":
+              return args.index === 0
+                ? "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="286" height="375"><rect width="286" height="375" fill="#fff"/><rect x="40" y="40" width="30" height="30" fill="none" stroke="#000" stroke-width="4"/></svg>')
+                : null;
+            case "chat_send_files":
+              // An answer, as a message is: the thread leaves Waiting.
+              CHAT_DONE.set(`${args.rid}\u0000${args.thread}`, true);
+              return null;
+            case "chat_edit":
+            case "chat_delete":
+            case "chat_react":
+              return null;
+            case "chat_older":
+              return { messages: CHAT_OLDER[`${args.rid}\u0000${args.thread}`] ?? [], has_older: false };
+            case "chat_done":
+              CHAT_DONE.set(`${args.rid}\u0000${args.thread}`, true);
+              remember(args.undo, [["chat_restore_mark", { rid: args.rid, thread: args.thread }]]);
+              return null;
+            case "chat_mute":
+            case "chat_unmute": {
+              const back = CHAT_MUTED.has(args.rid)
+                ? [["chat_mute", { rid: args.rid, ends: CHAT_MUTED.get(args.rid), undo: "" }]]
+                : [["chat_unmute", { rid: args.rid, undo: "" }]];
+              if (cmd === "chat_mute") CHAT_MUTED.set(args.rid, args.ends ?? null);
+              else CHAT_MUTED.delete(args.rid);
+              if (args.undo) remember(args.undo, back);
+              return null;
+            }
+            case "chat_restore_mark":
+              CHAT_DONE.delete(`${args.rid}\u0000${args.thread}`);
+              return null;
+            case "chat_send": {
+              const key = `${args.rid}\u0000${args.thread}`;
+              (CHAT_MESSAGES[key] ??= []).push(message(`sent-${Date.now()}`, args.rid, args.thread || null, "Sam Taylor", 13, 0, args.text));
+              CHAT_DONE.set(key, true);
+              return null;
+            }
+            case "chat_mark_seen": {
+              const row = CHAT_ROWS.find((r) => r.rid === args.rid && r.thread === args.thread);
+              if (row) row.unread = false;
+              return null;
+            }
+            case "today_task_count":
+              return TASKS.filter((t) => inView(t, "today")).length;
+
+            case "open_task_counts":
+              return [];
+
+            case "open_step_menu":
+              return null;
+
+            case "edit_task_step": {
+              const steps = (TASK_STEPS[args.id] ??= []);
+              const at = steps.findIndex((s) => s.id === args.edit.id);
+              if (args.edit.op === "add") steps.push({ id: `s${Date.now()}`, title: args.edit.title, done: false });
+              if (args.edit.op === "done") {
+                for (const step of steps) if (args.edit.ids.includes(step.id)) step.done = args.edit.done;
+              }
+              if (args.edit.op === "rename") steps[at].title = args.edit.title;
+              if (args.edit.op === "remove") {
+                for (const id of args.edit.ids) steps.splice(steps.findIndex((s) => s.id === id), 1);
+              }
+              if (args.edit.op === "move") {
+                const moving = steps.filter((s) => args.edit.ids.includes(s.id));
+                const rest = steps.filter((s) => !args.edit.ids.includes(s.id));
+                rest.splice(args.edit.to, 0, ...moving);
+                steps.splice(0, steps.length, ...rest);
+              }
+              return detail(TASKS.find((t) => t.id === args.id));
+            }
+
+            // A test sets __taskSync to say what is still to upload.
+            case "task_sync_status":
+              return window.__taskSync ?? { pending: 0, problem: null };
+
+            // ?export=overdue: a configured export that has not run for long.
+            case "task_export_status": {
+              const configured = new URLSearchParams(location.search).get("export") === "overdue";
+              const done = !!window.__exported;
+              return {
+                configured, directory: configured ? "/tmp/orb-exports" : null,
+                last_complete: done ? "2026-08-07T09:00:00+00:00" : null,
+                due: configured && !done, overdue: configured && !done, problem: null,
+              };
+            }
+
+            // A stand-in code: a test sets __setupLifetime to see it renewed.
+            case "iphone_setup_code":
+              window.__setupCodes = (window.__setupCodes ?? 0) + 1;
+              return { svg: `<svg xmlns="http://www.w3.org/2000/svg" data-code="${window.__setupCodes}" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>`,
+                       expires: Math.floor(Date.now() / 1000) + (window.__setupLifetime ?? 300),
+                       login: "me@example.com on imap.example.com", folder: "Orb Tasks" };
+
+            case "export_tasks":
+              window.__exported = true;
+              return { path: "/tmp/orb-exports/orb-tasks-20260807T090000Z-harness", complete: true,
+                       tasks: TASKS.length, attachments: 0, missing: [], bytes: 1000, removed: 0 };
+
+            // A sheet answers with the button a test names in __askAnswer;
+            // Cancel by default.
+            case "plugin:dialog|message":
+              return window.__askAnswer ?? "Cancel";
+
+            case "import_things":
+              return { database: "/tmp/things/main.sqlite", tasks: 12, completed: 7, repeating: 2,
+                       unmapped: ["Pay rent"], already: 0, trashed: 3, projects: 2, headings: 1,
+                       repeat_instances: 2, new_tags: ["Garden"], updated: 4, edited_here: ["Fix the gate"],
+                       repaired: 0, trashed_here: 1, applied: args.apply };
+
+            case "import_tasks":
+              return { snapshot: args.path, exported_at: "2026-08-07T09:00:00+00:00",
+                       new: 2, newer: 1, older: 3, purged: ["Old errand"], tags: 1,
+                       problems: [], applied: args.apply };
+
+            case "working_on_tasks":
+              return TASKS.filter((t) => t.working && !t.completed_at && !t.deleted_at).map(summary);
+
+            case "clear_working_on": {
+              const marked = TASKS.filter((t) => t.working);
+              for (const task of marked) task.working = false;
+              return marked.length;
+            }
+
+            case "complete_tasks":
+            case "uncomplete_tasks":
+              for (const task of TASKS.filter((t) => args.ids.includes(t.id))) {
+                const done = cmd === "complete_tasks";
+                task.completed_at = done ? new Date().toISOString() : null;
+                task.completed_here = done;
+                if (done) task.working = false;
+              }
+              return null;
+
+            case "list_task_tags":
+              return TAGS;
+
+            case "create_task_tag": {
+              const tag = { id: `tag-${TAGS.length + 1}`, name: args.name, colour: null, position: TAGS.length + 1, is_known: true };
+              TAGS.push(tag);
+              return tag;
+            }
+
+            case "add_task_tag":
+              for (const id of args.ids) {
+                const tag = TAGS.find((t) => t.id === args.tag);
+                if (tag && !(TASK_TAGS[id] ?? []).includes(tag)) TASK_TAGS[id] = [...(TASK_TAGS[id] ?? []), tag];
+              }
+              return null;
+
+            case "tasks_for_message":
+              return [];
+
+            case "clear_completed_from_today":
+              // Kept across a reload, as the core keeps it in the database.
+              localStorage.setItem("harness.todayClearedAt", new Date().toISOString());
+              setTimeout(() => window.__emit("tasks-changed", null));
+              return null;
+
+            case "list_tasks": {
+              // A `tag:` term by the tag's name, other words by the title.
+              const tag = /tag:"?([^"\s]+)"?/.exec(args.search ?? "")?.[1];
+              const words = (args.search ?? "").toLowerCase().split(/\s+/).filter((w) => w && !w.startsWith("tag:"));
+              const since = args.view === "today" ? localStorage.getItem("harness.todayClearedAt") : null;
+              return TASKS.filter((t) => inView(t, args.view, since))
+                .filter((t) => !tag || (TASK_TAGS[t.id] ?? []).some((g) => g.name === tag))
+                .filter((t) => words.every((w) => t.title.toLowerCase().includes(w)))
+                // Upcoming by the earlier date, as the core orders it; a stable sort keeps the order within a day.
+                .sort((a, b) => {
+                  if (args.view !== "upcoming") return 0;
+                  const comes = (t) => [t.postpone_date, t.due_date].filter(Boolean).sort()[0];
+                  return comes(a).localeCompare(comes(b));
+                })
+                .map((t) => ({ ...summary(t), is_done_for_today: args.view === "today" && !!t.done_today }));
+            }
+
+            case "search_tasks": {
+              // Bare words against the title, in the order the core returns
+              // them (§26): open by the date they come up, the undated after,
+              // the completed last. A mail-only term finds no task.
+              const words = (args.query || "").toLowerCase().split(/\s+/).filter(Boolean);
+              if (words.some((w) => /^(f|from|t|to|cc|in|is|has|acct):/.test(w))) return [];
+              const comes = (t) => [t.postpone_date, t.due_date].filter(Boolean).sort()[0] ?? "~";
+              return TASKS.filter((t) => !t.deleted_at && words.every((w) => t.title.toLowerCase().includes(w)))
+                .sort((a, b) => !!a.completed_at - !!b.completed_at || (comes(a) < comes(b) ? -1 : comes(a) > comes(b) ? 1 : 0))
+                .map(summary);
+            }
+
+            case "get_task": {
+              const task = TASKS.find((t) => t.id === args.id);
+              return task ? detail(task) : null;
+            }
+
+            case "create_tasks_from_messages": {
+              const made = args.messages.map((id) => {
+                const task = {
+                  id: nextTaskId++,
+                  title: `Message #${id}`,
+                  postpone_date: args.postpone ?? null,
+                  due_date: null,
+                  body: null,
+                  completed_at: null,
+                  deleted_at: null,
+                };
+                TASKS.unshift(task);
+                return detail(task);
+              });
+              const n = made.length;
+              remember(`create ${n} task${n === 1 ? "" : "s"} from mail`, [["trash_tasks", { ids: made.map((d) => d.task.id) }]]);
+              return made;
+            }
+
+            case "undo":
+            case "redo": {
+              const entry = (cmd === "undo" ? HISTORY.undo : HISTORY.redo).pop();
+              if (!entry) return null;
+              if (cmd === "undo") {
+                for (const [c, a] of [...entry.back].reverse()) await window.__TAURI_INTERNALS__.invoke(c, a);
+                HISTORY.redo.push({ label: entry.label, back: [] });
+              } else {
+                HISTORY.undo.push(entry);
+              }
+              return { label: entry.label, said: "" };
+            }
+            case "begin_undo_group":
+              return HISTORY.undo.length;
+            case "end_undo_group": {
+              const parts = HISTORY.undo.splice(args.mark);
+              if (parts.length > 0) {
+                HISTORY.undo.push({
+                  label: args.label ?? parts.map((p) => p.label).join(", "),
+                  back: parts.flatMap((p) => p.back),
+                });
+              }
+              return null;
+            }
+
+            case "create_task": {
+              const task = {
+                id: nextTaskId++,
+                title: args.title,
+                postpone_date: args.postpone ?? null,
+                due_date: null,
+                body: null,
+                completed_at: null,
+                deleted_at: null,
+                dirty: true,
+              };
+              TASKS.unshift(task);
+              return detail(task);
+            }
+
+            case "update_task": {
+              applyEdit(
+                TASKS.find((t) => t.id === args.id),
+                args.edit,
+              );
+              return detail(TASKS.find((t) => t.id === args.id));
+            }
+
+            case "update_tasks": {
+              for (const id of args.ids) applyEdit(TASKS.find((t) => t.id === id), args.edit);
+              return args.ids.length;
+            }
+
+            case "set_task_postpone_date":
+            case "set_task_due_date": {
+              const field = cmd === "set_task_postpone_date" ? "postpone_date" : "due_date";
+              for (const id of args.ids) {
+                const task = TASKS.find((t) => t.id === id);
+                if (task) task[field] = args.date;
+              }
+              return args.ids.length;
+            }
+
+            // The kept task first, then the others' titles and notes, as the core plans it.
+            case "plan_task_merge": {
+              const tasks = [args.keep, ...args.others].map((id) => TASKS.find((t) => t.id === id));
+              const parts = [tasks[0].body, ...tasks.slice(1).map((t) => (t.body ? `${t.title}\n${t.body}` : t.title))].filter(Boolean);
+              const earliest = (key) => tasks.map((t) => t[key]).filter(Boolean).sort()[0] ?? null;
+              return {
+                tasks: tasks.map(summary), body: parts.join("\n\n") || null,
+                postpone_date: earliest("postpone_date"), due_date: earliest("due_date"),
+                steps: tasks.reduce((n, t) => n + (TASK_STEPS[t.id]?.length ?? 0), 0),
+                tags: 0, reminders: 0, links: 0, attachments: 0,
+              };
+            }
+
+            case "merge_tasks": {
+              const kept = TASKS.find((t) => t.id === args.keep);
+              Object.assign(kept, { title: args.title, body: args.body, postpone_date: args.postpone, due_date: args.due });
+              for (const id of args.others) {
+                TASK_STEPS[args.keep] = [...(TASK_STEPS[args.keep] ?? []), ...(TASK_STEPS[id] ?? [])];
+                TASKS.splice(TASKS.findIndex((t) => t.id === id), 1);
+              }
+              return detail(kept);
+            }
+
+            case "discard_task":
+            case "trash_tasks": {
+              const ids = args.ids ?? [args.id];
+              for (const id of ids) {
+                const at = TASKS.findIndex((t) => t.id === id);
+                if (at >= 0) TASKS.splice(at, 1);
+              }
+              return ids.length;
+            }
+
+            // Puts the task between the two it was dropped between, in the
+            // fixture's order, which is the order the views list them in.
+            // Neighbours the wrong way round are refused, as the core refuses
+            // them.
+            case "move_task": {
+              const below = TASKS.findIndex((t) => t.id === args.before);
+              const above = TASKS.findIndex((t) => t.id === args.after);
+              if (below >= 0 && above >= 0 && below > above) {
+                throw new Error("cannot place a task between neighbours the wrong way round");
+              }
+              const at = TASKS.findIndex((t) => t.id === args.id);
+              const [task] = TASKS.splice(at, 1);
+              const after = TASKS.findIndex((t) => t.id === args.after);
+              const before = TASKS.findIndex((t) => t.id === args.before);
+              const to = args.after != null && after >= 0 ? after : before >= 0 ? before + 1 : TASKS.length;
+              TASKS.splice(to, 0, task);
+              return null;
+            }
+
+            case "move_tasks": {
+              const moving = args.ids.map((id) => TASKS.find((t) => t.id === id));
+              for (const task of moving) TASKS.splice(TASKS.indexOf(task), 1);
+              const after = TASKS.findIndex((t) => t.id === args.after);
+              const before = TASKS.findIndex((t) => t.id === args.before);
+              const to = before >= 0 ? before + 1 : after >= 0 ? after : TASKS.length;
+              TASKS.splice(to, 0, ...moving);
+              return moving.length;
+            }
+
+            case "suggest_dates":
+              return [{ date: "2026-08-20", time: null, primary: "Thursday", secondary: "20 Aug" }];
+
+            case "sync_tasks":
+              return { listed: 0, downloaded: 0, uploaded: 0, deleted: 0, purged: 0,
+                       expunged: 0, rebound: 0, attachments_uploaded: 0,
+                       uidvalidity_reset: false, unreadable: 0, errors: [] };
+
+            case "ui_settings":
+              return {
+                default_message_view:
+                  new URLSearchParams(location.search).get('view') ?? 'html',
+                mark_read_after_ms: Number(
+                  new URLSearchParams(location.search).get('markread') ?? 2000,
+                ),
+                columns: (new URLSearchParams(location.search).get('columns') ?? 'meta,tasks,from,subject,date').split(','),
+                date_format: new URLSearchParams(location.search).get('datefmt') ?? '%b %d %H:%M',
+                search_sort: new URLSearchParams(location.search).get('searchsort') ?? 'relevance',
+                density: new URLSearchParams(location.search).get('density') ?? 'comfortable',
+                from_width: null,
+                date_width: null,
+                theme: new URLSearchParams(location.search).get('theme') ?? 'system',
+                font_size: Number(new URLSearchParams(location.search).get('font') ?? 13),
+                dark_html_mail: new URLSearchParams(location.search).get('darkmail') !== 'off',
+                // A test changes the config's look by setting __configLook.
+                look: window.__configLook ?? new URLSearchParams(location.search).get('look') ?? 'hybrid',
+                completed_first_in_today: new URLSearchParams(location.search).get('completedfirst') === '1',
+              };
+
+            // ?pins=today,Work/INBOX,waiting,view:Invoices,reading — what
+            // `pinned` lists, in its order; Today and the two pinned inboxes
+            // otherwise. The core leaves out a task pin without tasks, as here.
+            case "pins": {
+              const spec = new URLSearchParams(location.search).get("pins") ?? "today,Work/INBOX,Private/INBOX";
+              const named = (kind, name) => ({ kind, name, account: null, folder: null });
+              return spec.split(",").filter(Boolean).map((p) =>
+                p === "waiting" ? named("chat", "waiting")
+                : p === "reading" ? named("reading", "list")
+                : p === "must-read" ? named("reading", "must-read")
+                : p.startsWith("view:") ? named("view", p.slice(5))
+                : p.includes("/") ? { kind: "folder", name: null, account: p.split("/")[0], folder: p.split("/")[1] }
+                : named("tasks", p));
+            }
+
+            case "virtual_folders":
+              return [
+                { name: "Unread everywhere", icon: null, query: "is:unread" },
+                { name: "Invoices", icon: "fa-file-invoice", query: "s:invoice OR b:rechnung" },
+              ];
+
+            case "mark_read":
+            case "mark_flagged":
+              if (args.undo) {
+                const field = cmd === "mark_read" ? "read" : "flagged";
+                remember(args.undo, [[cmd, { account: args.account, folder: args.folder, uids: args.uids, [field]: !args[field] }]]);
+              }
+              return null;
+
+            case "config_warnings":
+              return mock.warnings ?? [];
+
+            case "notification_permission":
+              return mock.notifications ?? "granted";
+
+            // Every style option, over a few rules, so the rendering of each
+            // can be looked at: the first rows of the folder show them all.
+            case "highlight_styles":
+              return HIGHLIGHT_STYLES;
+            case "highlight_badges":
+              return [{ account: "Work", folder: "Archive", rule: "Boss", count: 3 }];
+            case "highlight_counts":
+              return HIGHLIGHT_STYLES.map((h, n) => ({ rule: h.name, count: 7 * (n + 1) }));
+
+            case "folders":
+              // Mirrors the real shape: the pinned folders' own records first,
+              // drawn among the pins, then each account's heading and folders.
+              return [
+                { account_name: "Work", display_name: "Work", folder_name: "INBOX",
+                  is_account_header: false, is_pinned: true, unread_count: 2, total_count: EMPTY ? 0 : 2,
+                  threads: false, columns: null, role: "inbox", depth: 0, parent: null, label: "Work" },
+                { account_name: "Private", display_name: "Private", folder_name: "INBOX",
+                  is_account_header: false, is_pinned: true, unread_count: 4, total_count: EMPTY ? 0 : 4,
+                  threads: false, columns: null, role: "inbox", depth: 0, parent: null, label: "Private" },
+                { account_name: "Work", display_name: "Work", folder_name: null,
+                  is_account_header: true, unread_count: 0, total_count: 0, threads: false, columns: null },
+                { account_name: "Work", display_name: "INBOX", folder_name: "INBOX",
+                  is_account_header: false, is_pinned: false, unread_count: 2, total_count: EMPTY ? 0 : 2,
+                  threads: false, columns: null, role: "inbox", depth: 0, parent: null, label: "INBOX" },
+                {
+                  account_name: "Work",
+                  display_name: "Archive",
+                  folder_name: "Archive",
+                  is_account_header: false,
+                  unread_count: 12,
+                  total_count: TOTAL - (mock.removed ?? 0),
+                  threads: false,
+                  columns: null,
+                  role: "archive",
+                  depth: 0,
+                  parent: null,
+                  label: "Archive",
+                  // The archive opens oldest first, as its config could say.
+                  sort: new URLSearchParams(location.search).get("archivesort") ?? "DateNewest",
+                },
+                // A folder inside the archive, to be indented and folded away.
+                { account_name: "Work", display_name: "Archive/2025", folder_name: "Archive/2025",
+                  is_account_header: false, unread_count: 0, total_count: 0, threads: false,
+                  columns: null, role: null, depth: 1, parent: "Archive", label: "2025" },
+                { account_name: "Private", display_name: "Private", folder_name: null,
+                  is_account_header: true, unread_count: 0, total_count: 0, threads: false, columns: null },
+                { account_name: "Private", display_name: "INBOX", folder_name: "INBOX",
+                  is_account_header: false, is_pinned: false, unread_count: 4, total_count: EMPTY ? 0 : 4,
+                  threads: false, columns: null, role: "inbox", depth: 0, parent: null, label: "INBOX" },
+                ...(READING ? [
+                  { account_name: "Private", display_name: "Reading", folder_name: "INBOX.Reading",
+                    is_account_header: false, is_pinned: false, unread_count: 3, total_count: 4,
+                    threads: false, columns: null, role: "reading", depth: 0, parent: null, label: "Reading" },
+                  { account_name: "Private", display_name: "Reading Archive", folder_name: "INBOX.Reading Archive",
+                    is_account_header: false, is_pinned: false, unread_count: 0, total_count: 4,
+                    threads: false, columns: null, role: "reading-archive", depth: 0, parent: null, label: "Reading Archive" },
+                ] : []),
+                // Spread out, every message on the timeline can be archived.
+                ...(SPREAD ? [
+                  { account_name: "Private", display_name: "Archive", folder_name: "Archive",
+                    is_account_header: false, is_pinned: false, unread_count: 0, total_count: 0,
+                    threads: false, columns: null, role: "archive", depth: 0, parent: null, label: "Archive" },
+                ] : []),
+              ];
+
+            // Threads: every message whose index is a multiple of 4 heads a
+            // thread of three (itself and the two after it), the rest stand
+            // alone; an expanded thread shows its members under it.
+            // As the folder list counts them, with arrivals by push included.
+            // A message_links rule matching every message, and an opener that
+            // only remembers what it was asked to open.
+            case "message_links":
+              return [{ name: "issue", url: `https://tracker.example.com/go/${args.id}` }];
+            case "task_links": {
+              const task = TASKS.find((t) => t.id === args.id);
+              const url = /https?:\/\/\S+/.exec(task?.body?.split("\n")[0] ?? "")?.[0];
+              return url ? [{ name: null, url }] : [];
+            }
+            case "open_external":
+              mock.opened = [...(mock.opened ?? []), args.url];
+              return null;
+            case "folder_total":
+              if (args.folder === "Archive") return TOTAL - (mock.removed ?? 0) + (mock.arrived ?? 0);
+              if (args.folder === "Archive/2025" || EMPTY) return 0;
+              return args.account === "Work" ? 2 : 4;
+            case "thread_total": {
+              const live = TOTAL - (mock.removed ?? 0) + (mock.arrived ?? 0);
+              const threads = live - 2 * Math.floor((live + 3) / 4);
+              return threads + 2 * (args.expanded ?? []).length;
+            }
+            // The inboxes as one list: each folder's rows in turn, which is
+            // merged enough for a stub whose dates are all alike.
+            case "inbox_messages": {
+              const all = [];
+              for (const [account, folder] of args.folders) {
+                // Spread out, each inbox holds as many as the folder list counts.
+                const limit = SPREAD ? await window.__TAURI_INTERNALS__.invoke("folder_total", { account, folder }) : 1000;
+                all.push(...(await window.__TAURI_INTERNALS__.invoke("messages", { account, folder, offset: 0, limit, sort: args.sort, threads: args.threads, expanded: args.expanded })));
+              }
+              if (SPREAD && !args.threads) {
+                for (let i = all.length - 1; i >= 0; i--) {
+                  if (gone.has(`${all[i].account_name}\u0000${all[i].folder_name}\u0000${all[i].uid}`)) all.splice(i, 1);
+                }
+                const way = args.sort === "DateOldest" ? 1 : -1;
+                all.sort((a, b) => way * (Date.parse(a.date) - Date.parse(b.date)));
+              }
+              return all.slice(args.offset, args.offset + args.limit);
+            }
+            // How many inbox rows come before items dated `times`, by date.
+            case "inbox_ranks": {
+              const rows = await window.__TAURI_INTERNALS__.invoke("inbox_messages", {
+                folders: args.folders, offset: 0, limit: 100000, threads: args.threads, expanded: args.expanded,
+                sort: args.newestFirst ? "DateNewest" : "DateOldest",
+              });
+              const time = (m) => Date.parse((m.thread_count > 1 && !m.thread_expanded ? m.thread_latest : null) ?? m.date) / 1000;
+              const newest = args.newestFirst || args.threads;
+              return args.times.map((t) => rows.filter((m) => (newest ? time(m) > t : time(m) < t)).length);
+            }
+            case "inbox_thread_total":
+              return (await window.__TAURI_INTERNALS__.invoke("inbox_messages", { ...args, threads: true, offset: 0, limit: 100000 })).length;
+            case "messages": {
+              // Every inbox filed away, while the folder list still counts
+              // what it held.
+              if (mock.inboxEmpty && args.folder === "INBOX") return [];
+              if (args.threads) {
+                const expanded = new Set(args.expanded ?? []);
+                const rows = [];
+                let flat = 0;
+                for (let i = 0; i < TOTAL && rows.length < args.limit; i++) {
+                  const head = i % 4 === 0;
+                  const member = !head && i % 4 <= 2;
+                  const threadId = `<t${i - (i % 4)}@example.com>`;
+                  if (member && !expanded.has(threadId)) continue;
+                  if (flat++ < args.offset) continue;
+                  // A collapsed thread's row stands for its three members:
+                  // read when all are, with the newest one's sender and words.
+                  const collapsed = head && !expanded.has(threadId);
+                  const members = [i, i + 1, i + 2];
+                  const read = (j) => (mock.read?.[j] ?? j % 3 !== 0);
+                  rows.push({
+                    id: i, uid: i, account_name: args.account, folder_name: args.folder,
+                    from_display: `Sender ${i} <s${i}@example.com>`,
+                    subject: head ? `Thread #${i}` : member ? `Re: Thread #${i - (i % 4)}` : `Message #${i}`,
+                    date: "2026-01-01T00:00:00Z",
+                    is_read: collapsed ? members.every(read) : read(i),
+                    is_flagged: false,
+                    has_attachments: false, pending_action: null, highlights: highlightsOf(i),
+                    thread_id: head || member ? threadId : `<m${i}@example.com>`,
+                    thread_count: head || member ? 3 : 1,
+                    thread_unread: collapsed ? members.filter((j) => !read(j)).length : 0,
+                    thread_expanded: expanded.has(threadId),
+                    depth: member ? i % 4 : 0,
+                    thread_latest: head ? "2026-01-02T00:00:00Z" : null,
+                    thread_members: collapsed ? members : [],
+                    thread_newest_from: collapsed ? `Sender ${i + 2} <s${i + 2}@example.com>` : null,
+                    snippet: collapsed ? `The last word of thread ${i}.` : null,
+                  });
+                }
+                return rows;
+              }
+              // `mock.removed` drops messages from the top, as filing them
+              // elsewhere does. `mock.arrived` adds newer ones above, as new
+              // mail does — both move every message below them.
+              const rows = [];
+              const arrived = mock.arrived ?? 0;
+              const dropped = mock.removed ?? 0;
+              const live = TOTAL - dropped + arrived;
+              const end = Math.min(args.offset + args.limit, live);
+              for (let position = args.offset; position < end; position++) {
+                // Newest first: arrivals occupy the first rows, and everything
+                // else keeps its identity but shifts down.
+                const i = position < arrived ? 10_000 + position : position - arrived + dropped;
+                rows.push({
+                  // Spread out, both inboxes are on one timeline, and a row id
+                  // names one message across them, as the core's does.
+                  id: SPREAD && args.account === "Private" ? 20_000 + i : i,
+                  uid: i,
+                  account_name: args.account,
+                  folder_name: args.folder,
+                  // Message 7 is from a bare address, which the row shows once;
+                  // message 9 from an address its name pretends is another.
+                  from_display: i === 7 ? `s${i}@example.com`
+                    : i === 9 ? `"service@paypal.com" <security@paypa1-support.ru>`
+                    : `Sender ${i} <s${i}@example.com>`,
+                  to_display: `Me <me@example.com>, Other <o${i}@example.com>`,
+                  // Bodies not fetched yet have no snippet; every third one.
+                  snippet: i % 3 === 2 ? null : `The opening line of message ${i}, as the list shows it.`,
+                  subject: `Message #${i}`,
+                  date: mailDate(i),
+                  is_read: i % 3 !== 0,
+                  is_flagged: i % 50 === 0,
+                  // Answered: 1 read, 3 unread, where the unread dot wins.
+                  // Forwarded: 4; 1 as well, where answered wins.
+                  is_answered: i === 1 || i === 3,
+                  is_forwarded: i === 1 || i === 4,
+                  has_attachments: i % 17 === 0,
+                  pending_action: null,
+                  highlights: highlightsOf(i),
+                  subject_icons: subjectIconsOf(i),
+                });
+              }
+              return rows;
+            }
+
+            case "message":
+            case "message_complete": {
+              const whole = await window.__TAURI_INTERNALS__.invoke("message_whole", args);
+              // ?textfirst=1: what is stored is the text alone, as after the
+              // background pass; the HTML comes with `message_complete`.
+              if (cmd === "message" && new URLSearchParams(location.search).has("textfirst") && whole.body_html) {
+                return { ...whole, body_html: null, incomplete: true };
+              }
+              return whole;
+            }
+            case "message_whole":
+              return {
+                id: args.id,
+                from_display: args.id === 9 ? `"service@paypal.com" <security@paypa1-support.ru>` : "Sender <s@example.com>",
+                to_display: "me@example.com",
+                subject: `Message #${args.id}`,
+                subject_icons: subjectIconsOf(args.id),
+                date: "2026-01-01T00:00:00Z",
+                // Message 3 is an empty draft: no text and no HTML at all.
+                body_text: args.id === 3 ? "" :
+                  `Body of message ${args.id}. See https://example.com/a?b=1&c=2 ` +
+                  `or write to sender${args.id}@example.com. Also www.example.org.` +
+                  (args.id === 5 ? "\n\n-- \nSender\nhttps://example.com/sender\n\nOn Monday, Me wrote:\n> earlier" : ""),
+                body_html:
+                  args.id % 4 === 0
+                    ? `<!DOCTYPE html><html><head><style>@import url(http://127.0.0.1:9/x.css);</style></head>` +
+                      `<body><p>HTML body of message ${args.id}</p>` +
+                      `<img id="remote" src="http://127.0.0.1:9/pixel.png" alt="remote">` +
+                      `<img id="embedded" src="cid:logo@example.com" alt="embedded"></body></html>`
+                    : args.id % 2 === 0
+                      ? `<p>HTML body of message ${args.id}</p>` +
+                        `<p><a id="news" href="https://example.com/news" target="_blank">Read the news</a> ` +
+                        `<a id="top" href="#top">Back to the top</a> ` +
+                        `<a id="fake" href="https://evil.example/login">https://bank.example/login</a></p>` +
+                        `<img id="pixel" src="https://example.com/o.gif" width="1" height="1" alt="">`
+                      : null,
+                has_attachments: args.id === 6,
+                remote_images_allowed: args.id % 8 === 0,
+                highlights: highlightsOf(args.id),
+              };
+
+            case "inline_images":
+              // A 1×1 red PNG, so a resolved `cid:` can be told from a broken one.
+              return [{
+                content_id: "logo@example.com",
+                content_type: "image/png",
+                data_base64:
+                  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
+              }];
+
+            case "move_messages":
+              // Spread out, the mail moved leaves its inbox or the reading
+              // list, as it does from Today's timeline.
+              if (SPREAD) for (const uid of args.uids) gone.add(`${args.account}\u0000${args.folder}\u0000${uid}`);
+              return { warning: null, moved: ["<moved@example.com>"] };
+            case "poll_feeds":
+              return { polled: 2, appended: 3, problems: ["https://broken.example/rss: the server answered 404 Not Found"] };
+            case "feed_statuses":
+              return [
+                { url: "https://this-week-in-rust.org/rss.xml", name: "This Week in Rust", polled_at: 1792400000, last_error: null },
+                { url: "https://broken.example/rss", name: null, polled_at: 1792400000, last_error: "the server answered 404 Not Found" },
+              ];
+            case "transfer_messages":
+              return { transferred: args.uids.length, missing: 0, warning: null };
+            case "trash_folder":
+              return "Trash";
+
+            case "delete_messages":
+              return args.folder === "Trash"
+                ? { kind: "Deleted" }
+                : { kind: "MovedToTrash", trash: "Trash" };
+
+            case "raw_message":
+              return `Return-Path: <s@example.com>\r\nSubject: Message #${args.id}\r\n` +
+                     `From: Sender <s@example.com>\r\n\r\nBody of message ${args.id}`;
+
+            // The linked mail of task 1 is far down the Archive, past its
+            // first page; an Archive message's id is its row.
+            case "linked_message":
+              if (mock.linked) return { message_id: args.message, resolution: "local", ...mock.linked };
+              return { message_id: args.message, resolution: "local", local_id: 5000,
+                       account_name: "Work", folder_name: "Archive", subject: "Message #5000",
+                       from: "Sender 5000", date: "2026-01-01T00:00:00Z" };
+            case "message_row": {
+              if (args.folder === "Archive") return args.id;
+              const total = await window.__TAURI_INTERNALS__.invoke("folder_total", { account: args.account, folder: args.folder });
+              return args.id < total ? args.id : null;
+            }
+            // Found by reading the whole list, as no test list is long.
+            case "inbox_message_row": {
+              let total = 0;
+              for (const [account, folder] of args.folders) total += await window.__TAURI_INTERNALS__.invoke("folder_total", { account, folder });
+              const rows = await window.__TAURI_INTERNALS__.invoke("inbox_messages", { folders: args.folders, offset: 0, limit: total, sort: args.sort });
+              const at = rows.findIndex((m) => m.id === args.id);
+              return at < 0 ? null : at;
+            }
+            // The stub's threads: every four messages, the first three one thread.
+            case "thread_row": {
+              const i = args.id;
+              const expand = i % 4 <= 2;
+              const thread = expand ? `<t${i - (i % 4)}@example.com>` : `<m${i}@example.com>`;
+              const expanded = expand ? [...new Set([...args.expanded, thread])] : args.expanded;
+              const [account, folder] = args.folders[0];
+              const rows = args.folders.length > 1
+                ? await window.__TAURI_INTERNALS__.invoke("inbox_messages", { folders: args.folders, offset: 0, limit: 100000, threads: true, expanded })
+                : await window.__TAURI_INTERNALS__.invoke("messages", { account, folder, offset: 0, limit: 100000, threads: true, expanded });
+              const row = rows.findIndex((m) => m.id === i);
+              return row < 0 ? null : { row, thread, expand };
+            }
+            // The members of the stub's threads: `<tN@example.com>` is N, N+1, N+2.
+            case "thread_members": {
+              mock.threadMembers = [...(mock.threadMembers ?? []), args.threads];
+              const [account, folder] = args.folders[0];
+              return args.threads.flatMap((thread) => {
+                const head = Number(/^<t(\d+)@/.exec(thread)?.[1] ?? -1);
+                if (head < 0) return [];
+                return [head, head + 1, head + 2].map((j, k) => ({
+                  id: j, uid: j, account_name: account, folder_name: folder,
+                  from_display: `Sender ${j} <s${j}@example.com>`,
+                  to_display: "Me <me@example.com>",
+                  subject: k ? `Re: Thread #${head}` : `Thread #${head}`,
+                  date: `2026-01-0${k + 1}T09:00:00Z`,
+                  is_read: mock.read?.[j] ?? j % 3 !== 0,
+                  is_flagged: false, has_attachments: false, pending_action: null,
+                  highlights: highlightsOf(j),
+                  snippet: `The opening line of message ${j}.`,
+                }));
+              });
+            }
+            case "thread_messages":
+              return [0, 1, 2].map((i) => ({
+                message: { id: i, uid: i, from_display: `Sender ${i} <s${i}@example.com>`,
+                  subject: i ? `Re: Thread #0` : "Thread #0", date: `2026-01-0${i + 1}T00:00:00Z`,
+                  is_read: true, is_flagged: false, has_attachments: false, pending_action: null,
+                  highlights: [] },
+                account_name: "Work", folder_name: i === 1 ? "Sent" : "Archive",
+              }));
+            case "search": {
+              // The reading folder: four newsletters, two of them flagged.
+              if (args.scope?.Folders?.folders?.[0]?.[1] === "INBOX.Reading") {
+                const items = ["Hacker Newsletter #712", "This Week in Rust 571", "How Linear builds product", "Der Morgen"]
+                  .map((subject, i) => ({
+                    message: {
+                      id: 50_000 + i, uid: 500 + i, account_name: "Private", folder_name: "INBOX.Reading",
+                      from_display: `Newsletter ${i} <news${i}@example.com>`, subject,
+                      date: SPREAD ? mailDate(3.25 + 3 * i) : "2026-10-1" + i + "T08:00:00Z", is_read: i % 2 === 1, is_flagged: i < 2,
+                      has_attachments: false, pending_action: null,
+                    },
+                    account_name: "Private",
+                    folder_name: "INBOX.Reading",
+                  }));
+                // A flag, and words the subject has to hold, as Today's filter adds.
+                const [flag, ...words] = (args.query || "").toLowerCase().split(/\s+/).filter(Boolean);
+                return items.filter((h) => !gone.has(`Private\u0000INBOX.Reading\u0000${h.message.uid}`) &&
+                  (flag === "is:flagged" ? h.message.is_flagged : flag === "is:unread" ? !h.message.is_read : true) &&
+                  words.every((w) => h.message.subject.toLowerCase().includes(w)));
+              }
+              // Match on the subject text, enough to drive the UI. A `~` query
+              // stands in for search by meaning: it matches on a short prefix,
+              // so a misspelt word still finds something.
+              const semantic = (args.query || "").startsWith("~");
+              const needle = (args.query || "")
+                .replace(/^~/, "")
+                .replace(/^\w+:/, "")
+                .toLowerCase();
+              if (semantic) {
+                const stem = needle.split(/\s+/)[0].slice(0, 3);
+                const loose = [];
+                for (let i = 0; i < Math.min(12, TOTAL); i++) {
+                  if (`message #${i}`.includes(stem)) {
+                    loose.push({
+                      message: {
+                        id: i, uid: i,
+                        from_display: `Sender ${i} <s${i}@example.com>`,
+                        subject: `Message #${i}`, date: "2026-01-01T00:00:00Z",
+                        is_read: true, is_flagged: false, has_attachments: false,
+                        pending_action: null,
+                      },
+                      account_name: "Work",
+                      folder_name: "Archive",
+                    });
+                  }
+                }
+                return loose;
+              }
+              const hits = [];
+              for (let i = 0; i < Math.min(40, TOTAL); i++) {
+                if (`message #${i}`.includes(needle)) {
+                  hits.push({
+                    message: {
+                      id: i, uid: i,
+                      from_display: `Sender ${i} <s${i}@example.com>`,
+                      subject: `Message #${i}`, date: "2026-01-01T00:00:00Z",
+                      is_read: true, is_flagged: false, has_attachments: false,
+                      pending_action: null,
+                    },
+                    account_name: "Work",
+                    folder_name: i % 2 ? "Archive" : "INBOX",
+                  });
+                }
+              }
+              // Narrowed to folders: only the hits in them.
+              const only = args.scope?.Folders?.folders;
+              if (only) return hits.filter((h) => only.some(([a, f]) => a === h.account_name && f === h.folder_name));
+              // A sort by sender stands for every sort the core can do.
+              if (args.sort === "SenderAsc" || args.sort === "SenderDesc") {
+                hits.sort((a, b) => a.message.from_display.localeCompare(b.message.from_display));
+                if (args.sort === "SenderDesc") hits.reverse();
+              }
+              return hits;
+            }
+
+            // The address book: two people, matched by name or address.
+            case "suggest_recipients": {
+              const people = [
+                { name: "Sara Brunner", address: "sara.brunner@example.com" },
+                { name: "Sarah Keller", address: "s.keller@example.ch" },
+              ];
+              const q = (args.query || "").toLowerCase();
+              return people
+                .filter((p) => p.name.toLowerCase().includes(q) || p.address.includes(q))
+                .slice(0, args.limit)
+                .map((p) => ({ name: p.name, recipients: [p], source: { kind: "history" }, score: 1 }));
+            }
+
+            case "filter_messages": {
+              // The messages of the folders on screen whose subject has every
+              // word, in the folder of the first one asked for.
+              const words = (args.query || "").toLowerCase().split(/\s+/).filter(Boolean);
+              const [account, folder] = args.folders[0] ?? ["Work", "INBOX"];
+              const kept = [];
+              for (let i = 0; i < Math.min(200, TOTAL); i++) {
+                if (!words.every((w) => `message #${i}`.includes(w))) continue;
+                kept.push({
+                  message: {
+                    id: i, uid: i,
+                    from_display: `Sender ${i} <s${i}@example.com>`,
+                    subject: `Message #${i}`, date: "2026-01-01T00:00:00Z",
+                    is_read: true, is_flagged: false, has_attachments: false,
+                    pending_action: null,
+                  },
+                  account_name: account,
+                  folder_name: folder,
+                });
+              }
+              return kept;
+            }
+
+            case "fetch_bodies": {
+              // Only subjects are being repaired, which is what a mailbox with
+              // a large subject backlog actually does on every early pass.
+              // Never-ending work, for testing what happens *while* a long
+              // background job runs rather than how it ends.
+              if (mock.endlessBodies) {
+                mock.step = (mock.step ?? 0) + 1;
+                return { shaped: 0, unshaped: 0, fetched: 10, missing: 0, unreadable: 0, embedded: 0, embeddings_pending: 0,
+                         html: 0, sources: 0, sources_pending: 0, threaded: 0, threads_pending: 0, pending: 9999, total: 99999, messages: 99999 };
+              }
+              // Two folders of 200. Each is shaped then bodied before the next
+              // is touched, so the second folder's shaping follows the first
+              // folder's bodies.
+              mock.step = (mock.step ?? 0) + 1;
+              const steps = [
+                { shaped: 200, unshaped: 200, fetched: 0,   pending: 400, total: 200 },
+                { shaped: 0,   unshaped: 200, fetched: 200, pending: 200, total: 200 },
+                { shaped: 200, unshaped: 0,   fetched: 0,   pending: 200, total: 400 },
+                { shaped: 0,   unshaped: 0,   fetched: 200, pending: 0,   total: 400 },
+              ];
+              const st = steps[Math.min(mock.step - 1, steps.length - 1)];
+              return { ...st, messages: 400, missing: 0, unreadable: 0, html: 0, sources: 0, sources_pending: 0, threaded: 0, threads_pending: 0 };
+            }
+
+            case "body_backfill_progress":
+              return { shaped: 0, unshaped: 400, messages: 400, fetched: 0, missing: 0,
+                       unreadable: 0, embedded: 0, embeddings_pending: 0,
+                       html: 0, sources: 0, sources_pending: 0, threaded: 0, threads_pending: 0, pending: 400, total: 400 };
+
+            // Every UID in the folder, in one query — what a whole-folder
+            // selection asks for instead of paging the rows.
+            case "folder_uids":
+              return Array.from({ length: TOTAL }, (_, i) => i + 1);
+
+            case "execute_pending":
+            case "execute_pending_all":
+              return { executed: mock.removed ?? 0, warnings: [] };
+
+            case "sync_folder":
+            case "sync_all":
+              return {
+                folders_synced: cmd === "sync_all" ? 4 : 1,
+                messages_added: 3,
+                messages_updated: 1,
+                messages_deleted: 0,
+                errors: [],
+              };
+
+            case "open_compose":
+              // The real thing opens a window; here it is enough to record it.
+              return null;
+
+            case "save_draft":
+              mock.draftSaves = (mock.draftSaves ?? 0) + 1;
+              return 4242;
+
+            case "discard_draft":
+              return null;
+
+            case "edit_in_nvim":
+              return { saved: mock.saved ?? false, text: args.text };
+
+            case "run_filters":
+            case "run_filters_all":
+              return { filtered: 0, warnings: [] };
+
+            default:
+              return null;
+          }
+        },
+      };
+
+      // Push an event through the real listener, as the core does.
+      window.__emit = (event, payload) => {
+        const id = (window.__listeners || {})[event];
+        if (id && window[id]) window[id]({ event, id: 0, payload });
+      };
+    </script>
+  </head>
+  <body>
+    <div id="search-overlay" hidden>
+      <div id="search-panel">
+      <div id="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span id="search-chips"></span>
+        <input
+          id="search-input"
+          type="search"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="Search mail"
+        />
+        <span id="search-kind" class="seg" role="radiogroup" aria-label="Search for"></span>
+        <button id="search-clear" type="button" title="Clear search" hidden>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="search-scope"></div>
+      <div id="search-suggest"></div>
+      <div id="search-ops"></div>
+      </div>
+    </div>
+    <div id="app">
+      <div id="sidebar-top" data-tauri-drag-region></div>
+      <button id="sidebar-toggle" type="button"></button>
+      <header id="toolbar" data-tauri-drag-region></header>
+      <aside id="folders" class="pane" role="listbox" aria-label="Folders"></aside>
+      <div id="vsplit" class="split"></div>
+      <section id="list" class="pane" role="group" aria-label="List"></section>
+      <div id="hsplit" class="split"></div>
+      <article id="reader" class="pane"></article>
+    </div>
+    <footer id="statusbar">
+      <span id="status-mode" class="mode" aria-hidden="true"></span>
+      <span id="status" role="status" aria-live="polite"></span>
+      <span id="status-steady"></span>
+      <button id="tasks-toggle" type="button" hidden></button>
+    </footer>
+    <div id="tasks-panel" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

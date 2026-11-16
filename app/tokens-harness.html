@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Orb — recipient token harness</title>
+    <!--
+      Drives the real TokenField against a stubbed IPC, so the keyboard
+      behaviour a recipient field lives or dies by — commit, select, delete,
+      complete — can be exercised in a browser instead of by hand in a window
+      that steals focus.
+
+      The suggestions are canned. What they contain is not the point: the
+      ranking behind them is tested against the real mailbox in Rust, and what
+      is tested here is what the field does with an answer.
+
+      Served by `pnpm dev` at /tokens-harness.html. Not part of the app bundle.
+    -->
+    <script>
+      window.__TAURI_INTERNALS__ = {
+        metadata: {
+          currentWindow: { label: "compose-1" },
+          currentWebview: { windowLabel: "compose-1", label: "compose-1" },
+        },
+        transformCallback: (cb) => {
+          const id = "cb_" + Math.random().toString(36).slice(2);
+          window[id] = cb;
+          return id;
+        },
+        convertFileSrc: (p) => p,
+
+        invoke: async (cmd, args) => {
+          (window.__calls = window.__calls || []).push({ cmd, args });
+          const mock = (window.__mock = window.__mock || { fail: [], delay: 0 });
+          await new Promise((r) => setTimeout(r, mock.delay));
+          if (mock.fail.includes(cmd)) throw `mock failure: ${cmd}`;
+
+          if (cmd === "suggest_recipients") {
+            const q = args.query.toLowerCase();
+            return PEOPLE.filter(
+              (p) =>
+                p.name.toLowerCase().includes(q) || p.recipients[0].address.includes(q),
+            ).slice(0, args.limit);
+          }
+          return null;
+        },
+      };
+
+      const person = (name, address) => ({
+        name,
+        recipients: [{ name, address }],
+        source: { kind: "history" },
+        score: 700,
+      });
+
+      const PEOPLE = [
+        person("Nina Berger", "nina.berger@example.com"),
+        person("Paul Weber", "paul.weber@example.com"),
+        person("Clara Berger", "clara.berger@example.com"),
+        {
+          name: "Development Team",
+          recipients: [
+            { name: "Ada", address: "ada@example.com" },
+            { name: "Grace", address: "grace@example.com" },
+          ],
+          source: { kind: "group", shortcut: "team" },
+          score: 1200,
+        },
+      ];
+    </script>
+  </head>
+  <body class="compose">
+    <form id="compose" autocomplete="off">
+      <div class="field"><span>To</span><div id="to"></div></div>
+    </form>
+    <script type="module">
+      import { TokenField } from "/src/tokens.ts";
+      import "/src/styles.css";
+
+      // Exposed so a test can read what the field would hand to the draft,
+      // which is the thing that actually matters — not the pills on screen.
+      window.__field = new TokenField(document.getElementById("to"), () => {
+        window.__changes = (window.__changes || 0) + 1;
+      });
+    </script>
+  </body>
+</html>

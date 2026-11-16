@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>New message</title>
+  </head>
+  <body class="compose">
+    <form id="compose" autocomplete="off">
+      <header id="titlebar" data-tauri-drag-region>
+        <span id="compose-title" class="ct"></span>
+        <span class="tb-sp"></span>
+        <span id="compose-status" class="saved" role="status" aria-live="polite"></span>
+        <button id="toggle-editor" type="button" class="btn">Plain text</button>
+        <button id="template" type="button" class="btn tpl"></button>
+        <button id="follow-up" type="button" class="btn"></button>
+        <button id="attach" type="button" class="btn"></button>
+        <button id="discard" type="button" class="btn" title="Delete the draft and close the window"></button>
+        <button id="save-close" type="button" class="btn" title="Keep the draft in Drafts and close the window (⇧⌘S)">Save &amp; close</button>
+        <button id="send" type="button" class="btn pri">Send <kbd>⌘↩</kbd></button>
+      </header>
+      <div class="fields">
+        <div class="field">
+          <span>From</span>
+          <button id="identity" type="button" class="identity" disabled></button>
+          <span id="from-account" class="r"></span>
+        </div>
+        <div class="field"><span>To</span><div id="to"></div></div>
+        <div class="field">
+          <span>Cc</span><div id="cc"></div>
+          <button id="show-bcc" type="button" class="r add">Bcc</button>
+        </div>
+        <div id="bcc-row" class="field" hidden><span>Bcc</span><div id="bcc"></div></div>
+        <label class="field"><span>Subject</span><input id="subject" type="text" /></label>
+        <div id="fill-row" class="field fill" hidden>
+          <span>Fill in</span>
+          <div id="fill-fields" class="pfs"></div>
+          <span id="fill-left" class="r"></span>
+        </div>
+        <div id="files-row" class="field" hidden>
+          <span>Files</span>
+          <div id="attachments" class="attachments"></div>
+        </div>
+        <div id="warnings-row" class="field" hidden>
+          <span>Check</span>
+          <ul id="warnings" class="warnings" role="status" aria-live="polite"></ul>
+        </div>
+      </div>
+
+      <div id="editor"></div>
+      <textarea id="plain" spellcheck="true" hidden></textarea>
+    </form>
+    <script type="module" src="/src/compose.ts"></script>
+  </body>
+</html>

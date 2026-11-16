@@ -1,0 +1,163 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      # --all-targets also compiles every test binary (incl. the Docker-gated
+      # imap/smtp integration tests), so API drift in them fails the build here.
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build
+        run: cargo build --all-features
+
+      - name: Run unit tests
+        run: cargo test --lib
+
+      - name: Run store integration tests
+        run: cargo test --test store_integration
+
+      # The Docker-gated tests in these suites are #[ignore]d, so only the pure
+      # ones (message formatting, address validation) run here.
+      - name: Run the pure IMAP and SMTP tests
+        run: cargo test --test imap_integration --test smtp_integration
+
+  # The suites that need a container runtime: Dovecot for IMAP and task sync,
+  # MailHog for SMTP. testcontainers pulls the images and tears them down.
+  docker:
+    name: Docker-backed integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-docker-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-docker-
+            ${{ runner.os }}-cargo-
+
+      - name: Run the Docker-backed suites
+        run: cargo test --test imap_integration --test smtp_integration --test task_sync_integration --test filter_integration --test feed_integration --test task_export_roundtrip -- --ignored
+
+      # The sync under injected network faults: a dropped socket, a frozen one,
+      # a connection dead after sleep, a server that says NO. Its own step so
+      # the proxy's connections do not share a process with the other suites.
+      - name: Run the sync fault tests
+        run: cargo test --test sync_faults -- --ignored --test-threads=1
+
+  # Final check that all jobs passed
+  ci-success:
+    name: CI Success
+    needs: [test, docker]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.test.result }}" != "success" || "${{ needs.docker.result }}" != "success" ]]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All CI jobs passed!"
+
+  app:
+    name: App (Tauri)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      # Type-checks under `tsc --strict` and bundles.
+      - name: Build frontend
+        working-directory: app
+        run: pnpm build
+
+      # The harness against its stubbed backend: the list's highlight styles,
+      # its roles, the cursor, and Today's tasks and inboxes.
+      - name: Test the frontend in a browser
+        working-directory: app
+        run: pnpm exec playwright install --with-deps chromium webkit && pnpm test
+
+      - name: Check formatting
+        working-directory: app/src-tauri
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        working-directory: app/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run tests
+        working-directory: app/src-tauri
+        run: cargo test

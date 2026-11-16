@@ -1,0 +1,989 @@
+[
+  {
+    "classes": "row cursor unread",
+    "selected": "true",
+    "row": {
+      "color": "rgb(255, 255, 255)",
+      "background": "rgb(64, 96, 192)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(255, 255, 255)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(255, 255, 255)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 0s0@example.com",
+        "color": "rgb(255, 255, 255)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgba(255, 255, 255, 0.85)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #0The opening line of message 0, as the list shows it.",
+        "color": "rgb(255, 255, 255)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgba(255, 255, 255, 0.85)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic",
+          "ic"
+        ]
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgba(255, 255, 255, 0.85)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row hl hl-color hl-bold",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 1s1@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #1The opening line of message 1, as the list shows it.",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "fa-solid fa-crown"
+        ]
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row hl hl-italic",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 2s2@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #2",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "fa-solid fa-gears subject-icon",
+          "fa-brands fa-linux subject-icon"
+        ]
+      },
+      {
+        "classes": "meta",
+        "text": "invoice",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row unread hl hl-dim",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 3s3@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #3The opening line of message 3, as the list shows it.",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row hl hl-color",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 4s4@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #4The opening line of message 4, as the list shows it.",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "urgent",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "fa-solid fa-triangle-exclamation"
+        ]
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row hl hl-color hl-bold hl-italic",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 5s5@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #5",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "invoiceurgenta label long enough to be cut short",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "fa-solid fa-crown",
+          "fa-solid fa-triangle-exclamation"
+        ]
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row unread hl",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 6s6@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #6The opening line of message 6, as the list shows it.",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "a label long enough to be cut short",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row bare-from hl hl-italic",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "s7@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #7The opening line of message 7, as the list shows it.",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "invoice",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row hl hl-color hl-bold",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 8s8@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #8",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "fa-solid fa-crown"
+        ]
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row unread spoofed",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "service@paypal.comsecurity@paypa1-support.ru",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #9The opening line of message 9, as the list shows it.",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 10s10@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #10The opening line of message 10, as the list shows it.",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  },
+  {
+    "classes": "row",
+    "selected": "false",
+    "row": {
+      "color": "rgb(200, 206, 232)",
+      "background": "rgba(0, 0, 0, 0)",
+      "weight": "400",
+      "decoration": "none"
+    },
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "mark",
+          "mark",
+          "mark"
+        ]
+      },
+      {
+        "classes": "kind",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "from",
+        "text": "Sender 11s11@example.com",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": [
+          "ic"
+        ]
+      },
+      {
+        "classes": "to",
+        "text": "Me, Other",
+        "color": "rgb(154, 161, 194)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "subject",
+        "text": "└Message #11",
+        "color": "rgb(200, 206, 232)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      },
+      {
+        "classes": "date",
+        "text": "Jan 01 01:00",
+        "color": "rgb(138, 145, 184)",
+        "background": "rgba(0, 0, 0, 0)",
+        "weight": "400",
+        "decoration": "none",
+        "icons": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,73 @@
+[package]
+name = "orb-app"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Own workspace root: keeps this spike out of the orb-core package tree so
+# `cargo build` at the repo root is unaffected.
+[workspace]
+
+# As in the root Cargo.toml, and kept the same, so the two workspaces share
+# their builds in the one target dir (.cargo/config.toml).
+[profile.dev]
+split-debuginfo = "packed"
+
+[profile.dev.package."*"]
+debug = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+orb-core = { path = "../.." }
+serde = { version = "1", features = ["derive"] }
+# `macos-private-api` for a transparent webview over the window's vibrancy.
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-dialog = "2.7.2"
+# Dragging an attachment out of the window onto the Finder or another app. A
+# native drag session with file paths, which the web platform cannot start.
+tauri-plugin-drag = "2"
+tauri-plugin-window-state = "2"
+tokio = { version = "1", features = ["sync"] }
+serde_json = "1"
+
+[dev-dependencies]
+
+# Adding a window to an existing window's tab group is an AppKit call with no
+# wrapper in Tauri. `tabbing_identifier` alone only groups windows when the
+# system is set to prefer tabs, which it is not by default.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+# The system address book. Reached through Contacts.framework rather than by
+# reading its database, because that database is private, moves between
+# releases, and is guarded by the same permission this asks for politely.
+objc2-contacts = { version = "0.3.2", features = ["CNContactStore", "CNContact", "CNContactFetchRequest", "CNLabeledValue"] }
+objc2-foundation = "0.3.2"
+# The Dock tile, drawn with a badge per count when `dock_badges` asks for
+# more than the one badge macOS gives an app.
+objc2-app-kit = "0.3.2"
+block2 = "0.6.2"
+# Reminders (§5.1) are *OS-scheduled* local notifications, so they fire while
+# Orb is closed. That is UNUserNotificationCenter, and there is no Tauri plugin
+# for it: `tauri-plugin-notification` only posts notifications immediately —
+# its "schedule" support is iOS/Android only, and on macOS a scheduled request
+# would be delivered the moment it is made. An in-app timer is explicitly not
+# the mechanism the spec asks for.
+#
+# Default features are off because they drag in objc2-core-location for
+# UNLocationNotificationTrigger, which nothing here uses.
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "block2",
+    "UNUserNotificationCenter",
+    "UNNotification",
+    "UNNotificationAction",
+    "UNNotificationCategory",
+    "UNNotificationContent",
+    "UNNotificationRequest",
+    "UNNotificationResponse",
+    "UNNotificationSettings",
+    "UNNotificationSound",
+    "UNNotificationTrigger",
+] }

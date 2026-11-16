@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Orb</title>
+  </head>
+  <body>
+    <div id="search-overlay" hidden>
+      <div id="search-panel">
+      <div id="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span id="search-chips"></span>
+        <input
+          id="search-input"
+          type="search"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="Search mail"
+        />
+        <span id="search-kind" class="seg" role="radiogroup" aria-label="Search for"></span>
+        <button id="search-clear" type="button" title="Clear search" hidden>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="search-scope"></div>
+      <div id="search-suggest"></div>
+      <div id="search-ops"></div>
+      </div>
+    </div>
+    <div id="app">
+      <div id="sidebar-top" data-tauri-drag-region></div>
+      <button id="sidebar-toggle" type="button"></button>
+      <header id="toolbar" data-tauri-drag-region></header>
+      <aside id="folders" class="pane" role="listbox" aria-label="Folders"></aside>
+      <div id="vsplit" class="split"></div>
+      <section id="list" class="pane" role="group" aria-label="List"></section>
+      <div id="hsplit" class="split"></div>
+      <article id="reader" class="pane"></article>
+    </div>
+    <footer id="statusbar">
+      <span id="status-mode" class="mode" aria-hidden="true"></span>
+      <span id="status" role="status" aria-live="polite"></span>
+      <span id="status-steady"></span>
+      <button id="tasks-toggle" type="button" hidden></button>
+    </footer>
+    <div id="tasks-panel" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

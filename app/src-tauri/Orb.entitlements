@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Signed with a certificate, the bundle runs under the hardened runtime, which
+  refuses the address book to a process that has not declared it wants it:
+  CNContactStore then reports access denied without ever asking.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.personal-information.addressbook</key>
+    <true/>
+  </dict>
+</plist>

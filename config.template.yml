@@ -1,0 +1,37 @@
+# Orb configuration. Written by Orb on its first launch.
+#
+# Fill in the account below and launch Orb again. Every other key, with its
+# default and a comment, is in config.example.yml next to Orb's source:
+# https://github.com/sudoremo/orb/blob/main/config.example.yml
+#
+# A key Orb does not know is an error at launch, so a typo cannot pass as a
+# setting that quietly does nothing. The file is re-read while Orb runs;
+# most changes take effect at once, and the status line says which need a
+# restart.
+
+# Where the local copy of the mail is kept. Required; ~ is expanded.
+db_path: ~/.local/share/orb/mail.db
+
+# Warnings and one line per sync. Optional; no log without it.
+log_file: ~/.local/share/orb/orb.log
+
+accounts:
+    # What the account is called in the sidebar.
+  - name: Personal
+    # The IMAP server and port; the connection is always TLS.
+    imap_server: imap.example.com
+    imap_port: 993
+    imap_username: user@example.com
+    # The address outgoing mail is sent from.
+    from: Your Name <user@example.com>
+    # Where the password comes from. Either a command that prints it:
+    #
+    #   imap_password_command: pass email/example.com
+    #   imap_password_command: security find-generic-password -a user@example.com -s imap.example.com -w
+    #
+    # or nothing, in which case Orb asks for it when it first connects and
+    # offers to keep it in the Keychain.
+    #
+    # Sending defaults to the IMAP server, username and password, on port 587
+    # with STARTTLS. Set smtp_server, smtp_port, smtp_username and
+    # smtp_password_command where that is not right.

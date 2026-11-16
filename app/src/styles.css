@@ -1,0 +1,8399 @@
+/*
+ * The palette of `docs/mockups/main-window.html`, both appearances in one
+ * block: `light-dark()` picks by `color-scheme`, which follows the system
+ * unless the config says `theme: dark` or `theme: light`.
+ *
+ * Every text colour reads at 4.5:1 or more on every surface text is drawn on —
+ * the panes, hover, the cursor and the selection, focused or not — which is
+ * why `--fg3`, `--accent` and the light `--warning`, `--danger` and
+ * `--success` sit a step away from the mockup's values.
+ */
+:root {
+  color-scheme: dark light;
+
+  /* Surfaces. The translucent ones are drawn over a pane. */
+  --bg: light-dark(#f6f6f8, #17181b);
+  --pane: light-dark(#ffffff, #1c1d21);
+  --line: light-dark(rgba(0, 0, 0, 0.075), rgba(255, 255, 255, 0.075));
+  --frame: light-dark(rgba(0, 0, 0, 0.12), rgba(255, 255, 255, 0.1));
+  /* A row's states, each told from every other at a glance (CIEDE2000 ≥ 4
+     between hover and cursor, ≥ 9 between cursor and selection, measured on
+     both panes): hover the faintest, the cursor a clear step above it, a
+     selection in the accent. */
+  --hover: light-dark(rgba(0, 0, 0, 0.04), rgba(255, 255, 255, 0.035));
+  --cursor-bg: light-dark(rgba(0, 0, 0, 0.12), rgba(255, 255, 255, 0.1));
+  --chip: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.07));
+  --kbd: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.08));
+  /* The sidebar's own pair, over its translucent tint: a fainter hover than
+     the lists', so the open entry stays the one that stands out. */
+  --sb-active: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.095));
+  --sb-hover: light-dark(rgba(0, 0, 0, 0.025), rgba(255, 255, 255, 0.025));
+  /* The sidebar's tint, over the system's sidebar material in the app and
+     over the window's own background in a browser. */
+  --sb-bg: light-dark(rgba(236, 237, 242, 0.7), rgba(34, 35, 42, 0.64));
+  --accent-soft: light-dark(
+    color-mix(in srgb, var(--accent) 10%, transparent),
+    color-mix(in srgb, var(--accent) 15%, transparent)
+  );
+  /* A selection, about twice as far from a highlight rule's 10 % tint as
+     the tint is from nothing, and as strong as it goes with every text colour
+     still at 4.5:1 on it. The dark one is stronger than the eye needs it in
+     the light, so the dimmest text and the red come up a step on it. */
+  --selected: light-dark(
+    color-mix(in srgb, var(--accent) 18%, transparent),
+    color-mix(in srgb, var(--accent) 28%, transparent)
+  );
+  --selected-fg3: light-dark(var(--fg3), var(--fg2));
+  --selected-danger: light-dark(var(--danger), color-mix(in srgb, var(--danger) 75%, #ffffff));
+  /* The cursor of the pane the keys go to: the filled accent of menus and
+     completions, a step deeper in the dark so that secondary text, at
+     `--on-fill-2`, still reads at 4.5:1 on it. */
+  --cursor-fill: light-dark(var(--accent-bg), #4060c0);
+  --on-fill-2: rgba(255, 255, 255, 0.85);
+  /* A selection in the half of a task view the keyboard is not in. */
+  --selected-quiet: color-mix(in srgb, var(--accent) 6%, transparent);
+  --drop: var(--accent-soft);
+  --drop-line: color-mix(in srgb, var(--accent) 50%, transparent);
+  --mark: color-mix(in srgb, var(--warning) 30%, transparent);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --scrim-soft: rgba(0, 0, 0, 0.28);
+  --shadow-pop: 0 12px 34px light-dark(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.4)), 0 0 0 0.5px var(--frame);
+  --shadow-modal: 0 22px 60px light-dark(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.5)), 0 0 0 1px var(--frame);
+  /* HTML mail is drawn on paper, whatever the window's appearance. */
+  --paper: #ffffff;
+
+  /* Text. */
+  --fg: light-dark(#1c1d21, #e7e8eb);
+  --fg2: light-dark(#4a4d54, #a8abb3);
+  --fg3: light-dark(#5b5e65, #999ca3);
+  --accent: light-dark(#214ede, #7d97ff);
+  /* A filled accent, and the text on it. */
+  --accent-bg: light-dark(#335ce1, #5572c9);
+  --accent-fg: #ffffff;
+  /* `accent` and these are the colours a highlight rule may name, mirrored for
+     its contrast check in `theme` in `src/highlights.rs`. */
+  --warning: light-dark(#81540e, #e7b04c);
+  --danger: light-dark(#ae2e2d, #f17972);
+  --success: light-dark(#186b3b, #5ec48c);
+  --muted: var(--fg3);
+
+  /*
+   * Type and spacing, from the text size ⌘+ and ⌘- change: `--u` is one pixel
+   * at the default 13, and everything below scales with it.
+   */
+  --font-size: 13px;
+  --u: calc(var(--font-size) / 13);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  --font-2xs: calc(10 * var(--u));
+  --font-xs: calc(11 * var(--u));
+  --font-sm: calc(12 * var(--u));
+  --font-lg: calc(14 * var(--u));
+  --font-xl: calc(16 * var(--u));
+  --row-pad-l: calc(10 * var(--u));
+  --row-pad-r: calc(16 * var(--u));
+  --status-w: calc(18 * var(--u));
+  --col-gap: calc(10 * var(--u));
+  --chk-w: calc(16 * var(--u));
+  --item-px: calc(10 * var(--u));
+  /* Where list text starts. The reader and the detail pane start there too. */
+  --text-x: calc(var(--row-pad-l) + var(--status-w) + var(--col-gap));
+
+  /* The strip at the top of the window, which the content runs under:
+     `--toolbar-h` is the band the traffic lights are centred in, `--chrome-h`
+     that and the tab bar below it, if there is one. `chrome.ts` measures
+     both; these are the values without a tab bar. `--chrome-pad` keeps
+     the content off a tab bar. */
+  --toolbar-h: 40px;
+  --chrome-h: 40px;
+  --chrome-pad: 0px;
+
+  /* Must match ROW_HEIGHT in appearance.ts — the virtual list computes row
+     positions from it, so the two cannot drift. */
+  --row-height: 30px;
+}
+
+:root[data-tabbed] {
+  --chrome-pad: 6px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--font-size) / 1.5 var(--font);
+  overflow: hidden;
+  user-select: none;
+}
+
+/*
+ * Classic mail layout: a full-height sidebar beside a stacked list/detail
+ * column.
+ *
+ *   S L
+ *   S D
+ */
+/* The search field floats over the window while it has the keyboard, so the
+   panes keep the height a permanent toolbar would take. An active mail search
+   stays visible as its row in the sidebar, a task filter as the list's
+   "filtered" chip. Above the task panel (10), below the pickers (100). */
+#search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14vh;
+  background: var(--scrim-soft);
+  animation: search-scrim-in 110ms ease-out;
+}
+
+#search-overlay[hidden] {
+  display: none;
+}
+
+@keyframes search-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes search-box-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+/* The field, where to search, what the word could mean, and the operators:
+   one panel floating over the window. */
+#search-panel {
+  width: min(660px, 76vw);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pane) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: var(--shadow-modal);
+  animation: search-box-in 140ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+
+#search-panel:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+#search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  color: var(--fg2);
+  font-size: var(--font-xl);
+}
+
+#search-box:focus-within {
+  color: var(--accent);
+}
+
+#search-chips {
+  display: contents;
+}
+
+/* What a search is for, at the end of the field: mail, tasks, or both. */
+#search-box .seg {
+  flex: none;
+  align-items: center;
+}
+
+#search-box .seg kbd {
+  margin: 0 calc(4 * var(--u)) 0 calc(6 * var(--u));
+  color: var(--fg3);
+  font-size: var(--font-xs);
+}
+
+#search-kind[hidden],
+#search-scope[hidden] {
+  display: none;
+}
+
+.tokn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.tokn .k {
+  font: var(--font-xs) var(--mono);
+  opacity: 0.75;
+}
+
+#search-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+}
+
+#search-scope .lb {
+  margin-right: 2px;
+  color: var(--fg3);
+  font-size: var(--font-xs);
+}
+
+#search-scope kbd {
+  margin-left: auto;
+}
+
+#search-scope .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+#search-scope .pill .ic {
+  width: 12px;
+  height: 12px;
+}
+
+#search-scope .pill.on {
+  background: var(--accent-bg, var(--accent));
+  box-shadow: none;
+  color: #fff;
+}
+
+#search-suggest {
+  max-height: 330px;
+  overflow-y: auto;
+  padding: 0 5px;
+}
+
+#search-suggest:not(:empty) {
+  padding: 5px;
+  border-top: 1px solid var(--line);
+}
+
+#search-suggest .sp-h {
+  padding: 7px 9px 3px;
+  color: var(--fg3);
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+#search-suggest .sp-i {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 6px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+#search-suggest .sp-i > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* By position, so a row whose icon is not drawn keeps its columns. */
+#search-suggest .sp-i > :nth-last-child(2) {
+  grid-column: 2;
+}
+
+#search-suggest .sp-i > :last-child {
+  grid-column: 3;
+}
+
+#search-suggest .sp-i .ic {
+  width: 14px;
+  height: 14px;
+  color: var(--fg3);
+}
+
+#search-suggest .sp-i .d,
+#search-suggest .sp-i code {
+  color: var(--fg3);
+}
+
+#search-suggest .sp-i code {
+  font: var(--font-xs) var(--mono);
+}
+
+#search-suggest .sp-i b {
+  font-weight: 600;
+}
+
+#search-suggest .sp-i .fl2 {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+#search-suggest .sp-i.on {
+  background: var(--accent-bg, var(--accent));
+  color: #fff;
+}
+
+#search-suggest .sp-i.on *,
+#search-suggest .sp-i.on .ic {
+  color: inherit;
+}
+
+#search-suggest .sp-i.on .chk {
+  box-shadow: inset 0 0 0 1.5px #fff;
+}
+
+#search-ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--fg3);
+  font-size: var(--font-xs);
+}
+
+#search-ops code {
+  color: var(--fg2);
+  font: var(--font-xs) var(--mono);
+}
+
+/* The magnifying glass is decoration; the field is the control. */
+#search-box > i {
+  font-size: var(--font-lg);
+  flex: none;
+}
+
+#search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+}
+
+#search-input::placeholder {
+  color: var(--fg2);
+}
+
+/* Safari draws its own clear button on type=search; ours is the one that
+   also leaves the search, so the native one would be a second, lesser door. */
+#search-input::-webkit-search-decoration,
+#search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+#search-clear {
+  flex: none;
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: var(--fg2);
+  cursor: pointer;
+  font: inherit;
+}
+
+#search-clear:hover {
+  color: var(--fg);
+}
+
+#app {
+  flex: 1;
+  display: grid;
+  /* The splitters are real grid tracks, so a drag only changes one variable. */
+  grid-template-columns: var(--pane-sidebar, 240px) 1px minmax(0, 1fr);
+  grid-template-rows: calc(var(--chrome-h) + var(--chrome-pad)) var(--pane-list, 45%) 1px minmax(0, 1fr);
+  min-height: 0;
+  --sidebar-toggle-w: calc(26 * var(--u));
+}
+
+/* The title bar's strip: the traffic lights over the sidebar, the toolbar
+   beside them. Both drag the window; what goes into the toolbar does not. */
+/* Across the splitter's column too: the splitter starts below the strip, so
+   the strip is one surface under the tab bar. */
+#sidebar-top {
+  grid-column: 1 / 3;
+  grid-row: 1;
+  background: var(--sb-bg);
+}
+
+#toolbar {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* What goes in the toolbar sits beside the lights, above a tab bar. */
+  padding: 0 var(--row-pad-r) calc(var(--chrome-h) + var(--chrome-pad) - var(--toolbar-h))
+    var(--row-pad-l);
+  border-bottom: 1px solid var(--line);
+  background: var(--pane);
+  min-width: 0;
+}
+
+/* What the list is, where it is from, the order in force, the search box. */
+.tb-t {
+  font-weight: 600;
+  font-size: calc(13.5 * var(--u));
+  white-space: nowrap;
+}
+
+.tb-s {
+  color: var(--fg3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tb-sp {
+  flex: 1;
+}
+
+/* Keys as the window draws them, in the toolbar, the menu and the status line. */
+#toolbar kbd,
+#statusbar kbd,
+.empty-view kbd {
+  display: inline-block;
+  min-width: calc(16 * var(--u));
+  padding: calc(3 * var(--u)) calc(5 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: var(--kbd);
+  color: var(--fg2);
+  font: calc(10.5 * var(--u)) / 1 var(--mono);
+  text-align: center;
+}
+
+.sort {
+  position: relative;
+}
+
+.sortbtn,
+.filterbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--u));
+  height: calc(26 * var(--u));
+  padding: 0 calc(8 * var(--u));
+  border: 0;
+  border-radius: calc(6 * var(--u));
+  background: none;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+.sortbtn:hover,
+.filterbtn:hover,
+.sort.open .sortbtn {
+  background: var(--chip);
+  color: var(--fg);
+}
+
+.sortbtn .ic,
+.filterbtn .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+  color: var(--fg3);
+}
+
+.sortbtn .chev {
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+}
+
+/* The sort menu: the field, the direction, the conversations toggle. */
+.menu {
+  position: absolute;
+  top: calc(31 * var(--u));
+  right: 0;
+  z-index: 50;
+  width: calc(228 * var(--u));
+  padding: calc(5 * var(--u));
+  border-radius: calc(9 * var(--u));
+  background: light-dark(rgba(246, 246, 249, 0.9), rgba(44, 45, 52, 0.86));
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8);
+  box-shadow: var(--shadow-pop);
+  color: var(--fg);
+}
+
+.menu .mh {
+  padding: calc(5 * var(--u)) calc(9 * var(--u)) calc(3 * var(--u));
+  color: var(--fg3);
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+.menu .mi {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  width: 100%;
+  height: calc(26 * var(--u));
+  padding: 0 calc(9 * var(--u));
+  border: 0;
+  border-radius: calc(5 * var(--u));
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.menu .mi:hover,
+.menu .mi:focus {
+  outline: none;
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+.menu .mi:hover *,
+.menu .mi:focus * {
+  color: inherit;
+}
+
+.menu .mi[aria-disabled="true"] {
+  opacity: 0.45;
+}
+
+.menu .mi[aria-disabled="true"]:hover {
+  background: none;
+  color: inherit;
+}
+
+.menu .ck {
+  width: calc(12 * var(--u));
+}
+
+.menu .mi kbd {
+  margin-left: auto;
+}
+
+.menu hr {
+  height: 1px;
+  margin: calc(5 * var(--u)) calc(8 * var(--u));
+  border: 0;
+  background: var(--line);
+}
+
+/* The search box: a door to the search field, and the query while it holds. */
+.search {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(7 * var(--u));
+  width: calc(220 * var(--u));
+  height: calc(26 * var(--u));
+  padding: 0 calc(8 * var(--u)) 0 calc(9 * var(--u));
+  border-radius: calc(7 * var(--u));
+  background: var(--chip);
+  color: var(--fg3);
+  cursor: text;
+}
+
+.search .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.search .q {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search.on {
+  color: var(--fg);
+  background: var(--pane);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.search-x {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+#folders {
+  grid-column: 1;
+  grid-row: 2 / -1;
+}
+
+#vsplit {
+  grid-column: 2;
+  grid-row: 2 / -1;
+  cursor: col-resize;
+}
+
+#list {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+#hsplit {
+  grid-column: 3;
+  grid-row: 3;
+  cursor: row-resize;
+}
+
+#reader {
+  grid-column: 3;
+  grid-row: 4;
+}
+
+/* The tasks and chat windows, wide enough: the reader beside the list rather
+   than below it. Narrower, they stack like the mailbox. */
+@media (min-width: 900px) {
+  :root:is([data-window="tasks"], [data-window="chat"]) #app {
+    grid-template-columns:
+      var(--pane-sidebar, 240px) 1px var(--pane-tasks-list, minmax(calc(360 * var(--u)), 1fr)) 1px
+      minmax(0, 1.3fr);
+    grid-template-rows: calc(var(--chrome-h) + var(--chrome-pad)) minmax(0, 1fr);
+  }
+
+  :root[data-window="chat"] #app {
+    grid-template-columns:
+      var(--pane-sidebar, 240px) 1px var(--pane-chat-list, minmax(calc(340 * var(--u)), 0.8fr)) 1px
+      minmax(0, 1.4fr);
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #toolbar {
+    grid-column: 3 / -1;
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #list {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  /* The line between list and detail, dragged sideways here. */
+  :root:is([data-window="tasks"], [data-window="chat"]) #hsplit {
+    grid-column: 4;
+    grid-row: 2;
+    cursor: col-resize;
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #hsplit::before {
+    inset: 0 -3px;
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) body.resizing-col #hsplit {
+    background: var(--accent);
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #reader {
+    grid-column: 5;
+    grid-row: 2;
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #app.list-alone #list {
+    grid-column: 3 / -1;
+    grid-row: 2;
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #app.reader-alone #reader {
+    grid-column: 3 / -1;
+    grid-row: 2;
+  }
+}
+
+/* A window of one message or task: the reader alone, under a toolbar that
+   starts beside the traffic lights. The list of one row behind it is never
+   drawn. */
+:root:is([data-window="message"], [data-window="task"]) #app {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: calc(var(--chrome-h) + var(--chrome-pad)) minmax(0, 1fr);
+}
+
+:root:is([data-window="message"], [data-window="task"]) #app #toolbar {
+  grid-column: 1;
+  padding-left: calc(84px + var(--row-pad-l));
+}
+
+:root:is([data-window="message"], [data-window="task"]) #app #reader {
+  display: flex;
+  grid-column: 1;
+  grid-row: 2;
+}
+
+:root:is([data-window="message"], [data-window="task"]) #app :is(#folders, #vsplit, #list, #hsplit, #sidebar-top, #sidebar-toggle) {
+  display: none;
+}
+
+/* An empty list stands alone: a blank reader beside it would say nothing. */
+#app.list-alone #list {
+  grid-row: 2 / 5;
+}
+
+#app.list-alone #hsplit,
+#app.list-alone #reader {
+  display: none;
+}
+
+/* A room with only its own conversation: the reader stands alone (`roomAlone`). */
+#app.reader-alone #reader {
+  grid-row: 2 / 5;
+}
+
+#app.reader-alone #list,
+#app.reader-alone #hsplit {
+  display: none;
+}
+
+/* Maximized (`maximize.ts`): the list takes every track below the title
+   strip, and the folders and the reader are drawers laid over it, so its
+   columns keep their width while either is out. */
+#app.maximized #list {
+  grid-column: 1 / -1;
+  grid-row: 2 / -1;
+}
+
+#app.maximized #vsplit,
+#app.maximized #hsplit,
+#app.maximized:not(.folders-open) #folders,
+#app.maximized:not(.drawer-open) #reader {
+  display: none;
+}
+
+#app.maximized #folders,
+#app.maximized #reader {
+  grid-row: 2 / -1;
+  z-index: 6;
+  box-shadow: var(--shadow-pop);
+}
+
+/* The sidebar's own background lets the window's vibrancy through, which
+   over the list would let the list through too. */
+#app.maximized #folders {
+  grid-column: 1;
+  background: linear-gradient(var(--sb-bg), var(--sb-bg)), var(--pane);
+  animation: drawer-left 140ms ease-out;
+}
+
+#app.maximized #reader {
+  grid-column: 1 / -1;
+  justify-self: end;
+  width: min(62%, calc(960 * var(--u)));
+  animation: drawer-right 140ms ease-out;
+}
+
+/* With the sidebar away the title strip is one surface: the toolbar runs
+   under the traffic lights, its content starting past them. */
+#app.maximized #sidebar-top {
+  display: none;
+}
+
+#app.maximized #toolbar {
+  grid-column: 1 / -1;
+  padding-left: calc(84px + var(--row-pad-l));
+}
+
+/* Maximized, Today is the half the keyboard is in. A task view without mail
+   has its one section `.full`, which stays whatever the classes say. */
+#app.maximized #list.mail-active .tk-section:not(.full),
+#app.maximized #list.tasks-active .mail-scroll,
+#app.maximized #list.reading-active .mail-scroll,
+#app.maximized #list.chat-active .mail-scroll,
+#app.maximized #list.reading-active .tk-section:not(.full),
+#app.maximized #list.chat-active .tk-section:not(.full),
+#app.maximized #list:not(.reading-active) .rd-section,
+#app.maximized #list:not(.chat-active) .ch-section,
+#app.maximized #list .tk-split,
+#app.maximized #list .tk-vsplit,
+#app.maximized #list .ch-split,
+#app.maximized #list .rd-split {
+  display: none;
+}
+
+#app.maximized #list.reading-active .rd-section,
+#app.maximized #list.chat-active .ch-section {
+  flex: 1;
+  max-height: none;
+}
+
+/* In columns the sections are placed beside the mail and under each other;
+   maximized, the one shown is the one column left and takes the whole of it. */
+#app.maximized #list.today-columns {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+#app.maximized #list.today-columns.with-filter {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+#app.maximized #list.today-columns > .mail-scroll,
+#app.maximized #list.today-columns > .tk-section {
+  grid-column: 1 / -1;
+  grid-row: auto;
+}
+
+#app.maximized #list.today-columns > .rd-section,
+#app.maximized #list.today-columns > .ch-section {
+  grid-column: 1 / -1;
+  max-height: none;
+  border-top: 0;
+}
+
+#app.maximized #list.tasks-active .tk-section {
+  flex: 1;
+  height: auto;
+  max-height: none;
+}
+
+#app.maximized #list.today-columns {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* In Today the reader is below the list rather than over it (see
+   `maximize.ts`), on the rows it has unmaximized, the line between them
+   dragged as usual. */
+#app.maximized.drawer-below.drawer-open:not(.drawer-wide) #list {
+  grid-row: 2;
+}
+
+#app.maximized.drawer-below.drawer-open:not(.drawer-wide) #hsplit {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+#app.maximized.drawer-below #reader {
+  grid-row: 4;
+  justify-self: stretch;
+  width: auto;
+  box-shadow: none;
+  animation: drawer-up 140ms ease-out;
+}
+
+#app.maximized.drawer-wide #reader {
+  grid-row: 2 / -1;
+  justify-self: stretch;
+  width: auto;
+  box-shadow: none;
+}
+
+/* The sidebar put away (`toggle-sidebar`): the list and the reader take its
+   width, and the folders come out as the maximized drawer while they have
+   the keyboard. */
+#app.sidebar-hidden #list,
+#app.sidebar-hidden #hsplit,
+#app.sidebar-hidden #reader,
+#app.sidebar-hidden #toolbar {
+  grid-column: 1 / -1;
+}
+
+#app.sidebar-hidden #vsplit,
+#app.sidebar-hidden #sidebar-top,
+#app.sidebar-hidden:not(.folders-open) #folders {
+  display: none;
+}
+
+#app.sidebar-hidden #folders {
+  grid-row: 2 / -1;
+  z-index: 6;
+  box-shadow: var(--shadow-pop);
+  background: linear-gradient(var(--sb-bg), var(--sb-bg)), var(--pane);
+  animation: drawer-left 140ms ease-out;
+}
+
+#app.sidebar-hidden:not(.maximized) #toolbar {
+  padding-left: calc(84px + var(--sidebar-toggle-w) + var(--row-pad-l));
+}
+
+@media (min-width: 900px) {
+  :root:is([data-window="tasks"], [data-window="chat"]) #app.sidebar-hidden #list {
+    grid-column: 1 / 4;
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #app.sidebar-hidden #hsplit {
+    grid-column: 4;
+  }
+
+  :root:is([data-window="tasks"], [data-window="chat"]) #app.sidebar-hidden #reader {
+    grid-column: 5;
+  }
+}
+
+/* Beside the traffic lights, over the sidebar's strip or, with the sidebar
+   away, at the start of the toolbar. Maximized, the folders are a drawer
+   already and the toolbar has the space. */
+#sidebar-toggle {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 7;
+  justify-self: start;
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sidebar-toggle-w);
+  height: calc(26 * var(--u));
+  margin: calc((var(--toolbar-h) - 26 * var(--u)) / 2) 0 0 80px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(6 * var(--u));
+  background: none;
+  color: var(--fg3);
+  cursor: default;
+}
+
+#sidebar-toggle:hover {
+  background: var(--chip);
+  color: var(--fg);
+}
+
+#app.maximized #sidebar-toggle {
+  display: none;
+}
+
+@keyframes drawer-left {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+/* A hairline between the panes, opaque under the line because the window's
+   vibrancy is for the sidebar alone. It is grabbed by a wider strip that
+   reaches over the panes on either side. */
+.split {
+  position: relative;
+  z-index: 5;
+  background: linear-gradient(var(--line), var(--line)), var(--pane);
+}
+
+.split::before {
+  content: "";
+  position: absolute;
+  inset: -3px 0;
+}
+
+#vsplit::before {
+  inset: 0 -3px;
+}
+
+#vsplit {
+  background: linear-gradient(var(--line), var(--line)), var(--sb-bg);
+}
+
+.split:hover,
+.split.dragging {
+  background: var(--accent);
+}
+
+/* The focused pane's edge is a border, not an inset shadow: a shadow is
+   painted under the pane's content, so every row with a background of its
+   own — hovered, under the cursor, selected, highlighted — cut a gap in it. */
+.pane {
+  overflow-y: auto;
+  background: var(--pane);
+  min-height: 0;
+  border-left: 2px solid transparent;
+}
+
+#folders,
+#folders.focused {
+  padding: calc(4 * var(--u)) calc(10 * var(--u)) calc(12 * var(--u));
+  background: var(--sb-bg);
+}
+
+/* Where the window has vibrancy behind it, the page leaves its background
+   out, and only the sidebar lets it through. */
+:root[data-vibrant] body {
+  background: transparent;
+}
+
+/* Orb's own icons (`icons.ts`): an outline in the text colour, with one line
+   in `.duo` that only places — the sidebar, the detail pane — colour. */
+.ic {
+  width: calc(15 * var(--u));
+  height: calc(15 * var(--u));
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/*
+ * The sidebar. Classes of its own rather than the message list's `.row`, so
+ * restyling either leaves the other alone. Headings do not indent what is
+ * under them; folders indent one step per level.
+ */
+.sb-head {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  margin: calc(14 * var(--u)) calc(8 * var(--u)) calc(4 * var(--u));
+  color: var(--fg3);
+  font-size: calc(10.5 * var(--u));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+/* An account's heading folds its folders away, and every other heading what
+   is under it. */
+.sb-account,
+.sb-section {
+  margin-left: 0;
+  margin-right: 0;
+  padding: calc(2 * var(--u)) calc(8 * var(--u));
+  border-radius: calc(6 * var(--u));
+  cursor: default;
+}
+
+.sb-account.cursor,
+.sb-section.cursor {
+  background: var(--sb-active);
+  color: var(--fg2);
+}
+
+.sb-chev {
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+  margin-left: -1px;
+}
+
+.sb-account.collapsed .sb-chev,
+.sb-section.collapsed .sb-chev,
+.sb-fold:not(.open) .ic {
+  transform: rotate(-90deg);
+}
+
+.sb-row {
+  display: flex;
+  gap: calc(9 * var(--u));
+  align-items: center;
+  height: calc(28 * var(--u));
+  padding: 0 calc(8 * var(--u)) 0 calc((8 + var(--d, 0) * 16) * var(--u));
+  border-radius: calc(6 * var(--u));
+  white-space: nowrap;
+  cursor: default;
+}
+
+.sb-row:hover {
+  background: var(--sb-hover);
+}
+
+.sb-row.cursor,
+.sb-row.cursor:hover {
+  background: var(--sb-active);
+}
+
+.sb-glyph {
+  color: var(--fg3);
+}
+
+/* A view's configured Font Awesome icon, or emoji, in the SVG icons' box. */
+i.sb-glyph,
+span.sb-glyph {
+  flex: none;
+  width: calc(15 * var(--u));
+  font-size: calc(13 * var(--u));
+  text-align: center;
+}
+
+.sb-row .duo {
+  stroke: var(--duo, var(--accent));
+}
+
+.sb-row.today {
+  --duo: var(--warning);
+}
+
+.sb-row.cursor .sb-glyph {
+  color: var(--fg);
+}
+
+/* While Ctrl is held on its own, each pin shows the key that opens it, in a
+   cap over its icon. A beat late, so typing Ctrl-d straight through never
+   flashes them; gone at once. */
+.sb-row[data-pin] {
+  position: relative;
+}
+
+.sb-key {
+  position: absolute;
+  left: calc(8 * var(--u));
+  top: 50%;
+  display: grid;
+  place-items: center;
+  min-width: calc(15 * var(--u));
+  height: calc(15 * var(--u));
+  padding: 0 calc(3 * var(--u));
+  box-sizing: border-box;
+  border-radius: calc(4 * var(--u));
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: 600 calc(10.5 * var(--u)) / 1 var(--mono);
+  opacity: 0;
+  transform: translateY(-50%) scale(0.6);
+  pointer-events: none;
+}
+
+#folders.pin-keys .sb-row[data-key] > .sb-key {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+  transition:
+    opacity 120ms ease-out 180ms,
+    transform 160ms cubic-bezier(0.3, 1.4, 0.6, 1) 180ms;
+}
+
+#folders.pin-keys .sb-row[data-key] > .sb-glyph,
+#folders.pin-keys .sb-row[data-key] > .sb-presence {
+  opacity: 0;
+  transition: opacity 120ms ease-out 180ms;
+}
+
+#folders.focused .sb-row.cursor .sb-key {
+  background: var(--accent-fg);
+  color: var(--cursor-fill);
+}
+
+/* With the keyboard in the sidebar its cursor is filled with the accent, as
+   the list's is. */
+#folders.focused .sb-row.cursor,
+#folders.focused .sb-account.cursor,
+#folders.focused .sb-section.cursor {
+  --fg: var(--accent-fg);
+  --fg2: var(--on-fill-2);
+  --fg3: var(--on-fill-2);
+  --accent: var(--accent-fg);
+  --warning: var(--accent-fg);
+  --danger: var(--accent-fg);
+  --success: var(--accent-fg);
+  --duo: var(--accent-fg);
+  background: var(--cursor-fill);
+  color: var(--fg);
+}
+
+.sb-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* SF Pro's capitals sit high in their line box; centred as boxes, a label
+   rides 0.9 px above its icon. Counts move with it, keeping one baseline. */
+.sb-row .sb-label,
+.sb-row .sb-n,
+.sb-head .sb-label {
+  position: relative;
+  top: calc(0.9 * var(--u));
+}
+
+.sb-n {
+  display: inline-flex;
+  gap: calc(6 * var(--u));
+  margin-left: auto;
+  font: var(--font-xs) var(--mono);
+  color: var(--fg3);
+}
+
+.sb-head .sb-n {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.sb-badge.unread {
+  color: var(--fg2);
+}
+
+/* A muted room's bell, and its count in grey while nothing in it names you. */
+.sb-muted {
+  display: inline-flex;
+  margin-left: calc(5 * var(--u));
+  color: var(--fg3);
+}
+
+.sb-muted .ic {
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+}
+
+.sb-row.sb-room-muted .sb-label {
+  color: var(--fg2);
+}
+
+.sb-badge.quiet {
+  color: var(--fg3);
+}
+
+/* A thread that waits in a muted room, in that room's own list. */
+.chat-row.muted .status .mark {
+  opacity: 0.45;
+}
+
+.sb-fold {
+  display: flex;
+  margin-left: -2px;
+  color: var(--fg3);
+}
+
+.sb-fold .ic {
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+}
+
+/* Keep the cursor consistent for the whole drag, not just over the handle. */
+body.resizing-col,
+body.resizing-col * {
+  cursor: col-resize !important;
+}
+
+body.resizing-row,
+body.resizing-row * {
+  cursor: row-resize !important;
+}
+
+body.resizing-col *,
+body.resizing-row * {
+  user-select: none;
+}
+
+.pane.focused {
+  background: var(--bg);
+  border-left-color: var(--accent);
+}
+
+/* A region with more below fades out over its last rows. */
+.more {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+}
+
+/* Spacer carrying the folder's full scroll height. Rows are positioned inside
+   it by index, so only the visible ones need to exist. */
+.rows {
+  position: relative;
+}
+
+/*
+ * A message row: one line on the grid `applyColumnClasses` lays out —
+ * status, From, To, the subject with its thread badge and snippet, the
+ * badges, the date. Every row of a list shares the columns, so the edges
+ * line up down the pane.
+ */
+.row {
+  display: grid;
+  grid-template-columns: var(--cols, var(--status-w) var(--col-from) minmax(0, 1fr) auto var(--col-date));
+  column-gap: var(--col-gap);
+  align-items: center;
+  padding: 0 var(--row-pad-r) 0 var(--row-pad-l);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.row > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Rows inside the virtual list are placed by index, so only the visible ones
+   need to exist. */
+.rows .row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--row-height);
+  box-sizing: border-box;
+  /* A row's layout and paint never affect anything outside it, so scope the
+     work the browser has to redo when one is recycled. */
+  contain: layout style paint;
+}
+
+/* A row whose page has not arrived yet. Same height, so the geometry never
+   shifts once the data lands. */
+.row.loading .from::before {
+  content: "";
+  display: block;
+  width: 60%;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--chip);
+}
+
+.row:hover {
+  background: var(--hover);
+}
+
+/* The cursor of a pane without the keyboard: the neutral fill. Where the keys
+   go it is filled with the accent instead; see "The live cursor". */
+.row.cursor,
+.row.cursor:hover {
+  background: var(--cursor-bg);
+}
+
+/* The status column: the unread dot, or the cross of a staged delete. */
+.status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.status .mark {
+  display: none;
+  font-style: normal;
+}
+
+.status .mark[data-g="N"] {
+  display: block;
+  width: calc(7 * var(--u));
+  height: calc(7 * var(--u));
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.status .mark[data-g="D"] {
+  display: block;
+  color: var(--danger);
+  font: 600 var(--font-sm) var(--mono);
+}
+
+.status .mark[data-g="D"]::before {
+  content: "✕";
+}
+
+/* Replied to or forwarded: an arrow, quieter than the unread dot it gives
+   way to. */
+.status .mark[data-g="r"],
+.status .mark[data-g="f"] {
+  display: block;
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+  background: var(--fg3);
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>')
+    center / contain no-repeat;
+}
+
+.status .mark[data-g="f"] {
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 17 5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>');
+}
+
+/* Sender: the name, and the address beside it, which never truncates. */
+.from {
+  display: flex;
+  align-items: baseline;
+  gap: calc(7 * var(--u));
+  color: var(--fg);
+}
+
+.from .name {
+  flex: 0 1 auto;
+  min-width: 5ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.from .addr {
+  flex: 0 100 auto;
+  min-width: min-content;
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.row.bare-from .from .name {
+  display: none;
+}
+
+/* A name that is another address: the real one in red, behind a mark. */
+.spw {
+  display: none;
+  align-items: center;
+  align-self: center;
+  margin-right: calc(-3 * var(--u));
+  color: var(--danger);
+}
+
+.spw .ic {
+  width: calc(12 * var(--u));
+  height: calc(12 * var(--u));
+}
+
+.row.spoofed .from .spw,
+.h-from .spw {
+  display: inline-flex;
+}
+
+.h-from .spw {
+  margin: 0 0 0 calc(6 * var(--u));
+  vertical-align: -1px;
+}
+
+.h-from .spw + .addr {
+  margin-left: calc(4 * var(--u));
+}
+
+.row.spoofed .from .addr,
+.h-from .addr.spoof {
+  color: var(--danger);
+}
+
+.row.bare-from .from .addr {
+  color: var(--fg);
+  font-size: inherit;
+}
+
+.row.unread .from .name,
+.row.unread.bare-from .from .addr {
+  font-weight: 600;
+}
+
+/* The subject, then the thread badge and the snippet, on one line. */
+.subject {
+  color: var(--fg);
+}
+
+.row.unread .subject .text {
+  font-weight: 500;
+}
+
+.subject .subject-icons:empty {
+  display: none;
+}
+
+.subject .subject-icons {
+  margin-right: calc(6 * var(--u));
+}
+
+.subject .snip {
+  margin-left: calc(8 * var(--u));
+  color: var(--fg3);
+}
+
+/* Conversations: the member count and caret after a thread's subject, and a
+   tree mark one step in per level before a reply's. */
+.subject .thread {
+  display: inline-block;
+  margin-left: calc(7 * var(--u));
+  padding: 0 calc(5 * var(--u));
+  border-radius: calc(4 * var(--u));
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg3);
+  font: calc(10.5 * var(--u)) / calc(15 * var(--u)) var(--mono);
+  vertical-align: 1px;
+}
+
+.subject .thread:empty {
+  display: none;
+}
+
+.subject .tree[hidden] {
+  display: none;
+}
+
+.subject .tree {
+  display: inline-block;
+  margin: 0 calc(6 * var(--u)) 0 calc(var(--depth, 0) * 14 * var(--u));
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+/* The badges: the folder of a search hit, highlight icons and labels, a
+   staged move's target, open tasks, files, the flag. */
+.meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: calc(7 * var(--u));
+  color: var(--fg3);
+}
+
+.meta > * {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--u));
+}
+
+.meta > :empty,
+.meta > [hidden] {
+  display: none;
+}
+
+.meta .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.meta .folder {
+  font-size: calc(11.5 * var(--u));
+}
+
+.meta .target {
+  padding: 0 calc(6 * var(--u));
+  border-radius: calc(4 * var(--u));
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  font: calc(10.5 * var(--u)) / calc(16 * var(--u)) var(--mono);
+}
+
+.meta .tasks .n {
+  font-size: var(--font-xs);
+}
+
+.meta .flagged {
+  color: var(--warning);
+}
+
+.date {
+  color: var(--fg3);
+  font: calc(11.5 * var(--u)) var(--mono);
+  text-align: right;
+}
+
+.row.unread .date {
+  color: var(--fg2);
+}
+
+/* A staged delete is struck through and a staged move faded, until applied. */
+.row.staged-delete .from,
+.row.staged-delete .subject {
+  opacity: 0.45;
+}
+
+.row.staged-delete .subject .text {
+  text-decoration: line-through;
+}
+
+.row.staged-move .from,
+.row.staged-move .subject {
+  opacity: 0.6;
+}
+
+/* Multi-selected rows, distinct from the cursor: several can be selected at
+   once, and the cursor may sit on an unselected row. The fill alone says it,
+   so that a run of them reads as one block: an edge would run into the
+   focused pane's and be painted over by a highlight rule's. The colour, not
+   the shorthand, so that a rule's tint is still drawn over it. */
+.row.selected,
+.row.selected:hover,
+.tk-row.selected,
+.tk-row.selected:hover {
+  --fg3: var(--selected-fg3);
+  --danger: var(--selected-danger);
+  background-color: var(--selected);
+}
+
+/* The cursor of a pane without the keyboard on a selected row: both, the
+   cursor's shade over the selection. */
+.row.selected.cursor {
+  background-color: var(--selected);
+  box-shadow: inset 0 0 0 100vmax var(--cursor-bg);
+}
+
+/*
+ * A row whose change the server has not acknowledged yet.
+ *
+ * The new state is shown straight away so the action feels immediate, but
+ * dimmed, so an unconfirmed guess is visibly distinct from a fact.
+ */
+.row.unconfirmed .status,
+.row.unconfirmed .meta,
+.row.unconfirmed .from,
+.row.unconfirmed .subject,
+.row.unconfirmed .date {
+  opacity: 0.4;
+  transition: opacity 120ms ease-out;
+}
+
+/* The reader starts where the list's text starts, so the two share an edge. */
+#reader {
+  padding: calc(22 * var(--u)) calc(28 * var(--u)) 0 var(--text-x);
+  user-select: text;
+  /* Pin the headers and let only the body scroll, so the detail pane stays
+     readable at half height. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#reader header {
+  flex: none;
+}
+
+#reader header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+/*
+ * The reader's header: the subject; the sender, the address beside it and
+ * the date at the right; the recipients; the files and linked tasks as
+ * chips. Each line keeps its label as an element of its own (`.k`), which
+ * this look hides but for "to" and "cc".
+ */
+.hdrs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "subj subj" "from date" "to to" "att att";
+  column-gap: calc(8 * var(--u));
+  align-items: baseline;
+}
+
+/* The rendering switch takes a column of its own beside the subject, so a
+   long subject wraps short of it rather than running underneath. */
+.hdrs:has(> .views) {
+  grid-template-areas: "subj views" "from date" "to to" "att att";
+}
+
+#reader h1,
+.h-subj {
+  grid-area: subj;
+  margin: 0 0 calc(14 * var(--u));
+  font-size: calc(17 * var(--u));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.hdr > .k {
+  display: none;
+}
+
+.h-from {
+  grid-area: from;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.h-from b {
+  font-weight: 600;
+}
+
+.h-from .addr {
+  margin-left: calc(6 * var(--u));
+  color: var(--fg3);
+}
+
+.h-date {
+  grid-area: date;
+  color: var(--fg3);
+  font: calc(11.5 * var(--u)) var(--mono);
+}
+
+.h-to {
+  grid-area: to;
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.h-to > .k {
+  display: inline;
+  margin-right: 0.3em;
+  text-transform: lowercase;
+}
+
+.h-att {
+  grid-area: att;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(8 * var(--u));
+  margin-top: calc(14 * var(--u));
+}
+
+/* A chip: a file, a linked task, a set property. */
+.h-att .chip,
+.td .p {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  min-width: 0;
+  max-width: none;
+  height: calc(24 * var(--u));
+  padding: 0 calc(9 * var(--u));
+  border-radius: calc(6 * var(--u));
+  background: var(--chip);
+  color: var(--fg2);
+  font-size: var(--font-sm);
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.h-att .chip .ic,
+.td .p .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.h-att .chip .dim,
+.td .p .dim {
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+.h-att .chip.acc {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.h-att .chip.acc .dim {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.h-att .chip button,
+.td .p button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+/* A chip's own buttons — Quick Look, Save, postpone, clear — show on hover. */
+.h-att .chip > button:not(.tk-box):not(.tk-title),
+.td .p > .tk-field-button {
+  display: none;
+}
+
+.h-att .chip:hover > button,
+.td .p:hover > .tk-field-button {
+  display: inline-flex;
+}
+
+.h-att .chip .tk-box {
+  display: inline-grid;
+  place-items: center;
+}
+
+.h-att .chip .chk {
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.tk-msg-task.completed .tk-title {
+  text-decoration: line-through;
+}
+
+.tk-msg-task.late .dim {
+  color: var(--danger);
+  opacity: 1;
+}
+
+.chip.att {
+  cursor: grab;
+}
+
+/* A file that is dangerous to open: marked, and asked about on opening. */
+.chip.att.risky .att-name {
+  color: var(--danger);
+}
+
+.att-name {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  cursor: default;
+}
+
+/* A text/plain body is preformatted content, not chrome — it needs a fixed
+   pitch or ASCII tables, quoting and signatures misalign. */
+#reader pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding-bottom: 16px;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#reader iframe {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  background: var(--paper);
+}
+
+.empty {
+  padding: 20px;
+  color: var(--fg2);
+}
+
+/* What an empty list says: what is empty, a line of facts, the keys on. */
+.empty-view {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: calc(6 * var(--u));
+  text-align: center;
+}
+
+.empty-view .ic.big {
+  width: calc(34 * var(--u));
+  height: calc(34 * var(--u));
+  margin-bottom: calc(8 * var(--u));
+  color: var(--fg3);
+  stroke-width: 1.5;
+}
+
+.empty-view h3 {
+  margin: 0;
+  font-size: calc(15 * var(--u));
+  font-weight: 600;
+}
+
+.empty-view p {
+  margin: 0;
+  color: var(--fg3);
+}
+
+.empty-view .leads {
+  display: flex;
+  gap: calc(18 * var(--u));
+  margin-top: calc(14 * var(--u));
+}
+
+.empty-view .leads button {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+.empty-view .leads button:hover {
+  color: var(--fg);
+}
+
+/* What the HTML rendering was kept from doing, and the way to let it. */
+#reader .notice {
+  flex: none;
+  margin-bottom: 8px;
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+#reader .notice button {
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1px 9px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+#reader .notice button:hover {
+  border-color: var(--accent);
+}
+
+/* What the headers say against the sender. */
+#reader .notice.warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger);
+}
+
+#reader .notice.warn .ic {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+#reader .notice.warn b {
+  font-weight: 600;
+}
+
+/* Why reminders will not arrive, under the field that sets them. */
+.tk-blocked {
+  margin: 2px 0 6px;
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+.tk-blocked button {
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1px 9px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.tk-blocked button:hover {
+  border-color: var(--accent);
+}
+
+/* The status line stays monospace — it is a command/echo area, not chrome. */
+#statusbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: calc(26 * var(--u));
+  padding: 0 calc(14 * var(--u));
+  border-top: 1px solid var(--line);
+  background: var(--pane);
+  color: var(--fg3);
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+}
+
+#status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg2);
+}
+
+#statusbar kbd {
+  padding: calc(2 * var(--u)) calc(4 * var(--u));
+  font-size: var(--font-2xs);
+}
+
+/* The mode the window is in, for a look whose status line is a modeline. */
+#status-mode {
+  display: none;
+}
+
+/* The steady state: what is staged, where the cursor is, how sync stands. */
+#status-steady {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--u));
+  color: var(--fg3);
+  white-space: nowrap;
+}
+
+#status-steady:empty {
+  display: none;
+}
+
+#status-steady .warn,
+#status-steady .sync.warn {
+  color: var(--warning);
+}
+
+#status-steady .fail {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+#status-steady [data-outbox-open] {
+  cursor: pointer;
+}
+
+#status-steady .dot {
+  display: inline-block;
+  width: calc(6 * var(--u));
+  height: calc(6 * var(--u));
+  margin-right: calc(5 * var(--u));
+  border-radius: 50%;
+  background: var(--success);
+  vertical-align: 1px;
+}
+
+#status-steady .sync.busy .dot {
+  background: var(--fg3);
+}
+
+#status-steady .sync.warn .dot {
+  background: var(--warning);
+}
+
+/* Compact summary of background work, at the right of the status bar. */
+#tasks-toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  cursor: pointer;
+}
+
+#tasks-toggle:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+/* Outcome word in the chip, once nothing is running. */
+#tasks-toggle .done { color: var(--fg2); }
+#tasks-toggle .cancelled { color: var(--fg2); }
+#tasks-toggle .failed { color: var(--danger); }
+
+/* A determinate bar when the total is known, indeterminate otherwise. */
+.task-bar {
+  width: 64px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--chip);
+  overflow: hidden;
+}
+
+.task-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease-out;
+}
+
+.task-bar.indeterminate > span {
+  width: 40%;
+  animation: task-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes task-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+/* Expanded list, anchored above the status bar. */
+#tasks-panel {
+  position: fixed;
+  right: 12px;
+  bottom: 30px;
+  width: 340px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--pane);
+  box-shadow: var(--shadow-pop);
+  z-index: 10;
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  padding: 6px 4px;
+  align-items: center;
+}
+
+.task-row + .task-row {
+  border-top: 1px solid var(--line);
+}
+
+.task-row .name {
+  color: var(--fg);
+}
+
+.task-row .detail {
+  grid-column: 1 / -1;
+  color: var(--fg2);
+  font-size: var(--font-2xs);
+}
+
+.task-row .task-bar {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.task-row button {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.task-row button:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.task-row.done .name { color: var(--fg2); }
+.task-row.failed .name { color: var(--danger); }
+.task-row.cancelled .name { color: var(--fg2); }
+
+.tasks-empty {
+  padding: 8px 4px;
+  color: var(--fg2);
+}
+
+/* The search's own row in the sidebar, shown only while one is active.
+   Separated from the folders below rather than grouped under a heading: it is
+   one row and it is not a folder. The rule is drawn below the row's box, not
+   inside it, so the highlight stays a plain row's and centres its content. */
+.search-row {
+  position: relative;
+  margin: 0 0 calc(13 * var(--u));
+}
+
+.search-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(-7 * var(--u));
+  border-bottom: 1px solid var(--line);
+}
+
+.search-row .sb-label {
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-row button {
+  flex: none;
+  margin-left: auto;
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: var(--fg2);
+  cursor: pointer;
+  font: inherit;
+}
+
+.search-row button:hover {
+  color: var(--danger);
+}
+
+/* Links found in a plain-text body. Underlined on hover only, so a message
+   full of URLs does not become a wall of blue rules. */
+#reader pre a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#reader pre a:hover {
+  text-decoration: underline;
+}
+
+/* The signature of a plain-text body, from its `-- ` line on. */
+#reader pre .sig {
+  color: var(--fg3);
+}
+
+/* Rendering switch, top right of the reader's header. Quiet until wanted:
+   reading the message is the job, choosing how to read it is not. */
+.views {
+  grid-area: views;
+  align-self: start;
+  justify-self: end;
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  opacity: 0.55;
+  transition: opacity 120ms ease-out;
+}
+
+#reader:hover .views,
+.views:focus-within {
+  opacity: 1;
+}
+
+.views button {
+  border: 0;
+  padding: 2px 9px;
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--font-2xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.views button + button {
+  border-left: 1px solid var(--line);
+}
+
+.views button:hover {
+  color: var(--fg);
+}
+
+.views button.on {
+  background: var(--cursor-bg);
+  color: var(--fg);
+}
+
+/*
+ * A conversation: the header pinned, the messages a stack under it that
+ * scrolls as one, oldest first. Each message is a line until it is open;
+ * an open one shows its body at its full height, so there is one scroll
+ * rather than one per message.
+ */
+.conv {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.conv-hdrs,
+.conv-hdrs:has(> .views) {
+  grid-template-areas: "subj views" "sub sub" "att att";
+}
+
+#reader .conv-hdrs h1 {
+  margin-bottom: calc(4 * var(--u));
+}
+
+.conv-sub {
+  grid-area: sub;
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.conv-sub b {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.conv-tasks:empty {
+  display: none;
+}
+
+.conv-stack {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--u));
+  padding: 1px 1px calc(16 * var(--u));
+}
+
+.conv-earlier {
+  flex: none;
+  padding: calc(5 * var(--u)) calc(12 * var(--u));
+  border: 1px dashed var(--line);
+  border-radius: calc(8 * var(--u));
+  background: none;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--font-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.conv-earlier:hover {
+  color: var(--fg);
+}
+
+.card {
+  flex: none;
+  border-radius: calc(8 * var(--u));
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* The message the reader's keys act on, while the reader has them. */
+#reader.focused .card.focus {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.card.staged {
+  opacity: 0.55;
+}
+
+.card-head {
+  display: grid;
+  grid-template-columns: calc(7 * var(--u)) auto minmax(0, 1fr) auto auto;
+  column-gap: calc(10 * var(--u));
+  align-items: center;
+  padding: calc(7 * var(--u)) calc(12 * var(--u));
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.card-dot {
+  width: calc(7 * var(--u));
+  height: calc(7 * var(--u));
+  border-radius: 50%;
+}
+
+.card.unread .card-dot {
+  background: var(--accent);
+}
+
+.card-who {
+  color: var(--fg2);
+}
+
+.card.open .card-who,
+.card.unread .card-who {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.card-pv {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.card-marks:empty {
+  display: none;
+}
+
+.card-when {
+  color: var(--fg3);
+  font: calc(11.5 * var(--u)) var(--mono);
+}
+
+.card-body {
+  display: none;
+  padding: 0 calc(12 * var(--u)) calc(12 * var(--u)) calc(29 * var(--u));
+}
+
+.card.open .card-body {
+  display: block;
+}
+
+.card-meta {
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.card-meta:not(:empty) {
+  margin-bottom: calc(10 * var(--u));
+}
+
+.card-meta .h-att {
+  margin-top: calc(6 * var(--u));
+}
+
+.card-meta .cc {
+  margin-right: 0.3em;
+}
+
+#reader .card iframe {
+  display: block;
+  flex: none;
+  height: calc(60 * var(--u));
+  min-height: 0;
+}
+
+#reader .card pre {
+  flex: none;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+#reader .card .fetching,
+#reader .card .empty {
+  margin: 0;
+  padding: 0;
+}
+
+/* The source is a document, not prose: keep it monospaced and wrapping. */
+#reader pre.raw {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--fg2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---------------------------------------------------------------------------
+   Compose window
+   Its own window, one per draft, grouped into tabs by macOS. Deliberately
+   plain: the envelope is a handful of fields, and the body is written in
+   Neovim.
+   --------------------------------------------------------------------------- */
+
+body.compose {
+  padding: 0;
+  background: var(--pane);
+}
+
+#compose {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* The title bar, which the content runs under: the traffic lights, the
+   draft's subject where the system would have put it, and at the other end
+   how the draft stands and the buttons that act on it. */
+#titlebar {
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  height: calc(var(--chrome-h) + var(--chrome-pad));
+  /* In the band beside the lights, above a tab bar when the drafts are tabs. */
+  padding: 0 calc(12 * var(--u)) calc(var(--chrome-h) + var(--chrome-pad) - var(--toolbar-h)) 86px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  cursor: default;
+}
+
+#titlebar .ct {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+#titlebar .saved {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+#titlebar .saved.warn {
+  color: var(--warning);
+  font-family: var(--font);
+}
+
+#titlebar .btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(7 * var(--u));
+  height: calc(28 * var(--u));
+  padding: 0 calc(10 * var(--u));
+  border: 0;
+  border-radius: calc(7 * var(--u));
+  background: var(--chip);
+  color: var(--fg2);
+  font: inherit;
+  font-size: calc(12.5 * var(--u));
+}
+
+#titlebar .btn:hover {
+  color: var(--fg);
+}
+
+/* A follow-up asked for, so it is not missed before Send. */
+#titlebar .btn.on {
+  color: var(--accent);
+}
+
+#titlebar .btn .ic {
+  width: calc(14 * var(--u));
+  height: calc(14 * var(--u));
+}
+
+#titlebar .btn.pri {
+  padding: 0 calc(7 * var(--u)) 0 calc(12 * var(--u));
+  background: var(--accent-bg);
+  color: #fff;
+  font-weight: 600;
+}
+
+#titlebar .btn.pri:disabled {
+  opacity: 0.5;
+}
+
+#titlebar .btn.pri kbd {
+  padding: calc(3 * var(--u)) calc(5 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: rgba(255, 255, 255, 0.2);
+  font: calc(10.5 * var(--u)) / 1 var(--mono);
+}
+
+/* The envelope, as one block: a label column, the value, and at the end of a
+   line what belongs beside it — the account, the way to Bcc. */
+.fields {
+  flex: none;
+  padding: calc(6 * var(--u)) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.field {
+  display: grid;
+  grid-template-columns: calc(70 * var(--u)) minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: calc(32 * var(--u));
+  padding: 0 calc(18 * var(--u));
+}
+
+.field[hidden] {
+  display: none;
+}
+
+.field > span:first-child {
+  color: var(--fg3);
+}
+
+.field > .r {
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  user-select: text;
+}
+
+.body-summary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--fg2);
+}
+
+.body-summary button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.body-summary button:hover {
+  border-color: var(--accent);
+}
+
+/* Neovim, running in the compose window. Given all the room left over: the
+   envelope is four short fields and the message is the work. */
+#editor {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 6px;
+  background: var(--bg);
+}
+
+#editor.nvim {
+  position: relative;
+  overflow: hidden;
+  cursor: text;
+}
+
+#editor canvas {
+  display: block;
+}
+
+/* Where typing goes: invisible, and kept at Neovim's cursor so an input
+   method's candidates open beside the text. */
+#editor .nvim-input {
+  position: absolute;
+  width: 1px;
+  height: 1em;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  opacity: 0;
+  resize: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The plain editor, for when Neovim has been left. Sized and spaced like the
+   terminal it replaces, so switching between them does not move the text. */
+#plain {
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  padding: 6px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: var(--font-size);
+  line-height: 1.4;
+  user-select: text;
+}
+
+/* Files picked for sending, as a header line beside To and Cc — because that
+   is what they are: part of the envelope, not part of the message. Listed
+   rather than counted: what is going out is worth reading back before it goes. */
+.attachments {
+  min-width: 0;
+  padding: calc(4 * var(--u)) 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* What is worth a second look before sending, as a header line of its own:
+   the sender against the original and the recipients, a missing attachment. */
+.warnings {
+  min-width: 0;
+  margin: 0;
+  padding: calc(4 * var(--u)) 0;
+  list-style: none;
+  color: var(--warning);
+  font-size: var(--font-sm);
+}
+
+.warnings li {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  min-height: calc(20 * var(--u));
+}
+
+.warnings li svg {
+  flex: none;
+  width: calc(12 * var(--u));
+  height: calc(12 * var(--u));
+}
+
+.warnings li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Who the message is from: the name, the address, and a chevron when there
+   is another identity to choose. */
+.identity {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.identity .addr {
+  color: var(--fg3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.identity .chev {
+  flex: none;
+  width: calc(12 * var(--u));
+  height: calc(12 * var(--u));
+  color: var(--fg3);
+}
+
+.identity:not(:disabled):hover .chev {
+  color: var(--fg);
+}
+
+.field .add {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--font-sm);
+}
+
+.field .add:hover {
+  color: var(--fg);
+}
+
+.attachments .file {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  max-width: calc(260 * var(--u));
+  height: calc(22 * var(--u));
+  padding: 0 calc(8 * var(--u));
+  border-radius: calc(5 * var(--u));
+  background: var(--chip);
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+.attachments .file .ic {
+  flex: none;
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+  color: var(--fg3);
+}
+
+.attachments .file span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachments .file button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--fg2);
+  cursor: pointer;
+  font: inherit;
+}
+
+.attachments .file button:hover {
+  color: var(--danger);
+}
+
+/* Recipients as tokens.
+
+   The field is a row of pills that wraps, with the text cursor sitting after
+   the last one — so a long recipient list grows downwards instead of scrolling
+   sideways out of sight, which is the failure mode of a plain input here. */
+.tokens {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+}
+
+.tokens .token,
+.token-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  padding: 1px 4px 1px 9px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: var(--chip);
+  color: var(--fg);
+  font-size: var(--font-sm);
+  line-height: 18px;
+  cursor: default;
+}
+
+.tokens .token > span,
+.token-ghost > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Selected by Backspace or by clicking: the state that says "this one goes if
+   you press it again". */
+.tokens .token.selected {
+  background: var(--accent-bg);
+  border-color: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+/* Not an address yet. Marked rather than refused — a draft is allowed to be
+   half-written, and the mark is what stops it being a surprise at Send. */
+.tokens .token.incomplete {
+  border-color: var(--danger);
+  border-style: dashed;
+}
+
+.tokens .token button,
+.token-ghost button {
+  flex: none;
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  font: inherit;
+  font-size: var(--font-2xs);
+  cursor: pointer;
+}
+
+.tokens .token button:hover {
+  opacity: 1;
+}
+
+/* A recipient being dragged: its place stays, faint, until it is let go, and
+   the copy under the pointer is what moves. */
+.tokens .token.dragging {
+  opacity: 0.35;
+}
+
+.token-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: var(--shadow-pop);
+}
+
+:root.dragging-token,
+:root.dragging-token * {
+  cursor: grabbing !important;
+}
+
+/* Where a dropped recipient would land. */
+.tokens .token-caret {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+/* The text cursor. Sized to its content so it sits directly after the last
+   pill, and grows as an address is typed. */
+.tokens .token-input {
+  flex: 1;
+  min-width: 120px;
+  border: 0;
+  outline: 0;
+  padding: 1px 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  user-select: text;
+}
+
+/* Completions, hanging below the field.
+
+   Positioned against the field rather than the window so it follows when the
+   recipient list wraps onto a second line. */
+.tokens .completions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  margin: 4px 0 0;
+  padding: 4px;
+  min-width: 320px;
+  max-width: 460px;
+  max-height: 280px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--pane);
+  box-shadow: var(--shadow-pop);
+}
+
+.tokens .completions li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: default;
+}
+
+.tokens .completions li.highlighted {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+.tokens .completions .who {
+  flex: none;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-sm);
+}
+
+.tokens .completions .detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--fg2);
+  font-size: var(--font-xs);
+}
+
+.tokens .completions li.highlighted .detail {
+  color: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+   Templates
+
+   The picker over the draft, the Fill in line under the header, and the
+   sheet that asks before a placeholder goes out in braces. A placeholder is
+   amber while it waits and the accent once filled, wherever it is drawn.
+   --------------------------------------------------------------------------- */
+
+/* The one button that gives way when the title bar runs out of room. */
+#titlebar .btn.tpl {
+  flex: 0 1 auto;
+  min-width: calc(64 * var(--u));
+  max-width: calc(220 * var(--u));
+}
+
+#titlebar .btn.tpl span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#titlebar .btn.tpl.on {
+  background: var(--accent-soft);
+}
+
+.ph {
+  border-radius: calc(4 * var(--u));
+  padding: 0 calc(3 * var(--u));
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 45%, transparent);
+  white-space: nowrap;
+}
+
+.ph.ok {
+  color: var(--fg);
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+
+.tpk-scrim {
+  padding-top: calc(var(--chrome-h) + var(--chrome-pad));
+}
+
+.tpk {
+  width: min(900px, calc(100vw - 40px));
+  height: min(520px, calc(100vh - var(--chrome-h) - var(--chrome-pad) - 20px));
+  display: grid;
+  grid-template-columns: minmax(220px, 34%) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border: 1px solid var(--line);
+  border-radius: 0 0 12px 12px;
+  background: var(--pane);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.tpk-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.tpk-head .ic {
+  width: 16px;
+  height: 16px;
+  color: var(--fg3);
+}
+
+.tpk-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--font-lg);
+  user-select: text;
+}
+
+.tpk-input::placeholder {
+  color: var(--fg3);
+}
+
+.tpk-count {
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.tpk-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px;
+  border-right: 1px solid var(--line);
+}
+
+.tpk-h {
+  padding: 7px 9px 3px;
+  color: var(--fg3);
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+.tpk-i {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  column-gap: 10px;
+  row-gap: 1px;
+  align-items: center;
+  padding: 6px 9px;
+  border-radius: 7px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.tpk-i > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tpk-i .ic {
+  width: 14px;
+  height: 14px;
+  color: var(--fg3);
+}
+
+.tpk-s {
+  grid-column: 2 / -1;
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.tpk-n {
+  padding: 0 5px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg3);
+  font: var(--font-2xs) var(--mono);
+}
+
+.tpk-i.on {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+.tpk-i.on * {
+  color: inherit;
+}
+
+.tpk-i.on .tpk-n {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.tpk-i.broken {
+  opacity: 0.6;
+}
+
+.tpk-i.broken .ic {
+  color: var(--warning);
+}
+
+.tpk-empty {
+  padding: 18px 12px;
+  color: var(--fg3);
+}
+
+.tpk-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tpk-ph {
+  padding: 16px 22px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tpk-t {
+  font-size: calc(15 * var(--u));
+  font-weight: 600;
+}
+
+.tpk-kv {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  row-gap: 3px;
+  margin-top: 10px;
+  font-size: var(--font-sm);
+}
+
+.tpk-kv .k,
+.tpk-fill .k,
+.tpk-preview .dim {
+  color: var(--fg3);
+}
+
+.tpk-fill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: var(--font-sm);
+}
+
+.tpk-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 22px;
+  color: var(--fg2);
+  line-height: 1.55;
+}
+
+.tpk-ln {
+  white-space: pre-wrap;
+}
+
+.tpk-about {
+  padding: 18px 22px;
+  color: var(--fg2);
+}
+
+.tpk-about pre {
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: var(--chip);
+  font: var(--font-sm) var(--mono);
+}
+
+.tpk-about code {
+  font-family: var(--mono);
+}
+
+.tpk-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.tpk-path {
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--font-xs) var(--mono);
+}
+
+.tpk-foot button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+.tpk-foot button:hover {
+  color: var(--fg);
+}
+
+/* One field per placeholder, in the header block, in the order they appear. */
+.field.fill {
+  align-items: start;
+  padding-top: calc(6 * var(--u));
+  padding-bottom: calc(8 * var(--u));
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.field.fill > span:first-child {
+  line-height: calc(24 * var(--u));
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.pfs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(8 * var(--u)) calc(10 * var(--u));
+}
+
+.pf {
+  display: grid;
+  grid-template-rows: auto calc(26 * var(--u));
+  row-gap: calc(3 * var(--u));
+  min-width: calc(150 * var(--u));
+}
+
+.pf .lb {
+  display: flex;
+  gap: calc(5 * var(--u));
+  align-items: center;
+  color: var(--fg3);
+  font-size: var(--font-xs);
+}
+
+.pf .lb .ic {
+  display: none;
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+  color: var(--success);
+}
+
+.pf.ok .lb .ic {
+  display: inline;
+}
+
+.pf .from {
+  display: none;
+}
+
+.pf.auto .from {
+  display: inline;
+}
+
+.pf input {
+  height: calc(26 * var(--u));
+  padding: 0 calc(8 * var(--u));
+  border: 0;
+  border-radius: calc(6 * var(--u));
+  background: var(--pane);
+  box-shadow: inset 0 0 0 1px var(--frame);
+  color: var(--fg);
+}
+
+.pf input::placeholder {
+  color: var(--fg3);
+}
+
+.pf.todo input {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 55%, transparent);
+}
+
+.pf.todo .lb {
+  color: var(--warning);
+}
+
+.pf:focus-within .lb {
+  color: var(--accent);
+}
+
+.pf input:focus {
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px var(--accent-soft);
+}
+
+.field.fill .r {
+  display: grid;
+  justify-items: end;
+  gap: calc(2 * var(--u));
+  line-height: calc(24 * var(--u));
+}
+
+.field.fill .r .left {
+  color: var(--warning);
+  font-weight: 500;
+}
+
+.field.fill .r .keys {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  line-height: 1;
+}
+
+/* The fill line carries its own accent; the focus bar of the other lines would double it. */
+.field.fill:focus-within {
+  box-shadow: none;
+}
+
+/* A sheet out of the title bar, as macOS asks before an action. */
+.sheet-scrim {
+  position: fixed;
+  inset: calc(var(--chrome-h) + var(--chrome-pad)) 0 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: var(--scrim);
+}
+
+.sheet {
+  width: min(500px, calc(100vw - 40px));
+  padding: 20px 22px 16px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: var(--pane);
+  box-shadow: var(--shadow-modal);
+}
+
+.sheet-h {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.sheet-h .badge {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  color: var(--warning);
+}
+
+.sheet-h .badge .ic {
+  width: 18px;
+  height: 18px;
+}
+
+.sheet-h h3 {
+  margin: 1px 0 3px;
+  font-size: calc(14 * var(--u));
+  font-weight: 600;
+}
+
+.sheet-h p {
+  margin: 0;
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+.sheet-l {
+  display: grid;
+  gap: 2px;
+  margin: 14px 0 4px;
+}
+
+.sheet-l .it {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.sheet-l .it.on {
+  background: var(--accent-soft);
+}
+
+.sheet-l .ctx {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.sheet-l .ln {
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+.sheet-o {
+  margin: 8px 0 0;
+  padding: 0 9px;
+  list-style: none;
+  color: var(--warning);
+  font-size: var(--font-sm);
+}
+
+.sheet-o li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sheet-o .ic {
+  width: 12px;
+  height: 12px;
+}
+
+.sheet-f {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.sheet-f .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--chip);
+  color: var(--fg2);
+  font: inherit;
+  font-size: calc(12.5 * var(--u));
+}
+
+.sheet-f .btn.quiet {
+  margin-right: auto;
+  background: none;
+}
+
+.sheet-f .btn.pri {
+  background: var(--accent-bg);
+  color: #fff;
+  font-weight: 600;
+}
+
+.sheet-f .btn.pri kbd {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* Which field has the keyboard.
+
+   Three recipient rows, a subject and a terminal share this window, and until
+   this was here nothing on screen said where a keystroke would land — so a
+   draft that opened with the editor focused looked exactly like one that
+   opened with To focused, and typing a name did nothing either way. */
+.field:focus-within {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Date picker
+
+   One modal: an input, and under it either the suggestion list or a calendar —
+   never both, so there is only ever one cursor on screen and `<enter>` has one
+   meaning (§12). Built from the same four colours as the rest of the window;
+   nothing here introduces a palette of its own.
+   --------------------------------------------------------------------------- */
+
+/* Above the completions (40) and the task panel (10): while this is open it is
+   the only thing the keyboard can reach. */
+.dp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  /* Not centred vertically: the picker is answering a keystroke made in the
+     list behind it, and the top third keeps that list in view. */
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  background: var(--scrim);
+}
+
+.dp {
+  width: 340px;
+  max-height: 76vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--pane);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.dp-head {
+  flex: none;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.dp-title {
+  color: var(--fg2);
+  font-size: var(--font-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* The field carries the keyboard from the moment the picker opens, so it is
+   drawn as the primary surface rather than as a boxed control inside one. */
+.dp-input {
+  flex: none;
+  border: 0;
+  outline: 0;
+  padding: 9px 12px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--font-lg);
+  user-select: text;
+}
+
+/* The rows a picker for several has chosen, above its field. */
+.dp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 0;
+  background: var(--bg);
+}
+
+.dp-chips[hidden] {
+  display: none;
+}
+
+.dp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+.dp-chip .x {
+  color: var(--fg3);
+}
+
+.dp-input::placeholder {
+  color: var(--fg3);
+}
+
+.dp-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+/* Primary left, secondary right — the layout the spec asks for, and the reason
+   a column of dates can be scanned without reading the phrases beside them. */
+.dp-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: default;
+}
+
+.dp-list li.highlighted {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+.dp-primary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dp-secondary {
+  flex: none;
+  text-align: right;
+  color: var(--fg2);
+  font-size: var(--font-xs);
+}
+
+.dp-list li.highlighted .dp-secondary {
+  color: inherit;
+}
+
+/* "no matching date": an answer, not an empty list, and deliberately not
+   styled as a row that could be selected. */
+.dp-empty {
+  padding: 10px 8px;
+  color: var(--fg2);
+  font-style: italic;
+}
+
+/* The password prompt: the picker's frame around one field and a checkbox. */
+.pw-login {
+  padding: 8px 12px 6px;
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+.pw-refused {
+  margin-top: 4px;
+  color: var(--fg);
+}
+
+.pw-keep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+/* Set Up iPhone: the picker's frame around the code. The code stays black on
+   white in either theme, as a camera reads it best. */
+.iphone-setup {
+  width: 380px;
+}
+
+.is-about,
+.is-warning,
+.is-countdown {
+  padding: 8px 12px;
+  font-size: var(--font-sm);
+  color: var(--fg2);
+}
+
+.is-warning {
+  color: var(--fg);
+}
+
+.is-code {
+  display: flex;
+  justify-content: center;
+  margin: 4px 12px;
+  background: #fff;
+  border-radius: 6px;
+}
+
+.is-code:empty {
+  display: none;
+}
+
+.is-code svg {
+  display: block;
+  width: 320px;
+  height: 320px;
+}
+
+/* Merge Tasks: which task stays, then what it will be, then what comes along. */
+.task-merge {
+  width: 460px;
+}
+
+.tm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  overflow: auto;
+}
+
+.tm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tm-label {
+  color: var(--fg2);
+  font-size: var(--font-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tm-keep {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tm-option {
+  border: 0;
+  border-radius: 5px;
+  padding: 4px 8px 4px 26px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+
+.tm-option::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -6px;
+  border: 1px solid var(--fg3);
+  border-radius: 50%;
+}
+
+.tm-option:hover {
+  background: var(--hover);
+}
+
+.tm-option.on {
+  background: var(--accent-soft);
+}
+
+.tm-option.on::before {
+  border-color: var(--accent);
+  background: radial-gradient(var(--accent) 45%, transparent 50%);
+}
+
+.tm-title,
+.tm-notes,
+.tm-dates select {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  outline: 0;
+  padding: 5px 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  user-select: text;
+}
+
+.tm-title:focus,
+.tm-notes:focus,
+.tm-dates select:focus {
+  border-color: var(--accent);
+}
+
+.tm-notes {
+  min-height: 110px;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+}
+
+.tm-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tm-along,
+.tm-problem {
+  font-size: var(--font-sm);
+  color: var(--fg2);
+}
+
+.tm-problem {
+  color: var(--danger);
+}
+
+.tm-problem:empty {
+  display: none;
+}
+
+.tm-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tm-foot > span {
+  flex: 1;
+}
+
+.tm-button {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 10px;
+  background: var(--pane);
+  color: var(--fg);
+  font: inherit;
+}
+
+.tm-button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.dp-cal {
+  flex: none;
+  padding: 6px 8px 10px;
+  border-top: 1px solid var(--line);
+}
+
+.dp-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+}
+
+.dp-month {
+  color: var(--fg);
+  font-size: var(--font-sm);
+}
+
+.dp-nav-button {
+  border: 0;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--font-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dp-nav-button:hover {
+  color: var(--fg);
+}
+
+.dp-weekdays,
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+
+.dp-weekdays span {
+  padding: 2px 0 4px;
+  text-align: center;
+  color: var(--fg2);
+  font-size: var(--font-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dp-day {
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+.dp-day:hover {
+  background: var(--hover);
+}
+
+/* Days of the neighbouring months. Shown rather than blanked, so the grid stays
+   a grid, but dim enough that the current month reads as one block. */
+.dp-day.other {
+  color: var(--fg3);
+}
+
+/* The current value of the field being edited, if it has one. */
+.dp-day.current {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Today is a fact about the calendar, marked underneath rather than by colour
+   so it cannot be mistaken for the cursor. */
+.dp-day.today {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Where `<enter>` would land. The same emphasis the message list gives its own
+   cursor, for the same reason: it is the one thing on screen that moves. */
+.dp-day.cursor,
+.dp-day.cursor:hover {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+/* What the keys do, named as the config bound them. Monospaced like the status
+   line, because it is the same kind of information. */
+.dp-foot {
+  flex: none;
+  padding: 5px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg2);
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------------------
+   Tasks
+
+   The task list, the task detail, and the two places tasks show up in the mail
+   (§6.3). Everything is prefixed `tk-` — `.task-row` and `.task-bar` already
+   belong to the background-job widget, which is unrelated and would otherwise
+   be styled by these rules.
+
+   No palette of its own: the window's tokens, like everything else.
+   --------------------------------------------------------------------------- */
+
+/* Today is two stacked scroll regions rather than one (§4.2): the tasks are
+   sized to their content and the mail takes what is left. `overflow: hidden`
+   on the pane is what moves the scrollbar down into the mail half. */
+#list.task-view {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tk-section {
+  flex: none;
+  /* Sized to its content, and never squeezed to a sliver by a long mail list.
+     Half the pane is the ceiling: "sized to its content" cannot mean an
+     eight-hundred-row section either, so past that it scrolls on its own. */
+  max-height: var(--today-tasks-max, 50%);
+  /* Dragged to a size of its own (see `initTodaySplit`): that share of the
+     pane, however many tasks there are. */
+  height: var(--today-tasks, auto);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--line);
+}
+
+
+/* Between Today's two halves, it draws the line the border would. */
+.tk-section:not(.full) {
+  border-bottom: 0;
+}
+
+.tk-split {
+  flex: none;
+  height: 1px;
+  cursor: row-resize;
+}
+
+/* Today in columns: the mail on the left, the tasks on the right, each the
+   full height of the pane. The rows lose what a half's width has no room
+   for — the snippet, the address beside a name, the tags. A spoofed sender
+   keeps its mark and shows its name in red; the reader has the address. */
+#list.task-view.today-columns {
+  display: grid;
+  /* Mail rows carry more than task rows do: a sender, a subject, badges.
+     Dragged, the two keep the shares they were given (see
+     `initTodayColumnsSplit`). */
+  grid-template-columns: var(--today-cols, minmax(0, var(--today-mail-w, 3fr)) 1px minmax(0, var(--today-tasks-w, 2fr)));
+  /* The sections beside the mail, one row each with a line between them, as
+     `applyTodaySections` lists them. */
+  grid-template-rows: var(--today-rows, minmax(0, 1fr));
+  --col-from-compact: calc(140 * var(--u));
+}
+
+/* The filter bar over both columns, in a row of its own. */
+#list.task-view.today-columns.with-filter {
+  grid-template-rows: auto var(--today-rows, minmax(0, 1fr));
+}
+
+/* The mail runs the pane's full height beside the rest. */
+#list.today-columns > .mail-scroll,
+#list.today-columns > .tk-vsplit {
+  grid-row: 1 / -1;
+}
+
+#list.today-columns.with-filter > .mail-scroll,
+#list.today-columns.with-filter > .tk-vsplit {
+  grid-row: 2 / -1;
+}
+
+#list.today-columns > .tk-section,
+#list.today-columns > .ch-split,
+#list.today-columns > .ch-section,
+#list.today-columns > .rd-split,
+#list.today-columns > .rd-section {
+  grid-column: var(--today-side, 3);
+}
+
+#list.today-columns > .fbar {
+  grid-column: 1 / -1;
+}
+
+#list.today-columns .tk-section {
+  height: auto;
+  max-height: none;
+  border-bottom: 0;
+}
+
+.tk-vsplit {
+  cursor: col-resize;
+}
+
+.tk-vsplit::before {
+  inset: 0 -3px;
+}
+
+#list.today-columns .mail-scroll .row {
+  grid-template-columns: var(--cols-compact);
+}
+
+#list.today-columns .subject .snip,
+#list.today-columns .row:not(.bare-from) .from .addr,
+#list.today-columns .tk-tags {
+  display: none;
+}
+
+#list.today-columns .row.spoofed .from .name {
+  color: var(--danger);
+}
+
+/* The badges give way before the subject does: in half the width, a long
+   label would otherwise leave no room for it at all. */
+#list.today-columns .mail-scroll .meta {
+  max-width: calc(120 * var(--u));
+  overflow: hidden;
+}
+
+/* Where the badges do not fit, the chips give way with an ellipsis rather
+   than the row cutting through the icons and the first chip: a later rule's
+   chip first, down to a dot of its colour. */
+#list.today-columns .meta > * {
+  flex-shrink: 0;
+}
+
+#list.today-columns .meta > .labels {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+#list.today-columns .meta .labels .chip {
+  flex: 0 1 auto;
+}
+
+#list.today-columns .meta .labels .chip + .chip {
+  flex-shrink: 100;
+  min-width: 0;
+}
+
+/* Today mixed: the mail, the threads and the reading as one timeline in the
+   left column, each row with its kind before the sender. */
+.row > .kind {
+  display: none;
+}
+
+#list.today-mixed {
+  --col-kind: calc(15 * var(--u));
+}
+
+#list.today-mixed .mail-scroll .row {
+  grid-template-columns: var(--cols-mixed);
+}
+
+#list.today-mixed .mail-scroll .row > .kind {
+  display: flex;
+  justify-content: center;
+  color: var(--fg3);
+}
+
+#list.today-mixed .mail-scroll .row.unread > .kind {
+  color: var(--fg2);
+}
+
+#list.today-mixed .row > .kind .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+/* Today's reading section, below the tasks: sized to its content like them,
+   and scrolling on its own past a third of the pane. */
+.rd-section {
+  flex: none;
+  /* Dragged to a size of its own (see `initTodaySplits`): that share of the
+     pane, however many items there are. */
+  height: var(--today-reading, auto);
+  max-height: var(--today-reading-max, 33%);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rd-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.rd-list .row {
+  height: var(--row-height);
+}
+
+.rd-split {
+  flex: none;
+  height: 1px;
+  cursor: row-resize;
+}
+
+/* The row is the size, its ceiling included: a percentage on the section
+   would be of the row it sits in, not of the pane. */
+#list.today-columns > .rd-section,
+#list.today-columns > .ch-section {
+  height: auto;
+  max-height: none;
+}
+
+#list.today-columns .rd-section .row {
+  grid-template-columns: var(--cols-compact);
+}
+
+#list.today-columns .rd-section .meta {
+  max-width: calc(120 * var(--u));
+  overflow: hidden;
+}
+
+/* A section put away, and the line above it (see `applyTodaySections`). */
+#list.hides-mail > .mail-scroll,
+#list.hides-tasks > .tk-section,
+#list.hides-chat > .ch-section,
+#list.hides-reading > .rd-section,
+#list.hides-tk-split > .tk-split,
+#list.hides-tk-vsplit > .tk-vsplit,
+#list.hides-ch-split > .ch-split,
+#list.hides-rd-split > .rd-split {
+  display: none;
+}
+
+/* Stacked with the mail put away, the first section shown takes the room it
+   leaves; in columns it is given the first row's room. */
+#list.fills-tasks > .tk-section,
+#list.fills-chat > .ch-section,
+#list.fills-reading > .rd-section {
+  flex: 1;
+  height: auto;
+  max-height: none;
+}
+
+/* The views with no mail half take the whole pane. */
+.tk-section.full {
+  flex: 1;
+  height: auto;
+  max-height: none;
+  border-bottom: 0;
+}
+
+/* A section's label and count, on the rows' grid: text starts where the
+   rows' text does. Today has two, Tasks and Mail. */
+.sec {
+  flex: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: var(--status-w) minmax(0, 1fr);
+  column-gap: var(--col-gap);
+  align-items: center;
+  height: calc(30 * var(--u));
+  padding: 0 var(--row-pad-r) 0 var(--row-pad-l);
+  background: var(--pane);
+  color: var(--fg3);
+  font-size: calc(10.5 * var(--u));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.pane.focused .sec {
+  background: var(--bg);
+}
+
+/* Room around the account switch, which is nearly as tall as the label's
+   line; side by side, the Tasks label matches it so the rows line up. */
+.sec.mail-sec,
+.today-columns .sec {
+  height: calc(40 * var(--u));
+}
+
+/* Centred rather than on a baseline: the account switch is taller than the
+   label, and a baseline line would hang the label from the switch's top. */
+.sec .sec-t {
+  grid-column: 2;
+  min-width: 0;
+  display: flex;
+  gap: calc(7 * var(--u));
+  align-items: center;
+}
+
+.sec .n {
+  font: 400 var(--font-xs) var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The switch at the end of Today's Mail label: every inbox, or one account's. */
+#toolbar .seg,
+.sec .seg,
+#search-box .seg {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  border-radius: calc(7 * var(--u));
+  background: var(--chip);
+}
+
+#toolbar .seg button,
+.sec .seg button,
+#search-box .seg button {
+  height: calc(20 * var(--u));
+  padding: 0 calc(10 * var(--u));
+  border: 0;
+  border-radius: calc(5 * var(--u));
+  background: none;
+  color: var(--fg3);
+  font: 400 var(--font-sm) var(--font);
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: default;
+}
+
+
+/* Grouping by tag (§30): one icon at the end of the Tasks heading, pressed
+   while the tasks stand under their tags. */
+.seg.tag-switch button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 calc(7 * var(--u));
+}
+
+.seg.tag-switch .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+:root:not([data-look="terminal"]) .seg.tag-switch .tw {
+  display: none;
+}
+
+/* Due first (§31), before the tag switch: the icon, and how many tasks are
+   due by today in red, whether the switch is on or not. */
+.seg.due-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--u));
+  padding: 0 calc(7 * var(--u));
+}
+
+.sec .seg.due-switch + .seg.tag-switch {
+  margin-left: calc(6 * var(--u));
+}
+
+.seg.due-switch .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.seg.due-switch .due-n {
+  color: var(--danger);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+:root:not([data-look="terminal"]) .seg.due-switch .tw {
+  display: none;
+}
+
+/* Messages or conversations: two icons, before the choice of inbox in
+   Today's Mail heading. */
+.sec .seg.threads-switch + .seg {
+  margin-left: calc(6 * var(--u));
+}
+
+.seg.threads-switch button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 calc(7 * var(--u));
+}
+
+.seg.threads-switch .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+:root:not([data-look="terminal"]) .seg.threads-switch .tw {
+  display: none;
+}
+
+:root[data-look="terminal"] .seg.threads-switch button {
+  gap: 0;
+}
+
+:root[data-look="terminal"] .sec .seg.threads-switch + .seg {
+  margin-left: 2ch;
+}
+
+/* In the toolbar, each choice has its icon, and the switch is as tall as the
+   search box beside it. */
+#toolbar .seg {
+  margin-left: 0;
+}
+
+#toolbar .seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--u));
+  height: calc(22 * var(--u));
+  padding: 0 calc(8 * var(--u));
+}
+
+#toolbar .seg .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+#toolbar .seg button:hover,
+.sec .seg button:hover,
+#search-box .seg button:hover {
+  color: var(--fg);
+}
+
+#toolbar .seg button[aria-checked="true"],
+.sec .seg button[aria-checked="true"],
+#search-box .seg button[aria-checked="true"] {
+  background: light-dark(#ffffff, rgba(255, 255, 255, 0.14));
+  box-shadow: light-dark(0 1px 2px rgba(0, 0, 0, 0.12), none);
+  color: var(--fg);
+}
+
+.tk-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The mail half of Today. The virtual list measures against this rather than
+   against the pane, so the two halves scroll independently. */
+.mail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* A task row, on the mail rows' grid and at their height: the box in the
+   status column, the title across From and the subject, the badges, and
+   the dates in the date column. */
+.tk-row {
+  display: grid;
+  grid-template-columns: var(--status-w) minmax(0, 1fr) auto minmax(var(--col-date), max-content);
+  column-gap: var(--col-gap);
+  align-items: center;
+  height: var(--row-height);
+  padding: 0 var(--row-pad-r) 0 var(--row-pad-l);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.tk-row:hover {
+  background: var(--hover);
+}
+
+.tk-row.cursor,
+.tk-row.cursor:hover {
+  background: var(--cursor-bg);
+}
+
+.tk-row.selected.cursor {
+  background-color: var(--selected);
+  box-shadow: inset 0 0 0 100vmax var(--cursor-bg);
+}
+
+/* Completed, and still on screen until midnight (§10.2). Struck through rather
+   than dimmed away: the point of keeping it is that the action can be seen to
+   have happened, and undone. */
+.tk-row.completed .tk-title {
+  text-decoration: line-through;
+  color: var(--fg2);
+}
+
+/* Local edits the server has not confirmed (§3.2). */
+.tk-row.dirty .tk-title::after {
+  content: "•";
+  margin-left: 6px;
+  color: var(--fg2);
+}
+
+.tk-box {
+  flex: none;
+  border: 0;
+  padding: 0;
+  width: var(--chk-w);
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tk-box:hover {
+  color: var(--accent);
+}
+
+.tk-row.completed .tk-box {
+  color: var(--accent);
+}
+
+.tk-row .tk-box {
+  display: grid;
+  place-items: center;
+  width: auto;
+}
+
+/* The completion box, drawn rather than a glyph so it sits on the status
+   column's centre. */
+.chk {
+  display: grid;
+  place-items: center;
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+  border-radius: calc(4 * var(--u));
+  box-shadow: inset 0 0 0 1.5px var(--fg3);
+}
+
+.tk-box:hover .chk {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.chk.on {
+  background: var(--fg3);
+  box-shadow: none;
+}
+
+.chk.on::after {
+  content: "";
+  width: calc(6 * var(--u));
+  height: calc(3 * var(--u));
+  border: 1.6px solid var(--pane);
+  border-top: 0;
+  border-right: 0;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.tk-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Being worked on (§19): marked where it stands, not moved. */
+.tk-row.working .tk-title {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.tk-row.working .tk-title::before {
+  content: "▶";
+  margin-right: calc(6 * var(--u));
+  color: var(--accent);
+  font-size: 0.8em;
+}
+
+#status-steady .working {
+  overflow: hidden;
+  max-width: calc(260 * var(--u));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+#status-steady .working:hover {
+  text-decoration: underline;
+}
+
+.sb-working::before {
+  content: "▶";
+  color: var(--accent);
+  font-size: calc(9 * var(--u));
+}
+
+.td .p.acc {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tk-tags {
+  flex: none;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.tk-tag {
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--tk-tag, var(--chip));
+  color: var(--fg);
+  font-size: var(--font-xs);
+  line-height: 17px;
+}
+
+/* A tag id the registry cannot resolve. Shown as a placeholder rather than
+   dropped (§7): unresolvable is not the same as deleted. */
+.tk-tag.unknown {
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--fg2);
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+}
+
+/* The badges: tags as `#name` in their colour, then repeats, reminders,
+   files and linked mail. */
+.tk-meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: calc(7 * var(--u));
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg3);
+}
+
+.tk-meta .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.tk-meta > span {
+  display: inline-flex;
+}
+
+.tk-tagtxt {
+  color: var(--tk-tag, var(--fg3));
+  font-size: var(--font-sm);
+}
+
+.tk-tagtxt.unknown {
+  font-family: var(--mono);
+  font-style: italic;
+}
+
+.tk-date {
+  flex: none;
+  min-width: 78px;
+  text-align: right;
+  color: var(--fg2);
+  font-size: var(--font-xs);
+}
+
+/* Overdue has to be distinct from merely due (§4.1) — a colour, not a shade of
+   the same one, because the difference is a fact about the task rather than an
+   emphasis on it. */
+.tk-date.overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Overdue says so with a mark too, not with its colour alone. */
+.tk-row .tk-date.overdue::before {
+  content: "! ";
+}
+
+.tk-date.due {
+  color: var(--accent);
+}
+
+/* A deadline that is today is as urgent as one that has passed, and drawn in
+   the same colour; only the mark says which. */
+.tk-date.due-today {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* A scheduled date is a fact about the task, not the absence of one, so it is
+   legible rather than the same grey an empty cell is. Still quieter than a due
+   date: the two sit side by side outside Today, and the promise is the one that
+   should be read first. */
+.tk-date.postponed {
+  color: var(--fg2);
+}
+
+.tk-date.none {
+  color: var(--fg3);
+}
+
+/* The date column, which holds a schedule and a due date outside Today. Right
+   aligned as one block so the due dates line up down the list whether or not
+   the row beside them also carries a schedule. */
+.tk-dates {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tk-dates .tk-date {
+  min-width: 0;
+  font: calc(11.5 * var(--u)) var(--mono);
+}
+
+.tk-empty {
+  padding: 14px 12px;
+  color: var(--fg2);
+}
+
+/* The filter (§4.5): a bar on top of the list it narrows, live as it is
+   typed. Sticky, so it stays while the list scrolls under it. */
+.fbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  height: calc(30 * var(--u));
+  margin: calc(4 * var(--u)) calc(8 * var(--u)) calc(6 * var(--u));
+  padding: 0 calc(6 * var(--u)) 0 calc(10 * var(--u));
+  border-radius: 7px;
+  background: var(--pane);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.fbar .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+  color: var(--accent);
+}
+
+.fbar .fk {
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.fbar input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+}
+
+.fbar input::placeholder {
+  color: var(--fg3);
+}
+
+.fbar .cnt {
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+  white-space: nowrap;
+}
+
+.fbar .fx {
+  border: 0;
+  padding: 0;
+  background: none;
+}
+
+#toolbar .filterbtn.on {
+  background: var(--accent-soft, color-mix(in srgb, var(--accent) 15%, transparent));
+  color: var(--accent);
+}
+
+#toolbar .filterbtn.on .ic {
+  color: inherit;
+}
+
+/* Search results under the date they come up on (§26), as Things heads its
+   days: the number big, the day beside it on a rule. */
+.tk-day {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(8 * var(--u));
+  height: calc(46 * var(--u));
+  padding: calc(10 * var(--u)) var(--row-pad-r) calc(5 * var(--u)) var(--row-pad-l);
+}
+
+.tk-day b {
+  min-width: var(--status-w);
+  color: var(--fg);
+  font-size: calc(22 * var(--u));
+  line-height: calc(20 * var(--u));
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.tk-day b.mon {
+  font-size: calc(15 * var(--u));
+  letter-spacing: -0.01em;
+}
+
+.tk-day b.dic {
+  display: flex;
+  justify-content: center;
+}
+
+.tk-day b.dic .ic {
+  width: calc(17 * var(--u));
+  height: calc(17 * var(--u));
+  color: var(--fg2);
+}
+
+.tk-day b.dic.sunny .ic {
+  color: var(--warning);
+}
+
+/* A tag's heading when the tasks are grouped by tag (§30), its icon in the
+   tag's colour; the tasks without one under a fainter one. */
+.tk-day b.dic[style] .ic {
+  color: var(--tk-tag);
+}
+
+.tk-day b.dic.untagged .ic {
+  color: var(--fg3);
+}
+
+/* Due first (§31): the tasks due by today under a red heading, and within a
+   tag's group a line under them. */
+.tk-day[data-group="due"] b.dic .ic {
+  color: var(--danger);
+}
+
+.tk-band-end {
+  margin: calc(2 * var(--u)) 0 calc(2 * var(--u)) calc(30 * var(--u));
+  border-top: 1px dashed var(--line);
+}
+
+.tk-day .dl {
+  flex: 1;
+  display: flex;
+  gap: calc(7 * var(--u));
+  align-items: baseline;
+  padding-top: calc(5 * var(--u));
+  border-top: 1px solid var(--line);
+  color: var(--fg3);
+  font-size: calc(12.5 * var(--u));
+  line-height: calc(14 * var(--u));
+  font-weight: 600;
+}
+
+.tk-day .n {
+  margin-left: auto;
+  font: 400 var(--font-xs) var(--mono);
+}
+
+.tk-day[data-search-completed] {
+  cursor: default;
+}
+
+.tk-day .fold {
+  font-weight: 400;
+}
+
+#toolbar .seg.kinds .c {
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+.tk-more {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 6px 12px 10px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tk-more:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+/* Where a dragged task would land (§4.4). A rule rather than a gap, so nothing
+   on either side of it moves while the pointer is over it. */
+.tk-row.drop-above {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tk-row.drop-below {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.tk-row.dragging {
+  opacity: 0.4;
+}
+
+/* A pin made with toggle-pin, dragged to another place among them. */
+#folders .sb-row.drop-above {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+#folders .sb-row.drop-below {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+#folders .sb-row.dragging {
+  opacity: 0.4;
+}
+
+body.reordering,
+body.reordering * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Task detail
+   --------------------------------------------------------------------------- */
+
+/* No left padding of its own: the box centres on the list's status column,
+   and everything else starts at --text-x, so list and detail share both
+   edges. */
+#reader.task-detail {
+  padding: calc(22 * var(--u)) calc(28 * var(--u)) 0 0;
+  user-select: text;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tk-head {
+  flex: none;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.td {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.td-title {
+  display: flex;
+  align-items: center;
+  gap: calc((var(--status-w) - var(--chk-w)) / 2 + var(--col-gap));
+  margin-bottom: calc(12 * var(--u));
+  padding-left: calc(var(--row-pad-l) + (var(--status-w) - var(--chk-w)) / 2);
+}
+
+.td-title .tk-box {
+  display: grid;
+  place-items: center;
+  width: var(--chk-w);
+}
+
+.td-title .chk {
+  width: var(--chk-w);
+  height: var(--chk-w);
+  border-radius: calc(5 * var(--u));
+}
+
+#reader .td-title h1 {
+  margin: 0;
+  font-size: calc(17 * var(--u));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.td-title h1.completed {
+  text-decoration: line-through;
+  color: var(--fg2);
+}
+
+.td-title .tk-title-input {
+  flex: 1;
+}
+
+/* What is set, as chips; what can be added, as one line of keys. */
+.props {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(6 * var(--u));
+  padding-left: var(--text-x);
+}
+
+.td .p .p-open {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+}
+
+.td .p .pk + .pv {
+  margin-left: -2px;
+}
+
+.td .p.warn {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  font-weight: 500;
+}
+
+.td .p.late {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  font-weight: 500;
+}
+
+.td .p.tag .tk-tag {
+  padding: 0;
+  background: none;
+  color: var(--tk-tag, inherit);
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.td-hints {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(14 * var(--u));
+  margin: calc(10 * var(--u)) 0 0 var(--text-x);
+  color: var(--fg3);
+  font-size: calc(11.5 * var(--u));
+}
+
+.td-hints .hint {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--u));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+.td-hints .hint:hover {
+  color: var(--fg);
+}
+
+.td kbd {
+  display: inline-block;
+  min-width: calc(16 * var(--u));
+  padding: calc(3 * var(--u)) calc(5 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: var(--kbd);
+  color: var(--fg2);
+  font: calc(10.5 * var(--u)) / 1 var(--mono);
+  text-align: center;
+}
+
+.td .tk-blocked {
+  margin-left: var(--text-x);
+}
+
+.td-notes {
+  margin: calc(18 * var(--u)) 0 0 var(--text-x);
+  font-size: calc(13.5 * var(--u));
+  line-height: 1.6;
+}
+
+.td-notes .tk-body {
+  margin: 0;
+  font: inherit;
+}
+
+.td-h {
+  display: flex;
+  align-items: center;
+  gap: calc(7 * var(--u));
+  margin: calc(22 * var(--u)) 0 calc(6 * var(--u)) var(--text-x);
+  color: var(--fg3);
+  font-size: calc(10.5 * var(--u));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.td-h .n {
+  font: 400 var(--font-xs) var(--mono);
+}
+
+/* Steps (§17): progress as a ring and a count on the row, a bar by the
+   heading, and a checklist with the next open step stressed. */
+.tk-meta .m-steps {
+  align-items: center;
+  gap: calc(4 * var(--u));
+  font: var(--font-xs) var(--mono);
+}
+
+.ring {
+  width: calc(12 * var(--u));
+  height: calc(12 * var(--u));
+  transform: rotate(-90deg);
+  fill: none;
+  stroke-width: 2.4;
+}
+
+.ring circle {
+  stroke: color-mix(in srgb, var(--fg3) 45%, transparent);
+}
+
+.ring circle.arc {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+.td-h .pbar {
+  width: calc(64 * var(--u));
+  height: 3px;
+  margin-left: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--chip);
+}
+
+.td-h .pbar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.steps {
+  margin-left: calc(var(--text-x) - var(--item-px));
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  height: calc(28 * var(--u));
+  padding: 0 var(--item-px);
+  border-radius: calc(6 * var(--u));
+}
+
+.step:hover {
+  background: var(--hover);
+}
+
+.step .tk-box {
+  display: grid;
+  place-items: center;
+  width: auto;
+}
+
+.step .st {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step.done .st {
+  color: var(--fg3);
+  text-decoration: line-through;
+}
+
+.step.next .st {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+/* Selected for a removal, dragged, and where a dragged step would land:
+   the task list's marks, on the checklist. */
+.step {
+  cursor: default;
+  user-select: none;
+}
+
+.step.selected,
+.step.selected:hover {
+  background: var(--selected);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.step.drop-above {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.step.drop-below {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.step.dragging {
+  opacity: 0.4;
+}
+
+.step > .tk-field-button {
+  visibility: hidden;
+}
+
+.step:hover > .tk-field-button {
+  visibility: visible;
+}
+
+/* A linked message or a file: one line, opened by a click. */
+.td-link {
+  display: flex;
+  align-items: center;
+  margin-left: calc(var(--text-x) - var(--item-px));
+  border-radius: calc(6 * var(--u));
+}
+
+.td-link:hover {
+  background: var(--hover);
+}
+
+.td-link .td-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  height: calc(30 * var(--u));
+  padding: 0 var(--item-px);
+  border: 0;
+  background: none;
+  color: var(--fg2);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.td-link .lk {
+  display: flex;
+  color: var(--fg3);
+}
+
+.td-link .ic {
+  width: calc(15 * var(--u));
+  height: calc(15 * var(--u));
+}
+
+.td-link .lk .duo {
+  stroke: var(--accent);
+}
+
+.td-link b {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.td-link .su {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.td-link .r {
+  margin-left: auto;
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+/* Whether the linked message was answered, and when. */
+.td-link .rs {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--u));
+  margin-left: auto;
+  font-size: var(--font-sm);
+}
+
+.td-link .rs .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.td-link .rs.ok {
+  color: var(--success);
+}
+
+.td-link .rs.no {
+  color: var(--warning);
+}
+
+.td-link .rs + .r {
+  min-width: calc(76 * var(--u));
+  margin-left: calc(14 * var(--u));
+  text-align: right;
+}
+
+.td-link > .tk-field-button {
+  visibility: hidden;
+}
+
+.td-link:hover > .tk-field-button {
+  visibility: visible;
+}
+
+/* The times share one column as wide as the longest, whose length depends
+   on the locale's clock ("09:06" or "09:06 PM"). */
+.td-log {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: calc(12 * var(--u));
+  margin: 0 0 calc(16 * var(--u)) calc(var(--text-x) - var(--item-px));
+  padding: 0;
+  list-style: none;
+}
+
+.td-log li {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  padding: calc(4 * var(--u)) var(--item-px);
+  color: var(--fg2);
+}
+
+.td-log time {
+  color: var(--fg3);
+  font: var(--font-xs) / calc(19 * var(--u)) var(--mono);
+  white-space: nowrap;
+}
+
+/* The title and body become real fields only while they are being edited: a
+   pane of live inputs would swallow every keystroke, and the keyboard is how
+   this application is driven. */
+.tk-title-input,
+.tk-body-input {
+  width: 100%;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  outline: 0;
+  padding: 5px 8px;
+  background: var(--pane);
+  color: var(--fg);
+  font: inherit;
+  user-select: text;
+}
+
+.tk-title-input {
+  margin: 0 0 8px;
+  font-size: var(--font-xl);
+}
+
+.tk-body-input {
+  min-height: 140px;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+}
+
+/* A step written in place keeps the row's height: the field is the title. */
+.step .st-input {
+  height: calc(22 * var(--u));
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  outline: 0;
+  padding: 0 calc(6 * var(--u));
+  margin-left: calc(-3 * var(--u));
+  background: var(--pane);
+  color: var(--fg);
+  font: inherit;
+  user-select: text;
+}
+
+.tk-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-link:hover {
+  text-decoration: underline;
+}
+
+.tk-mark {
+  color: var(--fg3);
+  font-size: var(--font-2xs);
+}
+
+.tk-detail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+.tk-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 16px;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+}
+
+/* The live cursor: in the pane, and the half of a task view, the keys act on.
+   Filled with the accent, and everything on it drawn white — the text, the
+   icons, the chips and a highlight rule's colours — as menus and completions
+   draw their current item.
+
+   Both halves keep a cursor so `<tab>` does not lose your place in either; a
+   pane or half without the keyboard keeps the neutral fill, so there is only
+   ever one accent cursor on screen. */
+#list.focused:not(.tasks-active):not(.reading-active):not(.chat-active) .row.cursor:not(.rd-row):not(.ch-row),
+#list.focused.reading-active .row.rd-row.cursor,
+#list.focused.chat-active .row.ch-row.cursor,
+#list.focused:not(.mail-active):not(.reading-active):not(.chat-active) .tk-row.cursor {
+  --fg: var(--accent-fg);
+  --fg2: var(--on-fill-2);
+  --fg3: var(--on-fill-2);
+  --accent: var(--accent-fg);
+  --warning: var(--accent-fg);
+  --danger: var(--accent-fg);
+  --success: var(--accent-fg);
+  --line: rgba(255, 255, 255, 0.35);
+  /* Set on the row itself by a highlight rule, hence the `!important`. The
+     cursor's tint is the rule's colour lightened to read on the fill. */
+  --hl-color: var(--hl-cursor-color, var(--accent-fg)) !important;
+  --hl-bg: transparent !important;
+  background: var(--cursor-fill);
+  box-shadow: none;
+  color: var(--fg);
+}
+
+/* Icons and chips a rule coloured carry their colour inline. */
+#list.focused:not(.tasks-active):not(.reading-active):not(.chat-active) .row.cursor:not(.rd-row):not(.ch-row) [style*="color"],
+#list.focused.reading-active .row.rd-row.cursor [style*="color"],
+#list.focused.chat-active .row.ch-row.cursor [style*="color"],
+#list.focused:not(.mail-active):not(.reading-active):not(.chat-active) .tk-row.cursor [style*="color"],
+#folders.focused .cursor [style*="color"] {
+  --chip-color: var(--accent-fg) !important;
+  color: var(--accent-fg) !important;
+}
+
+/* In Today the keyboard is in one half, not in the pane: the half has the
+   accent edge, the focused background and its label in the accent, rather
+   than the whole pane. */
+#list.with-mail {
+  border-left-width: 0;
+}
+
+#list.with-mail > .mail-scroll,
+#list.with-mail > .tk-section,
+#list.with-mail > .ch-section,
+#list.with-mail > .rd-section {
+  border-left: 2px solid transparent;
+}
+
+#list.focused.with-mail {
+  background: var(--pane);
+}
+
+#list.focused.with-mail .sec {
+  background: var(--pane);
+}
+
+#list.focused.mail-active > .mail-scroll,
+#list.focused.tasks-active > .tk-section,
+#list.focused.chat-active > .ch-section,
+#list.focused.reading-active > .rd-section {
+  border-left-color: var(--accent);
+  background: var(--bg);
+}
+
+#list.focused.mail-active > .mail-scroll .sec,
+#list.focused.tasks-active > .tk-section .sec,
+#list.focused.chat-active > .ch-section .sec,
+#list.focused.reading-active > .rd-section .sec {
+  background: var(--bg);
+  color: var(--accent);
+}
+
+/* A multi-selection in the half that is not live is quietened the same way its
+   cursor is. Left at full strength it read as the current selection, so acting
+   on the other half looked like it was about to act on this one — which is the
+   one thing the two-list view has to be unambiguous about. */
+#list.mail-active .tk-row.selected,
+#list.mail-active .tk-row.selected.cursor,
+#list.tasks-active .rows .row.selected,
+#list.tasks-active .rows .row.selected.cursor {
+  background: var(--selected-quiet);
+  box-shadow: inset 3px 0 0 var(--drop-line);
+}
+
+/* Marks of the search's words, in the list and the reader. */
+mark {
+  background: var(--mark);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+mark.current {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+/* Something still on its way: a turning arrow where the eye is. */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  display: inline-block;
+  animation: spin 1.2s linear infinite;
+}
+
+#reader .fetching {
+  flex: none;
+  margin-bottom: 8px;
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+/* An account whose server is not simply fine, marked beside its name. */
+.sb-head .health {
+  margin-left: 6px;
+  font-size: var(--font-2xs);
+}
+
+.health.syncing { color: var(--fg2); }
+.health.auth_failed,
+.health.certificate { color: var(--danger); }
+.health.unreachable { color: var(--warning); }
+.health.error { color: var(--danger); }
+.health.ok { color: var(--success); }
+
+/* How much is staged in a folder, in amber beside the unread count. */
+.sb-badge.staged {
+  padding: 0 calc(5 * var(--u));
+  border-radius: calc(8 * var(--u));
+  line-height: calc(16 * var(--u));
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+}
+
+/* Whether the task changes are on the server, beside the Tasks heading. */
+.tk-saved {
+  color: var(--fg3);
+}
+
+/* Mail the server refused, beside the Outbox. */
+.sb-badge.outbox-failed {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--u));
+  padding: 0 calc(5 * var(--u));
+  border-radius: calc(8 * var(--u));
+  line-height: calc(16 * var(--u));
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+}
+
+.sb-badge.outbox-failed .ic {
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+}
+
+.sb-row.outbox-row.failed .sb-glyph {
+  color: var(--danger);
+}
+
+.sb-badge.tk-unsaved.problem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--u));
+  color: var(--danger);
+}
+
+.sb-badge.tk-unsaved .ic {
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+}
+
+/* Panels in the reader: staged actions, accounts, keys. */
+#reader .dim {
+  color: var(--fg2);
+}
+
+#reader .panel-actions {
+  flex: none;
+  margin-bottom: 12px;
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+#reader .panel-actions button,
+#reader .pending-group h2 button {
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1px 9px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+#reader .panel-actions button:hover,
+#reader .pending-group h2 button:hover {
+  border-color: var(--accent);
+}
+
+#reader section {
+  flex: none;
+  margin-bottom: 14px;
+}
+
+#reader .outbox-item {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warning);
+  border-radius: 6px;
+}
+
+#reader .outbox-item.failed {
+  border-left-color: var(--danger);
+}
+
+#reader .outbox-item h2 button {
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1px 9px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--font-xs);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+#reader .outbox-item h2 button:hover {
+  border-color: var(--accent);
+}
+
+#reader .outbox-item.failed .outbox-status .v {
+  color: var(--danger);
+}
+
+#reader .outbox-item.waiting .outbox-status .v {
+  color: var(--warning);
+}
+
+#reader .outbox-body {
+  margin: 8px 0 0;
+  max-height: 12em;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: var(--font-sm);
+  color: var(--fg2);
+}
+
+#reader section h2 {
+  margin: 0 0 4px;
+  font-size: var(--font-size);
+  font-weight: 600;
+}
+
+#reader section table {
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+#reader section td {
+  padding: 2px 10px 2px 0;
+  vertical-align: top;
+}
+
+#reader section td.what {
+  white-space: nowrap;
+  color: var(--fg2);
+}
+
+#reader section td.does {
+  color: var(--fg2);
+}
+
+/* The command line's completions, above the status line: the command with
+   what was typed of it in bold, what it takes, what it does, its key. */
+.cmpl {
+  position: fixed;
+  left: calc(10 * var(--u));
+  bottom: calc(32 * var(--u));
+  z-index: 60;
+  width: calc(560 * var(--u));
+  max-width: calc(100vw - 20 * var(--u));
+  padding: calc(5 * var(--u));
+  border-radius: calc(9 * var(--u));
+  background: light-dark(rgba(246, 246, 249, 0.9), rgba(44, 45, 52, 0.86));
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8);
+  box-shadow: var(--shadow-pop);
+  color: var(--fg);
+  font-size: calc(12.5 * var(--u));
+}
+
+.cmpl .ci {
+  display: grid;
+  grid-template-columns: calc(220 * var(--u)) minmax(0, 1fr) auto;
+  gap: calc(12 * var(--u));
+  align-items: center;
+  height: calc(28 * var(--u));
+  padding: 0 calc(9 * var(--u));
+  border-radius: calc(5 * var(--u));
+  white-space: nowrap;
+  cursor: default;
+}
+
+.cmpl .ci > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmpl .ci.on {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+.cmpl .ci.on * {
+  color: inherit;
+}
+
+.cmpl .cn {
+  font: var(--font-sm) var(--mono);
+}
+
+.cmpl .cn b {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.cmpl .cn .arg,
+.cmpl .cd {
+  color: var(--fg3);
+}
+
+.cmpl kbd {
+  display: inline-block;
+  min-width: calc(16 * var(--u));
+  padding: calc(3 * var(--u)) calc(5 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: var(--kbd);
+  color: var(--fg2);
+  font: calc(10.5 * var(--u)) / 1 var(--mono);
+  text-align: center;
+}
+
+.cmpl .ci.on kbd {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#reader kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  text-align: center;
+}
+
+#reader p {
+  flex: none;
+  margin: 0 0 12px;
+  font-size: var(--font-sm);
+}
+
+/* The command palette: wider, for a title, its group and its key on a row. */
+.dp.picker.palette {
+  width: min(560px, 90vw);
+}
+
+.dp-list li.disabled {
+  color: var(--fg3);
+}
+
+.dp-list li.dp-section {
+  padding: 8px 8px 2px;
+  color: var(--fg3);
+  font-size: var(--font-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dp-primary b {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.dp-list li.highlighted .dp-primary b {
+  color: inherit;
+}
+
+.dp-list kbd {
+  flex: none;
+  padding: calc(3 * var(--u)) calc(5 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: var(--kbd);
+  color: var(--fg2);
+  font: calc(10.5 * var(--u)) / 1 var(--mono);
+}
+
+/* Why the row chosen cannot run, under the list. */
+.dp-note {
+  padding: 7px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+.dp-note[hidden] {
+  display: none;
+}
+
+/* The folder picker reuses the date picker's frame, minus the calendar. */
+.dp.picker .dp-list {
+  border-top: 0;
+  min-height: 80px;
+}
+
+/* What the filters did, below the staged actions. */
+#reader .panel-section {
+  flex: none;
+  margin: 18px 0 8px;
+  font-size: var(--font-size);
+  font-weight: 600;
+  color: var(--fg2);
+}
+
+#reader .pending-group.filtered tr.failed td {
+  color: var(--warning);
+}
+
+/*
+ * Highlight rules. A highlighted row keeps the list's typography, spacing and
+ * alignment and changes at most tone and a glyph: a 3 px edge in the rule's
+ * colour, the colour on sender and subject, a low-alpha background the cursor
+ * and selection still read through, icons in the meta column and chips at the
+ * end of the subject.
+ */
+.row.hl::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--hl-color, transparent);
+}
+
+.row.hl {
+  background-image: linear-gradient(var(--hl-bg, transparent), var(--hl-bg, transparent));
+}
+
+.row.hl-color .from .name,
+.row.hl-color .subject .text {
+  color: var(--hl-color);
+}
+
+.row.hl-bold .from .name,
+.row.hl-bold .subject .text {
+  font-weight: 600;
+}
+
+.row.hl-italic .from .name,
+.row.hl-italic .subject .text {
+  font-style: italic;
+}
+
+.row.hl-dim .meta,
+.row.hl-dim .from,
+.row.hl-dim .subject,
+.row.hl-dim .date {
+  opacity: 0.55;
+}
+
+.meta .labels {
+  gap: 4px;
+}
+
+.chip {
+  --chip-color: var(--accent);
+  flex: 1 1 auto;
+  white-space: nowrap;
+  min-width: 1.5em;
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 7px;
+  border-radius: 8px;
+  font-size: var(--font-2xs);
+  font-weight: 500;
+  font-style: normal;
+  line-height: 16px;
+  color: var(--chip-color);
+  background: color-mix(in srgb, var(--chip-color) 18%, transparent);
+}
+
+/* The reader repeats the icons and chips beside the subject. */
+#reader h1 .hl-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  font-size: var(--font-size);
+  vertical-align: middle;
+}
+
+#reader h1 .hl-marks .chip {
+  flex: none;
+}
+
+
+/* The `:highlights` panel's sample of a rule's look. */
+#reader .swatch {
+  display: inline-block;
+  min-width: 2em;
+  margin-right: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  text-align: center;
+}
+
+/* The recipients column, off unless a folder or the config turns it on. */
+.to {
+  color: var(--fg2);
+}
+
+#list.hide-meta .status,
+#list.hide-meta .meta,
+#list.hide-tasks .meta .tasks,
+#list.hide-from .from,
+#list.hide-to .to,
+#list.hide-date .date {
+  display: none;
+}
+
+/* The console: jobs above, the log below, both scrolling on their own. */
+body.console {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--font-sm) / 1.4 var(--mono);
+}
+
+body.console section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 14px;
+}
+
+body.console .jobs {
+  flex: 0 0 38%;
+  border-bottom: 1px solid var(--line);
+}
+
+body.console .log {
+  flex: 1;
+}
+
+body.console h1 {
+  margin: 0 0 6px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg2);
+}
+
+body.console h1 .dim {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+body.console table {
+  overflow: auto;
+  border-collapse: collapse;
+  display: block;
+}
+
+body.console td {
+  padding: 1px 10px 1px 0;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+body.console tr.failed td {
+  color: var(--danger);
+}
+
+body.console pre {
+  flex: 1;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+body.console .dim {
+  color: var(--fg2);
+}
+
+.tk-field-button {
+  border: 0;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tk-field-button:hover {
+  color: var(--accent);
+}
+
+.tk-tag-removable {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tk-tag-removable .tk-field-button {
+  opacity: 0;
+}
+
+.tk-tag-removable:hover .tk-field-button {
+  opacity: 1;
+}
+
+/* A pane that has the keyboard shows it; the iframe hands it back on click. */
+#list:focus,
+#folders:focus,
+#reader:focus {
+  outline: none;
+}
+
+/* HTML mail drawn dark: the frame inverts the page and re-inverts what is a
+   picture, so a white newsletter reads as a dark one and its photos stay
+   photos. Off for mail that is dark already, and by the toggle. */
+#reader iframe.dark-mail {
+  filter: invert(0.92) hue-rotate(180deg);
+  background: var(--paper);
+}
+
+/* Files dragged over the window say where they will go, in a row of their
+   own even before the first one is attached. */
+body.dropping #files-row {
+  display: grid;
+}
+
+body.dropping #attachments {
+  min-height: calc(22 * var(--u));
+  outline: 2px dashed var(--drop-line);
+  outline-offset: 2px;
+  background: var(--drop);
+}
+
+/* A view's icon given as an emoji rather than a Font Awesome name. */
+.emoji-glyph {
+  display: inline-block;
+  width: 1.25em;
+  text-align: center;
+  font-size: 0.95em;
+}
+
+/* Icons a subject rewriting rule draws before the subject. */
+.subject-icons:empty {
+  display: none;
+}
+.subject-icons .subject-icon {
+  margin-right: 0.35em;
+  font-size: 0.9em;
+}
+
+/* ---------------------------------------------------------------------------
+   Chat (PLAN.md, Phase 15)
+
+   Waiting is a list of mail rows: the newest author where the sender goes, the
+   room and the thread's first message where the subject goes, the newest
+   message as the snippet. The reader is the conversation, oldest first and
+   ending at the newest, with the composer under it.
+   --------------------------------------------------------------------------- */
+
+.chat-list {
+  --cols: var(--status-w) calc(150 * var(--u)) minmax(0, 1fr) auto var(--col-date);
+  --cols-date-first: var(--status-w) var(--col-date) 16ch minmax(0, 1fr) auto;
+  padding: calc(4 * var(--u)) 0;
+}
+
+.chat-list .row {
+  height: var(--row-height);
+}
+
+/* The chat window: two lines a thread — who wrote last and when, then the
+   room and what was written. */
+:root[data-window="chat"] .chat-list .row {
+  grid-template-columns: var(--status-w) minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "status from meta date"
+    "status subject subject subject";
+  row-gap: calc(2 * var(--u));
+  height: auto;
+  padding-top: calc(7 * var(--u));
+  padding-bottom: calc(7 * var(--u));
+}
+
+:root[data-window="chat"] .chat-row .status {
+  grid-area: status;
+  align-self: start;
+}
+
+:root[data-window="chat"] .chat-row .from {
+  grid-area: from;
+}
+
+:root[data-window="chat"] .chat-row .subject {
+  grid-area: subject;
+}
+
+:root[data-window="chat"] .chat-row .meta {
+  grid-area: meta;
+}
+
+:root[data-window="chat"] .chat-row .date {
+  grid-area: date;
+}
+
+.chat-row .subject .room {
+  margin-right: calc(8 * var(--u));
+  color: var(--fg3);
+  font-size: var(--font-xs);
+}
+
+.status .mark[data-g="@"] {
+  display: block;
+  color: var(--accent);
+  font: 700 var(--font-sm) var(--mono);
+}
+
+.status .mark[data-g="@"]::before {
+  content: "@";
+}
+
+.chat-row .meta .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+  color: var(--fg3);
+}
+
+#reader.chat {
+  padding: 0;
+}
+
+.cv-h {
+  flex: none;
+  padding: calc(14 * var(--u)) calc(28 * var(--u)) calc(10 * var(--u)) var(--text-x);
+  border-bottom: 1px solid var(--line);
+}
+
+.cv-t {
+  font-size: calc(15 * var(--u));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-m {
+  display: flex;
+  gap: calc(12 * var(--u));
+  align-items: center;
+  margin-top: calc(3 * var(--u));
+  color: var(--fg3);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.cv-m .wt {
+  color: var(--warning);
+}
+
+.cv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  height: calc(22 * var(--u));
+  margin-left: auto;
+  padding: 0 calc(9 * var(--u));
+  border: 0;
+  border-radius: calc(6 * var(--u));
+  background: var(--chip);
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--font-sm);
+}
+
+.cv-chip .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+  transform: rotate(-135deg);
+}
+
+/* A muted room says so beside the thread's header, and unmutes on a click. */
+.cv-chip.cv-muted .ic {
+  transform: none;
+}
+
+.cv-chip.cv-muted + .cv-chip {
+  margin-left: 0;
+}
+
+.cv-chip.cv-muted .un,
+.cv-chip.cv-muted:hover .lbl:not(.un) {
+  display: none;
+}
+
+.cv-chip.cv-muted:hover .un {
+  display: inline;
+}
+
+.cv-msgs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(8 * var(--u)) calc(28 * var(--u)) calc(10 * var(--u)) 0;
+}
+
+/* Newest at the bottom, as chat reads, while there is room to spare. */
+.cv-msgs > :first-child {
+  margin-top: auto;
+}
+
+.cv-msgs {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Chat in Today, under the tasks: sized to its rows, and scrolling on its own
+   past a quarter of the pane. Dragged (see `initTodaySplits`), that share of
+   the pane instead. */
+.ch-section {
+  flex: none;
+  height: var(--today-chat, auto);
+  max-height: var(--today-chat-max, 25%);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ch-split {
+  flex: none;
+  height: 1px;
+  cursor: row-resize;
+}
+
+.ch-section .ch-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+}
+
+#list.today-columns .ch-section .row {
+  grid-template-columns: var(--cols-compact);
+}
+
+/* The tools of the message under the pointer: the configured reactions, a
+   thread, a task, editing. Beside the message's widest line, so that they are
+   near the text however wide the pane; over the end of its first line when
+   there is no room beside it (`placeTools`). */
+.cm-tools {
+  display: none;
+  position: absolute;
+  z-index: 2;
+  top: calc(-4 * var(--u));
+  left: calc(100% + 12 * var(--u));
+  align-items: center;
+  gap: calc(1 * var(--u));
+  padding: calc(2 * var(--u));
+  border-radius: calc(8 * var(--u));
+  background: var(--menu-bg, var(--pane));
+  box-shadow: var(--shadow-pop);
+  white-space: nowrap;
+}
+
+.cm.tools-over .cm-tools {
+  left: auto;
+  right: 0;
+}
+
+.cm:hover .cm-tools {
+  display: inline-flex;
+}
+
+.cm-tools button {
+  display: inline-grid;
+  place-items: center;
+  min-width: calc(26 * var(--u));
+  height: calc(24 * var(--u));
+  padding: 0 calc(4 * var(--u));
+  border: 0;
+  border-radius: calc(5 * var(--u));
+  background: none;
+  color: var(--fg2);
+  font: inherit;
+  cursor: default;
+}
+
+.cm-tools button:hover {
+  background: var(--chip);
+  color: var(--fg);
+}
+
+.cm-tools .q {
+  font-size: calc(15 * var(--u));
+}
+
+.cm-tools .q.mine {
+  background: var(--accent-bg);
+}
+
+.cm-tools .sep {
+  align-self: stretch;
+  width: 1px;
+  margin: calc(4 * var(--u)) calc(3 * var(--u));
+  background: var(--frame);
+}
+
+.cm-tools .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+button.rx {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-xs);
+  cursor: default;
+}
+
+/* What the composer offers for @, : and #, above it. */
+.cc {
+  position: relative;
+}
+
+.mpop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  width: calc(340 * var(--u));
+  padding: calc(5 * var(--u));
+  border-radius: calc(9 * var(--u));
+  background: var(--menu-bg, var(--pane));
+  box-shadow: var(--shadow-pop);
+  font-size: var(--font-sm);
+}
+
+.mpop .ci {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: calc(9 * var(--u));
+  align-items: center;
+  height: calc(28 * var(--u));
+  padding: 0 calc(8 * var(--u));
+  border-radius: calc(5 * var(--u));
+}
+
+.mpop .ci .d {
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+.mpop .ci.on {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+.mpop .ci.on .d {
+  color: inherit;
+}
+
+.cc-a {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  padding: calc(8 * var(--u)) calc(10 * var(--u)) 0 calc(12 * var(--u));
+}
+
+.cc-to {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  min-width: 0;
+  color: var(--fg2);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-to .ic,
+.cc-to-off .ic {
+  width: calc(12 * var(--u));
+  height: calc(12 * var(--u));
+}
+
+.cc-to-off {
+  display: inline-flex;
+  padding: 0 calc(4 * var(--u));
+  border: 0;
+  background: none;
+  color: var(--fg3);
+}
+
+/* How the person of a direct message stands, where a room has its icon. */
+.sb-presence {
+  flex: none;
+  width: calc(16 * var(--u));
+  display: flex;
+  justify-content: center;
+}
+
+.sb-presence::before {
+  content: "";
+  width: calc(7 * var(--u));
+  height: calc(7 * var(--u));
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--fg3);
+}
+
+.sb-presence.online::before {
+  background: var(--success);
+  box-shadow: none;
+}
+
+.sb-presence.away::before {
+  background: var(--warning);
+  box-shadow: none;
+}
+
+.sb-presence.busy::before {
+  background: var(--danger);
+  box-shadow: none;
+}
+
+.cv-older {
+  align-self: flex-start;
+  margin: 0 0 calc(6 * var(--u)) var(--text-x);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+/* The earlier replies of a long thread, folded away. */
+.cv-fold {
+  align-self: flex-start;
+  margin: calc(2 * var(--u)) 0 calc(6 * var(--u)) var(--text-x);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+.cv-loading {
+  margin: auto 0 0 var(--text-x);
+  color: var(--fg3);
+}
+
+/* A message apart from the next, even the same person's: each one is a
+   block of its own under the pointer. */
+.cm {
+  display: grid;
+  grid-template-columns: var(--text-x) minmax(0, 1fr);
+  margin-top: calc(8 * var(--u));
+  padding: calc(3 * var(--u)) 0;
+  border-radius: calc(6 * var(--u));
+}
+
+.cm.cont {
+  margin-top: calc(3 * var(--u));
+}
+
+.cm:hover {
+  background: var(--hover);
+}
+
+.cm-gt {
+  justify-self: end;
+  margin-right: calc(5 * var(--u));
+  visibility: hidden;
+  color: var(--fg3);
+  font: calc(9.5 * var(--u)) var(--mono);
+  line-height: calc(20 * var(--u));
+}
+
+.cm.cont:hover .cm-gt {
+  visibility: visible;
+}
+
+.av {
+  justify-self: end;
+  width: calc(22 * var(--u));
+  height: calc(22 * var(--u));
+  margin-right: calc(8 * var(--u));
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--avc, var(--fg3));
+  color: #fff;
+  font: 600 calc(9.5 * var(--u)) var(--font);
+}
+
+.cm-b {
+  grid-column: 2;
+  justify-self: start;
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cm-h {
+  display: flex;
+  gap: calc(8 * var(--u));
+  align-items: baseline;
+}
+
+.cm-h b {
+  font-weight: 600;
+}
+
+.cm.me .cm-h b {
+  color: var(--fg2);
+}
+
+.cm-h time,
+.cm.system time {
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+.cm-edited {
+  color: var(--fg3);
+  font-size: var(--font-xs);
+}
+
+.cm-x {
+  font-size: calc(13.5 * var(--u));
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.cm.mentions-me .cm-x {
+  box-shadow: inset 2px 0 0 var(--warning);
+  padding-left: calc(8 * var(--u));
+  margin-left: calc(-10 * var(--u));
+}
+
+.cm-x code,
+.cm-code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--chip);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.cm-code {
+  display: block;
+  margin: calc(4 * var(--u)) 0;
+  padding: calc(6 * var(--u)) calc(8 * var(--u));
+  white-space: pre-wrap;
+}
+
+.men {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 500;
+}
+
+.cm-files,
+.cm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(6 * var(--u));
+  margin-top: calc(4 * var(--u));
+}
+
+/* A file beside an image keeps its own height. */
+.cm-files {
+  align-items: flex-start;
+}
+
+.cm-file {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  height: calc(24 * var(--u));
+  padding: 0 calc(9 * var(--u));
+  border-radius: calc(6 * var(--u));
+  background: var(--chip);
+  color: var(--fg2);
+  font-size: var(--font-sm);
+}
+
+button.cm-file {
+  border: 0;
+  font-family: inherit;
+  cursor: default;
+}
+
+button.cm-file:hover {
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--frame);
+}
+
+/* An image, small, in the box its size gives it; a click opens it whole. The
+   placeholder fill shows while it loads, the hairline keeps a white image
+   apart from a white pane. */
+.cm-image {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: calc(8 * var(--u));
+  overflow: hidden;
+  position: relative;
+  background: var(--chip);
+  cursor: zoom-in;
+}
+
+/* Over the image: an inset shadow on the button would be painted under it. */
+.cm-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--frame);
+  pointer-events: none;
+}
+
+.cm-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cm-image img:not([src]) {
+  visibility: hidden;
+}
+
+.cm-image:hover img {
+  filter: brightness(0.94);
+}
+
+.cm-image:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The tasks made from a message. */
+.cm-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(6 * var(--u));
+  margin-top: calc(4 * var(--u));
+}
+
+.cm-task {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  max-width: 100%;
+  height: calc(22 * var(--u));
+  padding: 0 calc(9 * var(--u));
+  border: 0;
+  border-radius: calc(6 * var(--u));
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+.cm-task span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm-task .ic {
+  flex: none;
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.cm-task.done span {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* A `>` line, and a message another message quotes. */
+.cm-q,
+.cm-quote {
+  margin: calc(4 * var(--u)) 0;
+  padding: calc(2 * var(--u)) 0 calc(2 * var(--u)) calc(10 * var(--u));
+  border-left: 2px solid var(--frame);
+  color: var(--fg2);
+}
+
+.cm-quote b {
+  display: block;
+  font-weight: 600;
+  font-size: var(--font-sm);
+}
+
+/* A message a jump landed on. */
+.row.landed {
+  animation: cm-flash 1.5s ease-out;
+}
+
+/* A message a quote was followed to. */
+.cm.flash {
+  animation: cm-flash 1.2s ease-out;
+}
+
+@keyframes cm-flash {
+  from {
+    background: var(--accent-soft);
+  }
+}
+
+.cm-file .ic {
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
+}
+
+.cm-file .dim {
+  color: var(--fg3);
+  font: var(--font-xs) var(--mono);
+}
+
+.rx {
+  display: inline-flex;
+  align-items: center;
+  height: calc(20 * var(--u));
+  padding: 0 calc(7 * var(--u));
+  border-radius: calc(10 * var(--u));
+  box-shadow: inset 0 0 0 1px var(--frame);
+  color: var(--fg2);
+  font-size: var(--font-xs);
+}
+
+.rx.mine {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.cm-replies {
+  color: var(--accent);
+  font-size: var(--font-xs);
+  align-self: center;
+}
+
+.cm.system .cm-sys {
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.cv-new {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  margin: calc(6 * var(--u)) 0 calc(2 * var(--u)) var(--text-x);
+  color: var(--accent);
+  font-size: var(--font-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cv-new::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.cc {
+  flex: none;
+  margin: 0 calc(20 * var(--u)) calc(14 * var(--u)) var(--text-x);
+  border-radius: calc(9 * var(--u));
+  box-shadow: inset 0 0 0 1px var(--frame);
+  background: var(--pane);
+}
+
+.cc.on {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.cc-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: calc(8 * var(--u)) calc(12 * var(--u)) calc(2 * var(--u));
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: calc(13.5 * var(--u));
+  line-height: 1.5;
+}
+
+.cc-field::placeholder {
+  color: var(--fg3);
+}
+
+.cc-f {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--u));
+  padding: calc(2 * var(--u)) calc(6 * var(--u)) calc(6 * var(--u)) calc(12 * var(--u));
+}
+
+.cc-f .tsh {
+  display: inline-flex;
+  gap: calc(6 * var(--u));
+  align-items: center;
+  margin-right: auto;
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+.cc-send {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  height: calc(24 * var(--u));
+  padding: 0 calc(7 * var(--u)) 0 calc(10 * var(--u));
+  border: 0;
+  border-radius: calc(7 * var(--u));
+  background: var(--chip);
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--font-sm);
+}
+
+.cc-send.pri {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+#reader .cc-send.pri kbd {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: transparent;
+  color: var(--accent-fg);
+}
+
+/* ---------------------------------------------------------------------------
+   The Terminal look
+
+   `appearance.look: terminal`, as `data-look` on the root. The same markup as
+   the Hybrid look above, drawn the way mutt and aerc draw mail: monospace
+   throughout, the date first, a flag column, glyphs and brackets where Hybrid
+   has icons and chips, `Key value` lines where it has a header block, the
+   window's own labels (`.lbl`) in lowercase, a modeline. Everything that
+   differs is here; nothing in the TypeScript asks which look is on.
+   --------------------------------------------------------------------------- */
+
+/* The palette, measured like Hybrid's: every text colour at 4.5:1 or more on
+   the panes, the cursor and the selection. */
+:root[data-look="terminal"] {
+  --bg: light-dark(#f6f6f8, #121318);
+  --pane: light-dark(#ffffff, #16171e);
+  --line: light-dark(rgba(0, 0, 0, 0.075), rgba(255, 255, 255, 0.06));
+  --sb-bg: light-dark(rgba(228, 230, 238, 0.78), rgba(22, 23, 30, 0.78));
+  --cursor-bg: light-dark(rgba(0, 0, 0, 0.12), rgba(255, 255, 255, 0.09));
+  --fg: light-dark(#343b58, #c8cee8);
+  --fg2: light-dark(#484d6b, #9aa1c2);
+  --fg3: light-dark(#595d7b, #8a91b8);
+  --accent: light-dark(#2457c4, #7aa2f7);
+  --accent-bg: light-dark(#2457c4, #3d64b8);
+  --warning: light-dark(#7d510b, #e0af68);
+  --danger: light-dark(#ac2e4a, #f7768e);
+  --success: light-dark(#336a19, #9ece6a);
+
+  --font: var(--mono);
+  --row-pad-l: calc(14 * var(--u));
+  --row-pad-r: calc(14 * var(--u));
+  /* In the cell's own font: three flags and a space. */
+  --status-w: 4ch;
+  --col-gap: 1ch;
+  --chk-w: 3ch;
+  --item-px: 0px;
+}
+
+:root[data-look="terminal"] body {
+  font-size: var(--font-sm);
+}
+
+/* Icons give way to glyphs, drawn below where an icon said something. */
+:root[data-look="terminal"] .ic,
+:root[data-look="terminal"] i.sb-glyph,
+:root[data-look="terminal"] span.sb-glyph {
+  display: none !important;
+}
+
+:root[data-look="terminal"] .lbl {
+  text-transform: lowercase;
+}
+
+/* Sidebar */
+:root[data-look="terminal"] .sb-head {
+  gap: 1ch;
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root[data-look="terminal"] .sb-head:not(.sb-account):not(.sb-section) {
+  margin: calc(12 * var(--u)) calc(6 * var(--u)) calc(2 * var(--u));
+}
+
+:root[data-look="terminal"] .sb-account,
+:root[data-look="terminal"] .sb-section {
+  padding: calc(2 * var(--u)) calc(6 * var(--u));
+  border-radius: calc(3 * var(--u));
+}
+
+:root[data-look="terminal"] .sb-account::before,
+:root[data-look="terminal"] .sb-section::before,
+:root[data-look="terminal"] .sb-fold::before {
+  content: "▾";
+}
+
+:root[data-look="terminal"] .sb-account.collapsed::before,
+:root[data-look="terminal"] .sb-section.collapsed::before,
+:root[data-look="terminal"] .sb-fold:not(.open)::before {
+  content: "▸";
+}
+
+:root[data-look="terminal"] .sb-row {
+  gap: 0;
+  height: calc(22 * var(--u));
+  padding: 0 calc(6 * var(--u)) 0 calc(6 * var(--u) + var(--d, 0) * 2ch);
+  border-radius: calc(3 * var(--u));
+}
+
+/* The nudge that centres SF Pro's capitals on an icon. */
+:root[data-look="terminal"] .sb-row .sb-label,
+:root[data-look="terminal"] .sb-row .sb-n,
+:root[data-look="terminal"] .sb-head .sb-label {
+  top: 0;
+}
+
+:root[data-look="terminal"] .sb-row.cursor,
+:root[data-look="terminal"] .sb-row.cursor:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] .sb-row.today .sb-label {
+  color: var(--warning);
+}
+
+/* No icon to stand over: the key goes before the name, as a hint would. */
+:root[data-look="terminal"] .sb-key {
+  position: static;
+  display: none;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  margin-right: 1ch;
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  transform: none;
+}
+
+:root[data-look="terminal"] #folders.pin-keys .sb-row[data-key] > .sb-key {
+  display: inline;
+  transform: none;
+  transition: none;
+}
+
+:root[data-look="terminal"] .sb-n {
+  gap: 1ch;
+  font: inherit;
+}
+
+:root[data-look="terminal"] .sb-badge.staged {
+  padding: 0;
+  background: none;
+}
+
+:root[data-look="terminal"] .sb-fold {
+  margin-left: 1ch;
+}
+
+/* Toolbar, sort menu, search box */
+:root[data-look="terminal"] #toolbar {
+  gap: calc(10 * var(--u));
+}
+
+:root[data-look="terminal"] .tb-t {
+  color: var(--accent);
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .sortbtn,
+:root[data-look="terminal"] .filterbtn {
+  height: calc(22 * var(--u));
+  padding: 0 calc(6 * var(--u));
+  border-radius: calc(3 * var(--u));
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .menu {
+  width: calc(270 * var(--u));
+  border-radius: calc(4 * var(--u));
+}
+
+:root[data-look="terminal"] .menu .mh {
+  font-weight: 400;
+}
+
+:root[data-look="terminal"] .menu .mi {
+  height: calc(22 * var(--u));
+  border-radius: calc(2 * var(--u));
+}
+
+:root[data-look="terminal"] .search,
+:root[data-look="terminal"] .search.on {
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-look="terminal"] .search kbd {
+  order: -1;
+}
+
+:root[data-look="terminal"] .search.on {
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] .search.on .q::before {
+  content: "/";
+}
+
+/* The status line as a modeline: the mode, the message, the steady state in
+   segments of their own. */
+:root[data-look="terminal"] #statusbar {
+  gap: 0;
+  height: calc(24 * var(--u));
+  padding: 0;
+  font-size: calc(11.5 * var(--u));
+}
+
+:root[data-look="terminal"] #status-mode {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 calc(12 * var(--u));
+  background: var(--accent);
+  color: var(--pane);
+  font-weight: 700;
+}
+
+:root[data-look="terminal"] #status {
+  padding: 0 calc(12 * var(--u));
+}
+
+:root[data-look="terminal"] #status-steady {
+  align-self: stretch;
+  gap: 0;
+}
+
+:root[data-look="terminal"] #status-steady > span {
+  display: flex;
+  align-items: center;
+  padding: 0 calc(12 * var(--u));
+}
+
+:root[data-look="terminal"] #status-steady .sync {
+  background: var(--chip);
+  color: var(--fg2);
+}
+
+:root[data-look="terminal"] .cmpl {
+  left: 0;
+  right: 0;
+  bottom: calc(24 * var(--u));
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: 0 -1px 0 var(--line);
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .cmpl .ci {
+  height: calc(22 * var(--u));
+  padding: 0 calc(12 * var(--u));
+  border-radius: 0;
+}
+
+:root[data-look="terminal"] #tasks-toggle {
+  margin: 0 calc(6 * var(--u));
+  border-radius: calc(3 * var(--u));
+}
+
+/* Rows: the flag column, the date, then the sender and the subject. */
+:root[data-look="terminal"] .row {
+  grid-template-columns: var(
+    --cols-date-first,
+    var(--status-w) var(--col-date) var(--col-from) minmax(0, 1fr) auto
+  );
+}
+
+:root[data-look="terminal"] #list.today-columns {
+  --col-from-compact: 16ch;
+}
+
+:root[data-look="terminal"] #list.today-columns .mail-scroll .row {
+  grid-template-columns: var(--cols-date-first-compact);
+}
+
+:root[data-look="terminal"] #list.today-mixed {
+  --col-kind: 2ch;
+}
+
+:root[data-look="terminal"] #list.today-mixed .mail-scroll .row {
+  grid-template-columns: var(--cols-date-first-mixed);
+}
+
+:root[data-look="terminal"] .row > .status {
+  order: -2;
+}
+
+:root[data-look="terminal"] .row > .date {
+  order: -1;
+  font: inherit;
+  text-align: left;
+}
+
+:root[data-look="terminal"] .status {
+  justify-content: flex-start;
+}
+
+/* N, D, M, r (replied) or f (forwarded); then ! for flagged; then + for files. An empty slot keeps its
+   width, so each flag stays in its column. */
+:root[data-look="terminal"] .status .mark,
+:root[data-look="terminal"] .status .mark[data-g="N"],
+:root[data-look="terminal"] .status .mark[data-g="D"],
+:root[data-look="terminal"] .status .mark[data-g="r"],
+:root[data-look="terminal"] .status .mark[data-g="f"] {
+  display: block;
+  width: 1ch;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+
+:root[data-look="terminal"] .status .mark::before,
+:root[data-look="terminal"] .status .mark[data-g="D"]::before {
+  content: attr(data-g);
+}
+
+:root[data-look="terminal"] .status .mark[data-g="N"] {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+:root[data-look="terminal"] .status .mark[data-g="!"],
+:root[data-look="terminal"] .status .mark[data-g="M"] {
+  color: var(--warning);
+}
+
+:root[data-look="terminal"] .status .mark[data-g="D"] {
+  color: var(--danger);
+}
+
+:root[data-look="terminal"] .status .mark[data-g="r"],
+:root[data-look="terminal"] .status .mark[data-g="f"] {
+  mask: none;
+  color: var(--fg3);
+}
+
+/* The flag column says these. */
+:root[data-look="terminal"] .meta .clip,
+:root[data-look="terminal"] .meta .flagged {
+  display: none;
+}
+
+:root[data-look="terminal"] .from {
+  gap: 1ch;
+}
+
+:root[data-look="terminal"] .from .addr {
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .row:not(.bare-from) .from .addr::before {
+  content: "<";
+}
+
+:root[data-look="terminal"] .row:not(.bare-from) .from .addr::after {
+  content: ">";
+}
+
+:root[data-look="terminal"] .spw {
+  margin: 0;
+  font-weight: 700;
+}
+
+:root[data-look="terminal"] .spw::before {
+  content: "≠";
+}
+
+:root[data-look="terminal"] .h-from .spw {
+  margin-left: 1ch;
+}
+
+:root[data-look="terminal"] .row.unread .subject .text {
+  font-weight: 600;
+}
+
+:root[data-look="terminal"] .subject .snip {
+  margin-left: 2ch;
+}
+
+:root[data-look="terminal"] .subject .thread {
+  margin-left: 1ch;
+  padding: 0;
+  box-shadow: none;
+  font: inherit;
+}
+
+:root[data-look="terminal"] .subject .thread::before,
+:root[data-look="terminal"] .sb-badge.staged::before {
+  content: "[";
+}
+
+:root[data-look="terminal"] .subject .thread::after,
+:root[data-look="terminal"] .sb-badge.staged::after {
+  content: "]";
+}
+
+:root[data-look="terminal"] .subject .tree {
+  margin: 0 1ch 0 calc(var(--depth, 0) * 2ch);
+  font: inherit;
+}
+
+:root[data-look="terminal"] .meta {
+  gap: 1ch;
+}
+
+:root[data-look="terminal"] .meta .folder,
+:root[data-look="terminal"] .meta .tasks .n {
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .meta .target,
+:root[data-look="terminal"] .meta .labels .chip {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+}
+
+:root[data-look="terminal"] .meta .tasks {
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] .meta .tasks::before {
+  content: "task";
+}
+
+/* Task rows: the box, the date, the title, the badges. */
+:root[data-look="terminal"] .tk-row {
+  grid-template-columns: var(--status-w) minmax(var(--col-date), max-content) minmax(0, 1fr) auto;
+}
+
+:root[data-look="terminal"] .tk-row > .tk-box {
+  order: -2;
+  justify-items: start;
+}
+
+:root[data-look="terminal"] .tk-row > .tk-dates {
+  order: -1;
+  justify-content: flex-start;
+}
+
+:root[data-look="terminal"] .tk-dates .tk-date,
+:root[data-look="terminal"] .tk-tagtxt {
+  font: inherit;
+}
+
+:root[data-look="terminal"] .tk-row .tk-date.overdue::before {
+  content: "!";
+}
+
+:root[data-look="terminal"] .tk-meta {
+  gap: 1ch;
+}
+
+:root[data-look="terminal"] .tk-row.working .tk-title::before,
+:root[data-look="terminal"] .sb-working::before {
+  content: ">";
+  font-size: inherit;
+  margin-right: 1ch;
+}
+
+:root[data-look="terminal"] .tk-meta .m-repeat::before {
+  content: "↻";
+}
+
+:root[data-look="terminal"] .tk-meta .m-bell::before {
+  content: "◔";
+}
+
+:root[data-look="terminal"] .tk-meta .m-clip::before {
+  content: "+";
+}
+
+:root[data-look="terminal"] .tk-meta .m-mail::before {
+  content: "✉";
+}
+
+:root[data-look="terminal"] .ring,
+:root[data-look="terminal"] .td-h .pbar {
+  display: none;
+}
+
+:root[data-look="terminal"] .tk-meta .m-steps {
+  font: inherit;
+}
+
+:root[data-look="terminal"] .tk-meta .m-steps .n::before {
+  content: "[";
+}
+
+:root[data-look="terminal"] .tk-meta .m-steps .n::after {
+  content: "]";
+}
+
+:root[data-look="terminal"] .step {
+  gap: 1ch;
+  height: calc(22 * var(--u));
+}
+
+:root[data-look="terminal"] .chk,
+:root[data-look="terminal"] .chk.on,
+:root[data-look="terminal"] .td-title .chk,
+:root[data-look="terminal"] .tk-box:hover .chk,
+:root[data-look="terminal"] .h-att .chip .chk {
+  display: inline;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-look="terminal"] .chk::before {
+  content: "[ ]";
+}
+
+:root[data-look="terminal"] .chk.on::before {
+  content: "[x]";
+  color: var(--success);
+}
+
+:root[data-look="terminal"] .chk.on::after {
+  content: none;
+}
+
+/* A section is a rule with its label and count in it: ── tasks (3) ─────── */
+:root[data-look="terminal"] .sec {
+  grid-template-columns: minmax(0, 1fr);
+  height: calc(26 * var(--u));
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root[data-look="terminal"] .sec .sec-t {
+  grid-column: 1;
+  gap: 1ch;
+}
+
+:root[data-look="terminal"] .sec .sec-t::before {
+  content: "──";
+}
+
+:root[data-look="terminal"] .sec .sec-t::after {
+  content: "";
+  order: 1;
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+:root[data-look="terminal"] .sec .n {
+  font: inherit;
+}
+
+:root[data-look="terminal"] .sec .n::before {
+  content: "(";
+}
+
+:root[data-look="terminal"] .sec .n::after {
+  content: ")";
+}
+
+:root[data-look="terminal"] #search-panel {
+  border-radius: 4px;
+}
+
+:root[data-look="terminal"] #search-box {
+  font-size: var(--font-md, inherit);
+}
+
+:root[data-look="terminal"] .tokn,
+:root[data-look="terminal"] #search-scope .pill {
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-look="terminal"] .tokn .k {
+  font-size: inherit;
+  opacity: 1;
+}
+
+:root[data-look="terminal"] .tokn .k::after {
+  content: ":";
+}
+
+:root[data-look="terminal"] #search-scope {
+  gap: 2ch;
+}
+
+:root[data-look="terminal"] #search-scope .pill.on {
+  background: none;
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] #search-scope .pill.on::before {
+  content: "[";
+}
+
+:root[data-look="terminal"] #search-scope .pill.on::after {
+  content: "]";
+}
+
+:root[data-look="terminal"] #search-suggest .sp-i {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1ch;
+  height: 24px;
+  border-radius: 2px;
+}
+
+:root[data-look="terminal"] #search-suggest .sp-h {
+  font-weight: 400;
+}
+
+:root[data-look="terminal"] #search-suggest .sp-h::before {
+  content: "── ";
+}
+
+:root[data-look="terminal"] .fbar {
+  height: calc(24 * var(--u));
+  margin: 0 0 calc(4 * var(--u));
+  padding: 0 var(--row-pad-r) 0 var(--row-pad-l);
+  border-radius: 0;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--accent) 14%, var(--pane));
+}
+
+:root[data-look="terminal"] .fbar .fk {
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] .fbar .fk::after {
+  content: " |";
+}
+
+:root[data-look="terminal"] .tk-day {
+  height: calc(26 * var(--u));
+  padding: calc(6 * var(--u)) var(--row-pad-r) 0 var(--row-pad-l);
+  align-items: center;
+  gap: 1ch;
+}
+
+:root[data-look="terminal"] .tk-day::before {
+  content: "──";
+  color: var(--fg3);
+}
+
+:root[data-look="terminal"] .tk-day b,
+:root[data-look="terminal"] .tk-day b.mon {
+  min-width: 0;
+  color: var(--accent);
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: 0;
+}
+
+:root[data-look="terminal"] .tk-day b.dic {
+  display: none;
+}
+
+:root[data-look="terminal"] .tk-day .dl {
+  gap: 1ch;
+  padding: 0;
+  border: 0;
+  font-size: inherit;
+  font-weight: 400;
+  line-height: inherit;
+}
+
+:root[data-look="terminal"] .tk-day .dl::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  align-self: center;
+  background: var(--line);
+}
+
+:root[data-look="terminal"] .tk-day .n {
+  margin: 0;
+  font: inherit;
+}
+
+:root[data-look="terminal"] .tk-day .n::before {
+  content: "(";
+}
+
+:root[data-look="terminal"] .tk-day .n::after {
+  content: ")";
+}
+
+:root[data-look="terminal"] #toolbar .seg,
+:root[data-look="terminal"] .sec .seg {
+  order: 2;
+  gap: 1ch;
+  margin-left: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+
+:root[data-look="terminal"] #toolbar .seg {
+  order: 0;
+}
+
+:root[data-look="terminal"] #toolbar .seg button,
+:root[data-look="terminal"] #toolbar .seg button[aria-checked="true"],
+:root[data-look="terminal"] .sec .seg button,
+:root[data-look="terminal"] .sec .seg button[aria-checked="true"] {
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font: inherit;
+}
+
+:root[data-look="terminal"] #toolbar .seg button[aria-checked="true"],
+:root[data-look="terminal"] .sec .seg button[aria-checked="true"] {
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] #toolbar .seg button[aria-checked="true"]::before,
+:root[data-look="terminal"] .sec .seg button[aria-checked="true"]::before {
+  content: "[";
+}
+
+:root[data-look="terminal"] #toolbar .seg button[aria-checked="true"]::after,
+:root[data-look="terminal"] .sec .seg button[aria-checked="true"]::after {
+  content: "]";
+}
+
+/* The reader: Key value lines, from, to, date, subject, files. */
+:root[data-look="terminal"] #reader {
+  padding: calc(16 * var(--u)) calc(28 * var(--u)) 0 var(--row-pad-l);
+}
+
+:root[data-look="terminal"] #reader header,
+:root[data-look="terminal"] .tk-head {
+  border-bottom-style: dashed;
+}
+
+:root[data-look="terminal"] .hdrs,
+:root[data-look="terminal"] .hdrs:has(> .views) {
+  grid-template-columns: 9ch minmax(0, 1fr) auto;
+  grid-template-areas: none;
+  gap: 1px 1ch;
+  color: var(--fg2);
+}
+
+:root[data-look="terminal"] .hdrs > .hdr {
+  display: contents;
+}
+
+:root[data-look="terminal"] .hdr > .k,
+:root[data-look="terminal"] .h-to > .k {
+  display: block;
+  grid-column: 1;
+  margin: 0;
+  color: var(--fg3);
+}
+
+:root[data-look="terminal"] .hdr > .v {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-look="terminal"] .h-from > * {
+  order: 1;
+}
+
+:root[data-look="terminal"] .h-to > * {
+  order: 2;
+}
+
+:root[data-look="terminal"] .h-date > * {
+  order: 3;
+}
+
+:root[data-look="terminal"] .h-date,
+:root[data-look="terminal"] .h-to {
+  font: inherit;
+}
+
+:root[data-look="terminal"] .h-from .v {
+  color: var(--fg);
+}
+
+:root[data-look="terminal"] .h-from .addr {
+  margin-left: 0;
+}
+
+:root[data-look="terminal"] .h-from .addr::before {
+  content: " <";
+}
+
+:root[data-look="terminal"] .h-from .addr::after {
+  content: ">";
+}
+
+/* The subject's text runs on, so its key hangs in the padding. */
+:root[data-look="terminal"] #reader h1.h-subj {
+  order: 4;
+  position: relative;
+  grid-area: auto;
+  grid-column: 1 / 3;
+  margin: 0;
+  padding-left: 10ch;
+  color: var(--fg);
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: inherit;
+}
+
+:root[data-look="terminal"] #reader h1.h-subj::before {
+  content: attr(data-k);
+  position: absolute;
+  left: 0;
+  color: var(--fg3);
+  font-weight: 400;
+  text-transform: lowercase;
+}
+
+:root[data-look="terminal"] .conv-sub {
+  order: 5;
+  position: relative;
+  grid-area: auto;
+  grid-column: 1 / 3;
+  padding-left: 10ch;
+  font: inherit;
+}
+
+:root[data-look="terminal"] .conv-sub::before {
+  content: "thread";
+  position: absolute;
+  left: 0;
+  color: var(--fg3);
+}
+
+:root[data-look="terminal"] #reader .conv-hdrs h1 {
+  margin: 0;
+}
+
+:root[data-look="terminal"] .conv-stack {
+  gap: 0;
+}
+
+:root[data-look="terminal"] .card,
+:root[data-look="terminal"] .conv-earlier {
+  border-radius: 0;
+}
+
+:root[data-look="terminal"] .card {
+  box-shadow: none;
+  border-bottom: 1px dashed var(--line);
+}
+
+:root[data-look="terminal"] .conv-earlier {
+  border-width: 0 0 1px;
+}
+
+:root[data-look="terminal"] #reader.focused .card.focus {
+  box-shadow: none;
+}
+
+:root[data-look="terminal"] #reader.focused .card.focus > .card-head {
+  background: var(--cursor-bg);
+}
+
+:root[data-look="terminal"] .card-head {
+  padding: 1px 1ch;
+  column-gap: 1ch;
+}
+
+:root[data-look="terminal"] .card-body {
+  padding: 0 1ch calc(10 * var(--u)) calc(2ch + 7px);
+}
+
+:root[data-look="terminal"] .hdrs > .views {
+  grid-area: auto;
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+:root[data-look="terminal"] .h-att {
+  order: 5;
+  grid-area: auto;
+  grid-column: 1 / 3;
+  gap: 0 2ch;
+  margin-top: calc(4 * var(--u));
+  padding-left: 10ch;
+}
+
+:root[data-look="terminal"] .h-att .chip {
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .h-att .chip::before {
+  content: "[";
+}
+
+:root[data-look="terminal"] .h-att .chip::after {
+  content: "]";
+}
+
+/* The task detail: what is set as Key value lines, sections as rules. */
+:root[data-look="terminal"] #reader.task-detail {
+  padding: calc(16 * var(--u)) calc(28 * var(--u)) 0 0;
+}
+
+:root[data-look="terminal"] .td-title {
+  margin-bottom: calc(8 * var(--u));
+}
+
+:root[data-look="terminal"] #reader .td-title h1 {
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+:root[data-look="terminal"] .props {
+  display: grid;
+  grid-template-columns: 9ch minmax(0, max-content) 1fr;
+  align-items: baseline;
+  gap: 1px 1ch;
+  color: var(--fg2);
+}
+
+:root[data-look="terminal"] .td .p {
+  display: contents;
+  font-weight: 400;
+}
+
+:root[data-look="terminal"] .td .p::before {
+  content: attr(data-k);
+  grid-column: 1;
+  color: var(--fg3);
+  text-transform: lowercase;
+}
+
+:root[data-look="terminal"] .td .p > .p-open,
+:root[data-look="terminal"] .td .p > .pv {
+  grid-column: 2;
+  justify-self: start;
+}
+
+:root[data-look="terminal"] .td .p > .tk-field-button {
+  grid-column: 3;
+  justify-self: start;
+}
+
+:root[data-look="terminal"] .td .p .pk {
+  display: none;
+}
+
+:root[data-look="terminal"] .td .p .pk + .pv {
+  margin-left: 0;
+}
+
+:root[data-look="terminal"] .td-notes {
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .td-h {
+  gap: 1ch;
+  margin-top: calc(16 * var(--u));
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root[data-look="terminal"] .td-h::before {
+  content: "──";
+}
+
+:root[data-look="terminal"] .td-h .n,
+:root[data-look="terminal"] .td-link .r,
+:root[data-look="terminal"] .td-log time {
+  font: inherit;
+}
+
+:root[data-look="terminal"] .td-link .td-open {
+  gap: 1ch;
+  height: calc(22 * var(--u));
+}
+
+:root[data-look="terminal"] .td-link .lk.mail::before {
+  content: "✉";
+}
+
+:root[data-look="terminal"] .td-link .lk.chat::before {
+  content: "#";
+}
+
+:root[data-look="terminal"] .td-link .lk.file::before {
+  content: "+";
+}
+
+:root[data-look="terminal"] .td-link .rs {
+  gap: 1ch;
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .td-link .rs.ok::before {
+  content: "↩";
+}
+
+:root[data-look="terminal"] .td-log li {
+  padding: calc(1 * var(--u)) 0;
+}
+
+/* An empty list: ── nothing left for today ── */
+:root[data-look="terminal"] .empty-view h3 {
+  color: var(--fg2);
+  font-size: inherit;
+  font-weight: 400;
+}
+
+:root[data-look="terminal"] .empty-view h3::before {
+  content: "── ";
+}
+
+:root[data-look="terminal"] .empty-view h3::after {
+  content: " ──";
+}
+
+/* The compose window */
+:root[data-look="terminal"] #titlebar .btn,
+:root[data-look="terminal"] .tokens .token,
+:root[data-look="terminal"] .token-ghost,
+:root[data-look="terminal"] .attachments .file {
+  border-radius: calc(3 * var(--u));
+}
+
+:root[data-look="terminal"] #titlebar .btn {
+  font-size: inherit;
+}
+
+:root[data-look="terminal"] .field {
+  grid-template-columns: 9ch minmax(0, 1fr) auto;
+  min-height: calc(24 * var(--u));
+}
+
+/* Templates: brackets instead of rings */
+:root[data-look="terminal"] .ph {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-look="terminal"] .ph.ok {
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] .tpk,
+:root[data-look="terminal"] .sheet {
+  border-radius: 0 0 4px 4px;
+}
+
+:root[data-look="terminal"] .tpk-i,
+:root[data-look="terminal"] .pf input {
+  border-radius: 2px;
+}
+
+:root[data-look="terminal"] .tpk-n {
+  padding: 0;
+  box-shadow: none;
+}
+
+:root[data-look="terminal"] .sheet-h .badge {
+  display: none;
+}
+
+:root[data-look="terminal"] .identity:has(.chev)::after {
+  content: "▾";
+  color: var(--fg3);
+}
+
+/* Chat in the Terminal look: a log of lines, no avatars or bubbles. */
+:root[data-look="terminal"] .av {
+  display: none;
+}
+
+:root[data-look="terminal"] .cv-t,
+:root[data-look="terminal"] .cm-x,
+:root[data-look="terminal"] .cc-field {
+  font-size: var(--font-sm);
+}
+
+:root[data-look="terminal"] .cm-h b {
+  font-weight: 400;
+  color: var(--accent);
+}
+
+:root[data-look="terminal"] .cm.me .cm-h b {
+  color: var(--fg2);
+}
+
+:root[data-look="terminal"] .men {
+  background: none;
+  padding: 0;
+}
+
+:root[data-look="terminal"] .rx,
+:root[data-look="terminal"] .cm-file,
+:root[data-look="terminal"] .cv-chip,
+:root[data-look="terminal"] .cc-send {
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  padding: 0;
+  height: auto;
+}
+
+:root[data-look="terminal"] .rx::before,
+:root[data-look="terminal"] .cm-file::before {
+  content: "[";
+}
+
+:root[data-look="terminal"] .rx::after,
+:root[data-look="terminal"] .cm-file::after {
+  content: "]";
+}
+
+:root[data-look="terminal"] .cv-new {
+  font-size: var(--font-sm);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: lowercase;
+}
+
+:root[data-look="terminal"] .cv-new::before {
+  content: "──";
+}
+
+:root[data-look="terminal"] .cc {
+  border-radius: 0;
+  margin-left: var(--row-pad-l);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+:root[data-look="terminal"] .cc.on {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+:root[data-look="terminal"] .cc-send.pri {
+  color: var(--accent);
+  background: none;
+}
+
+:root[data-look="terminal"] .status .mark[data-g="@"] {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* What can follow a pending prefix key (`g`, `z`): over the bottom right of
+   the window, above the status line, until the next key. */
+.keyhints {
+  position: fixed;
+  right: calc(16 * var(--u));
+  bottom: calc(34 * var(--u));
+  z-index: 60;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: calc(12 * var(--u));
+  row-gap: calc(3 * var(--u));
+  max-width: min(calc(440 * var(--u)), 60vw);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: calc(10 * var(--u)) calc(14 * var(--u));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--pane);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  font-size: var(--font-sm);
+  color: var(--fg2);
+  pointer-events: none;
+}
+
+.keyhints .kh-head,
+.keyhints .kh-row {
+  display: contents;
+}
+
+.keyhints .kh-head .lbl {
+  color: var(--fg3);
+}
+
+.keyhints kbd {
+  justify-self: end;
+  font-family: var(--mono);
+  color: var(--accent);
+}
+
+.keyhints .kh-head kbd {
+  color: var(--fg);
+}
+
+:root[data-look="terminal"] .keyhints {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The `?` overlay: every key of every mode, over the whole window. Above the
+   key hints (60); level with the pickers, which it never shares the screen
+   with. */
+.help-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scrim);
+  animation: search-scrim-in 110ms ease-out;
+}
+
+.help {
+  display: flex;
+  flex-direction: column;
+  width: min(calc(820 * var(--u)), 92vw);
+  height: min(calc(640 * var(--u)), 86vh);
+  border-radius: calc(12 * var(--u));
+  background: var(--pane);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.help-head {
+  display: flex;
+  align-items: center;
+  gap: calc(16 * var(--u));
+  padding: calc(14 * var(--u)) calc(18 * var(--u)) calc(10 * var(--u));
+}
+
+.help-title {
+  flex: none;
+  color: var(--fg);
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+.help-title i {
+  color: var(--accent);
+}
+
+.help-search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  height: calc(32 * var(--u));
+  padding: 0 calc(10 * var(--u));
+  border-radius: calc(8 * var(--u));
+  background: var(--chip);
+  color: var(--fg3);
+}
+
+.help-search:focus-within {
+  box-shadow: 0 0 0 2px var(--accent-soft), inset 0 0 0 1px var(--accent);
+}
+
+.help-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  user-select: text;
+}
+
+.help-search input::placeholder {
+  color: var(--fg3);
+}
+
+.help-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4 * var(--u));
+  padding: 0 calc(16 * var(--u)) calc(10 * var(--u));
+  border-bottom: 1px solid var(--line);
+}
+
+.help-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  height: calc(24 * var(--u));
+  padding: 0 calc(10 * var(--u));
+  border: 0;
+  border-radius: calc(12 * var(--u));
+  background: none;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.help-tabs button:hover {
+  background: var(--hover);
+}
+
+.help-tabs button[aria-selected="true"] {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+}
+
+.help-tabs button.none {
+  opacity: 0.45;
+}
+
+.help-tabs .n {
+  min-width: calc(16 * var(--u));
+  padding: 0 calc(4 * var(--u));
+  border-radius: calc(8 * var(--u));
+  background: var(--chip);
+  font-size: var(--font-2xs);
+  text-align: center;
+}
+
+.help-tabs button[aria-selected="true"] .n {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.help-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(10 * var(--u)) calc(16 * var(--u)) calc(16 * var(--u));
+}
+
+.help-about {
+  margin: 0 calc(6 * var(--u)) calc(10 * var(--u));
+  color: var(--fg3);
+  font-size: var(--font-sm);
+}
+
+/* As many columns as fit, each group kept whole in one. */
+.help-cols {
+  column-width: calc(340 * var(--u));
+  column-gap: calc(20 * var(--u));
+}
+
+.help-group {
+  break-inside: avoid;
+  margin-bottom: calc(14 * var(--u));
+}
+
+.help-group h3 {
+  margin: 0 0 calc(4 * var(--u));
+  padding: 0 calc(6 * var(--u));
+  color: var(--fg3);
+  font-size: var(--font-2xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hk-row {
+  display: grid;
+  grid-template-columns: calc(118 * var(--u)) minmax(0, 1fr);
+  align-items: baseline;
+  gap: calc(10 * var(--u));
+  padding: calc(3 * var(--u)) calc(6 * var(--u));
+  border-radius: calc(5 * var(--u));
+  color: var(--fg);
+  font-size: var(--font-sm);
+  cursor: default;
+}
+
+.hk-row:hover {
+  background: var(--hover);
+}
+
+.hk-row.on {
+  background: var(--accent-soft);
+}
+
+.hk-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: calc(3 * var(--u));
+}
+
+.hk-seq {
+  display: inline-flex;
+  gap: calc(2 * var(--u));
+}
+
+.help kbd {
+  display: inline-block;
+  min-width: calc(18 * var(--u));
+  padding: calc(2 * var(--u)) calc(5 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: var(--kbd);
+  box-shadow: inset 0 -1px 0 var(--frame);
+  color: var(--fg);
+  font: calc(11 * var(--u)) / 1.2 var(--mono);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.hk-row.on kbd {
+  background: var(--pane);
+  color: var(--accent);
+}
+
+.hk-or,
+.hk-none {
+  color: var(--fg3);
+  font-size: var(--font-2xs);
+}
+
+.hk-none {
+  font-family: var(--mono);
+}
+
+.help-empty {
+  padding: calc(40 * var(--u)) calc(16 * var(--u));
+  color: var(--fg2);
+  text-align: center;
+}
+
+.help-foot {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  min-height: calc(34 * var(--u));
+  padding: 0 calc(18 * var(--u));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg3);
+  font-size: var(--font-xs);
+}
+
+.help-cmd {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: baseline;
+  gap: calc(10 * var(--u));
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.help-cmd code {
+  overflow: hidden;
+  color: var(--accent);
+  font-family: var(--mono);
+  text-overflow: ellipsis;
+}
+
+.help-legend {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  gap: calc(4 * var(--u));
+}
+
+.help-legend kbd + :not(kbd),
+.help-legend kbd {
+  margin-left: calc(4 * var(--u));
+}
+
+:root[data-look="terminal"] .help,
+:root[data-look="terminal"] .help-search,
+:root[data-look="terminal"] .hk-row {
+  border-radius: calc(2 * var(--u));
+}
+
+:root[data-look="terminal"] .help-tabs button {
+  border-radius: calc(3 * var(--u));
+}
+
+:root[data-look="terminal"] .help kbd {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--accent);
+}

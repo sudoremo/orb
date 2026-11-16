@@ -1,0 +1,10 @@
+# Frontend
+node_modules/
+dist/
+
+# Rust build output (this crate is its own workspace root)
+src-tauri/target/
+
+# Generated Tauri artifacts
+src-tauri/gen/
+test-results/

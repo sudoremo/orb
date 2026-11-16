@@ -1,0 +1,25 @@
+# Rust
+/target
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+
+# Screenshots from harness runs, which land in the working directory.
+# Anchored to the root rather than a bare `*.png`: that swallowed the app icons
+# too, so the bundle referenced files the repository did not carry.
+/*.png

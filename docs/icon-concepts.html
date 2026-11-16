@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orb — App Icon Concepts</title>
+<style>
+  :root {
+    --fg: #f5f6fa;
+    --fg-dim: rgba(245, 246, 250, .62);
+    --panel: rgba(255, 255, 255, .07);
+    --panel-edge: rgba(255, 255, 255, .16);
+    --seg: rgba(255, 255, 255, .1);
+    --seg-on: rgba(255, 255, 255, .26);
+  }
+  body.light {
+    --fg: #15171d;
+    --fg-dim: rgba(21, 23, 29, .58);
+    --panel: rgba(255, 255, 255, .42);
+    --panel-edge: rgba(255, 255, 255, .75);
+    --seg: rgba(0, 0, 0, .06);
+    --seg-on: rgba(255, 255, 255, .95);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: var(--fg);
+    min-height: 100vh;
+    background:
+      radial-gradient(60vw 45vw at 8% 0%, #3d5bd9 0, transparent 62%),
+      radial-gradient(50vw 40vw at 100% 18%, #b8326a 0, transparent 60%),
+      radial-gradient(70vw 50vw at 45% 105%, #0e8f73 0, transparent 60%),
+      #0a0c18;
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.light {
+    background:
+      radial-gradient(60vw 45vw at 8% 0%, #b9cbff 0, transparent 62%),
+      radial-gradient(50vw 40vw at 100% 18%, #ffc7da 0, transparent 60%),
+      radial-gradient(70vw 50vw at 45% 105%, #b4f0dc 0, transparent 60%),
+      #eef1f8;
+    background-attachment: fixed;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 56px 32px 120px; }
+  h1 { font: 700 40px/1.1 -apple-system, "SF Pro Display", sans-serif; letter-spacing: -.02em; margin: 0 0 8px; }
+  h2 { font: 650 26px/1.2 -apple-system, "SF Pro Display", sans-serif; letter-spacing: -.01em; margin: 0 0 6px; }
+  p { margin: 0; }
+  .dim { color: var(--fg-dim); }
+  .lede { max-width: 760px; font-size: 17px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 28px;
+    backdrop-filter: blur(30px) saturate(1.6);
+    -webkit-backdrop-filter: blur(30px) saturate(1.6);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .18);
+  }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin: 32px 0 26px; }
+  .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--seg); }
+  .seg span {
+    padding: 5px 14px; border-radius: 999px; cursor: pointer; user-select: none; font-size: 13px; font-weight: 550;
+    color: var(--fg-dim);
+  }
+  .seg span.on { background: var(--seg-on); color: var(--fg); box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
+  .toolbar label { display: inline-flex; gap: 10px; align-items: center; font-size: 13px; color: var(--fg-dim); }
+  input[type=range] { accent-color: hsl(var(--hue) 80% 60%); }
+
+  .dock-wrap { display: flex; justify-content: center; margin: 10px 0 56px; }
+  .dock { display: flex; gap: 14px; padding: 12px 16px; border-radius: 30px; align-items: flex-end; }
+  .dock .slot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .dock .slot .icon { transition: transform .18s cubic-bezier(.2, .8, .2, 1.2); }
+  .dock .slot:hover .icon { transform: translateY(-10px) scale(1.12); }
+  .dock .slot small { font-size: 11px; color: var(--fg-dim); }
+
+  .concept { padding: 34px; margin-bottom: 28px; display: grid; grid-template-columns: 340px 1fr; gap: 40px; }
+  .hero { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .stage { width: 300px; height: 300px; display: grid; place-items: center; position: relative; }
+  .stage .flat, .stage .explode { grid-area: 1 / 1; transition: opacity .35s, transform .5s; }
+  .stage .explode { opacity: 0; pointer-events: none; }
+  .stage.exploded .flat { opacity: 0; transform: scale(.9); }
+  .stage.exploded .explode { opacity: 1; }
+  .actions { display: flex; gap: 8px; }
+  .actions a {
+    font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    background: var(--seg); color: var(--fg); text-decoration: none; user-select: none;
+  }
+  .actions a:hover { background: var(--seg-on); }
+
+  .meta h2 small { font-size: 14px; font-weight: 500; color: var(--fg-dim); margin-left: 8px; }
+  .meta p { max-width: 640px; }
+  .variants { display: flex; gap: 26px; margin: 26px 0 22px; flex-wrap: wrap; }
+  .variant { display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 12px; color: var(--fg-dim); }
+  .sizes { display: flex; gap: 22px; align-items: flex-end; padding-top: 18px; border-top: 1px solid var(--panel-edge); }
+  .sizes .variant { gap: 6px; }
+
+  /* The system applies the mask: artwork is a full-bleed 1024 canvas. */
+  .icon { position: relative; width: var(--s); height: var(--s); flex: none; }
+  .icon .shadow, .icon .face {
+    position: absolute; inset: 0;
+    -webkit-mask: var(--squircle) center / 100% 100% no-repeat;
+    mask: var(--squircle) center / 100% 100% no-repeat;
+  }
+  .icon .shadow {
+    background: rgba(0, 0, 0, .5);
+    filter: blur(calc(var(--s) * .035));
+    transform: translateY(calc(var(--s) * .03)) scale(.96);
+    opacity: .55;
+  }
+  .icon .face.clear {
+    backdrop-filter: blur(calc(var(--s) * .05)) saturate(1.9) brightness(1.08);
+    -webkit-backdrop-filter: blur(calc(var(--s) * .05)) saturate(1.9) brightness(1.08);
+  }
+  .icon svg { display: block; width: 100%; height: 100%; }
+
+  .explode { width: 260px; height: 260px; perspective: 1400px; }
+  .explode .rig { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transform: rotateX(56deg) rotateZ(-38deg) translateZ(-60px); }
+  .explode .plane { position: absolute; inset: 0; }
+  .explode .plane.base {
+    -webkit-mask: var(--squircle) center / 100% 100% no-repeat;
+    mask: var(--squircle) center / 100% 100% no-repeat;
+  }
+  .explode .plane.layer { outline: 1px dashed rgba(255, 255, 255, .22); border-radius: 22%; }
+  body.light .explode .plane.layer { outline-color: rgba(0, 0, 0, .14); }
+
+  .notes { padding: 30px 34px; margin-top: 44px; }
+  .notes ul { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 40px; }
+  .notes li { margin-bottom: 8px; break-inside: avoid; }
+
+  @media (max-width: 900px) {
+    .concept { grid-template-columns: 1fr; }
+    .notes ul { columns: 1; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Orb — App Icon Concepts</h1>
+  <p class="lede dim">
+    Six directions for Orb's icon, plus two alternatives for Flight's planet, drawn the way macOS 26 expects them: a full-bleed
+    1024&nbsp;pt canvas that the system masks, a calm background, and a few front-facing
+    Liquid Glass layers with light coming from above. Each concept is shown in all
+    four system appearances.
+  </p>
+
+  <div class="toolbar">
+    <div class="seg" id="appearance">
+      <span data-v="light" class="on">Default</span>
+      <span data-v="dark">Dark</span>
+      <span data-v="clear">Clear</span>
+      <span data-v="tinted">Tinted</span>
+    </div>
+    <label>Tint hue <input type="range" id="hue" min="0" max="359" value="212"></label>
+    <div class="seg" id="wallpaper">
+      <span data-w="dark" class="on">Dark wallpaper</span>
+      <span data-w="light">Light wallpaper</span>
+    </div>
+  </div>
+
+  <div class="dock-wrap"><div class="dock panel" id="dock"></div></div>
+
+  <div id="concepts"></div>
+
+  <section class="notes panel">
+    <h2>What the designs follow</h2>
+    <ul class="dim">
+      <li><b>Full-bleed artwork, system mask.</b> Every icon is drawn on a square 1024 canvas; the rounded-rectangle shape (a continuous-curvature superellipse) is applied on top, as macOS 26 does. Exported SVGs are unmasked, ready for Icon Composer.</li>
+      <li><b>Layers, not illustrations.</b> One background plus two to four foreground layers. Use “Layers” on a concept to see the stack.</li>
+      <li><b>Liquid Glass foregrounds.</b> Translucent fills, a specular rim on every edge (bright top-left, softer bottom-right), a sheen from above and a soft shadow underneath — the system's glass treatment, approximated.</li>
+      <li><b>Front-facing and centred.</b> No perspective, no tilted scenes; the mark sits in the optical centre with breathing room to the mask edge.</li>
+      <li><b>Four appearances.</b> Default, Dark (dark background, tinted foreground), Clear (everything frosted white glass over the wallpaper) and Tinted (monochrome in the user's hue).</li>
+      <li><b>No text, a single idea.</b> Each concept stays recognisable at 16&nbsp;pt in the sidebar and the menu bar.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+const S = 1024;
+
+// A superellipse close to Apple's continuous-corner icon shape.
+function squirclePath(size, n = 5, steps = 360) {
+  const r = size / 2, pts = [];
+  for (let i = 0; i < steps; i++) {
+    const t = (i / steps) * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
+    const x = r + r * Math.sign(c) * Math.abs(c) ** (2 / n);
+    const y = r + r * Math.sign(s) * Math.abs(s) ** (2 / n);
+    pts.push(x.toFixed(1) + ' ' + y.toFixed(1));
+  }
+  return 'M' + pts.join('L') + 'Z';
+}
+const SQUIRCLE = squirclePath(S);
+document.documentElement.style.setProperty('--squircle',
+  `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><path d="${SQUIRCLE}"/></svg>`)}")`);
+
+const RING = (stroke = 34) =>
+  `<ellipse cx="512" cy="512" rx="380" ry="112" fill="none" stroke="#fff" stroke-width="${stroke}" transform="rotate(-20 512 512)"/>`;
+
+function flight({ planet, ...c }) {
+  return {
+    ...c,
+    bg: ['#30479f', '#0c1340'], fgDark: ['#c7d4ff', '#7d93e6'],
+    layers: [
+      { role: 'line', draw: col => `<g fill="${col}">
+          <circle cx="210" cy="230" r="9"/><circle cx="330" cy="150" r="6"/><circle cx="830" cy="560" r="8"/>
+          <circle cx="720" cy="790" r="6"/><circle cx="560" cy="170" r="5"/><circle cx="880" cy="160" r="6"/></g>` },
+      { ...planet, box: [230, 400, 630, 800], shape: () => `<circle cx="430" cy="600" r="200" fill="#fff"/>` },
+      { role: 'line', draw: col => `<path d="M214 470 C 300 260, 520 200, 668 300" fill="none" stroke="${col}" stroke-width="18" stroke-linecap="round" stroke-dasharray="1 40"/>` },
+      { role: 'glass', box: [640, 170, 900, 430], shape: () => `<path d="M140 0 L-110 -100 L-58 0 L-110 100 Z" fill="#fff" stroke="#fff" stroke-width="14" stroke-linejoin="round" transform="translate(770 300) rotate(-30) scale(.9)"/>` },
+      { role: 'line', onGlass: true, draw: col => `<path d="M-58 0 L132 0" stroke="${col}" stroke-width="14" stroke-linecap="round" transform="translate(770 300) rotate(-30) scale(.9)"/>` },
+    ],
+  };
+}
+
+const CONCEPTS = [
+  {
+    id: 'orbit', name: 'Orbit', tagline: 'The name, taken literally',
+    blurb: 'A frosted glass sphere with a ring passing behind and in front of it, and a small warm moon on the near side. The most direct reading of “Orb”, and the one with the strongest silhouette at small sizes.',
+    bg: ['#74a6ff', '#2b3fd6'], fgDark: ['#b5cbff', '#6283ec'], accent: ['#ffd76e', '#ff9838'],
+    defs: u => `
+      <mask id="${u}-front" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+        <rect x="-700" y="512" width="2424" height="1400" fill="#fff" transform="rotate(-20 512 512)"/>
+      </mask>
+      <mask id="${u}-ball" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+        <circle cx="512" cy="512" r="226" fill="#fff"/>
+      </mask>`,
+    layers: [
+      { role: 'glass', box: [132, 325, 892, 699], shape: () => RING() },
+      { role: 'glass', box: [292, 292, 732, 732], sphere: true, shape: () => `<circle cx="512" cy="512" r="220" fill="#fff"/>` },
+      { role: 'glass', box: [132, 325, 892, 699], shape: u => `<g mask="url(#${u}-front)"><g mask="url(#${u}-ball)">${RING()}</g></g>` },
+      { role: 'accent', box: [156, 626, 252, 722], sphere: true, shape: () => `<circle cx="204" cy="674" r="46" fill="#fff"/>` },
+    ],
+  },
+  {
+    id: 'sealed', name: 'Sealed', tagline: 'Mail, closed with an orb',
+    blurb: 'A glass envelope whose flap is held by a glowing orb, like a wax seal. Says “mail” at a glance, while the seal keeps it from being mistaken for Apple Mail.',
+    bg: ['#86ccff', '#2a72ee'], fgDark: ['#b9dcff', '#5b93e8'], accent: ['#ffb45e', '#ff5a3c'],
+    layers: [
+      { role: 'glass', box: [204, 292, 820, 732], shape: () => `<rect x="212" y="300" width="600" height="424" rx="76" fill="#fff"/>` },
+      { role: 'line', onGlass: true, draw: col => `<path d="M266 352 L512 542 L758 352" fill="none" stroke="${col}" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M268 672 L420 548 M756 672 L604 548" fill="none" stroke="${col}" stroke-width="18" stroke-linecap="round" opacity=".55"/>` },
+      { role: 'accent', box: [412, 448, 612, 648], sphere: true, shape: () => `<circle cx="512" cy="548" r="98" fill="#fff"/>` },
+    ],
+  },
+  {
+    id: 'done', name: 'Done', tagline: 'Mail and tasks in one',
+    blurb: 'A glass orb carrying a bold check. Covers the task tracker as much as the mail client, and reads as “inbox handled” — the state a keyboard-driven client is for.',
+    bg: ['#5fe8b0', '#0a9573'], fgDark: ['#b2f5d8', '#46c495'], accent: ['#14a37c', '#04634c'], accentDark: ['#0f8a69', '#03503d'],
+    layers: [
+      { role: 'glass', box: [232, 232, 792, 792], sphere: true, shape: () => `<circle cx="512" cy="512" r="280" fill="#fff"/>` },
+      { role: 'accent', box: [340, 375, 700, 665], shape: () => `<path d="M386 530 L476 620 L654 424" fill="none" stroke="#fff" stroke-width="80" stroke-linecap="round" stroke-linejoin="round"/>` },
+    ],
+  },
+  {
+    id: 'inbox', name: 'Cursor', tagline: 'Keyboard-driven, at heart',
+    blurb: 'Three message rows, the middle one under the cursor: its bullet is the orb. A quiet nod to j/k navigation; the most “tool-like” of the set.',
+    bg: ['#9b7bff', '#4a24d4'], fgDark: ['#d2c4ff', '#8467f0'], accent: ['#ffe48f', '#ffad1a'],
+    layers: [
+      { role: 'glass', box: [190, 258, 830, 378], shape: () => `<circle cx="250" cy="318" r="40" fill="#fff"/><rect x="340" y="274" width="490" height="88" rx="44" fill="#fff"/>`, dim: .6 },
+      { role: 'glass', box: [190, 258, 830, 766], shape: () => `<circle cx="250" cy="706" r="40" fill="#fff"/><rect x="340" y="662" width="400" height="88" rx="44" fill="#fff"/>`, dim: .6 },
+      { role: 'glass', box: [340, 462, 830, 562], shape: () => `<rect x="340" y="462" width="490" height="100" rx="50" fill="#fff"/>` },
+      { role: 'accent', box: [186, 448, 314, 576], sphere: true, shape: () => `<circle cx="250" cy="512" r="64" fill="#fff"/>` },
+    ],
+  },
+  {
+    id: 'eclipse', name: 'Eclipse', tagline: 'Abstract and warm',
+    blurb: 'A thick glass ring — the O of Orb — crossed by a dark moon. No literal mail at all; the most distinctive in a Dock full of blue envelopes.',
+    bg: ['#ffb870', '#ec3f7c'], fgDark: ['#ffd0b0', '#f06f94'], accent: ['#4a2180', '#1c0a3e'], accentDark: ['#5b2a9a', '#26104f'],
+    layers: [
+      { role: 'glass', box: [212, 242, 788, 818], shape: () => `<circle cx="500" cy="530" r="240" fill="none" stroke="#fff" stroke-width="96"/>` },
+      { role: 'accent', box: [572, 212, 808, 448], sphere: true, shape: () => `<circle cx="690" cy="330" r="118" fill="#fff"/>` },
+    ],
+  },
+  flight({
+    id: 'flight', name: 'Flight', tagline: 'Sent, into orbit',
+    blurb: 'A paper plane leaving a planet on a dotted trajectory, against a night sky. The planet is a single disc of colour; the glass edge and its shadow give it all the depth it needs.',
+    accent: ['#63c6ff', '#2f62f5'], planet: { role: 'accent', sheen: .1 },
+  }),
+  flight({
+    id: 'flight-frosted', name: 'Flight · Frosted', tagline: 'Monochrome glass',
+    blurb: 'The same scene with the planet as frosted glass, the same material as the plane. The night sky shows through it, and the icon is a single colour plus white.',
+    accent: ['#63c6ff', '#2f62f5'], planet: { role: 'glass', dim: .55 },
+  }),
+  flight({
+    id: 'flight-warm', name: 'Flight · Warm', tagline: 'A sun against the night',
+    blurb: 'The planet as a warm disc against the night blue. The most contrast of the three, and the easiest to spot in a Dock full of blue icons.',
+    accent: ['#ffae6b', '#ff5a4a'], planet: { role: 'accent', sheen: .1 },
+  }),
+];
+
+const VARIANTS = [
+  { v: 'light', label: 'Default' },
+  { v: 'dark', label: 'Dark' },
+  { v: 'clear', label: 'Clear' },
+  { v: 'tinted', label: 'Tinted' },
+];
+
+const state = { appearance: 'light', hue: 212 };
+
+function bgFor(c, v, hue) {
+  switch (v) {
+    case 'light': return { c: c.bg, o: [1, 1] };
+    case 'dark': return { c: ['#34343a', '#0d0d10'], o: [1, 1] };
+    case 'clear': return { c: ['#ffffff', '#ffffff'], o: [.16, .04] };
+    case 'tinted': return { c: [`hsl(${hue} 30% 21%)`, `hsl(${hue} 40% 7%)`], o: [1, 1] };
+  }
+}
+
+function fillFor(c, L, v, hue) {
+  const accent = L.role === 'accent';
+  const k = L.dim ?? 1;
+  switch (v) {
+    case 'light': return accent ? { c: c.accent, o: [.97, .93] } : { c: ['#fff', '#fff'], o: [.94 * k, .6 * k] };
+    case 'dark': return accent ? { c: c.accentDark || c.accent, o: [.97, .9] } : { c: c.fgDark, o: [.92 * k, .58 * k] };
+    case 'clear': return accent ? { c: ['#fff', '#fff'], o: [.88, .55] } : { c: ['#fff', '#fff'], o: [.5 * k, .16 * k] };
+    case 'tinted': return accent
+      ? { c: [`hsl(${hue} 95% 74%)`, `hsl(${hue} 85% 55%)`], o: [.97, .92] }
+      : { c: [`hsl(${hue} 55% 90%)`, `hsl(${hue} 45% 70%)`], o: [.78 * k, .38 * k] };
+  }
+}
+
+function lineFor(L, v, hue) {
+  if (L.onGlass) {
+    return { light: 'rgba(25, 55, 140, .32)', dark: 'rgba(0, 0, 0, .3)', clear: 'rgba(255, 255, 255, .9)',
+             tinted: `hsl(${hue} 40% 22% / .55)` }[v];
+  }
+  return { light: 'rgba(255, 255, 255, .78)', dark: 'rgba(255, 255, 255, .5)', clear: 'rgba(255, 255, 255, .75)',
+           tinted: `hsl(${hue} 60% 82% / .6)` }[v];
+}
+
+function grad(id, f, vertical = true) {
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="${vertical ? 0 : 1}" y2="1">
+    <stop offset="0" stop-color="${f.c[0]}" stop-opacity="${f.o[0]}"/>
+    <stop offset="1" stop-color="${f.c[1]}" stop-opacity="${f.o[1]}"/></linearGradient>`;
+}
+
+let uidCounter = 0;
+
+// only: null for the whole icon, 'base' for background + icon rim, or a layer index.
+function renderSvg(c, v, hue, { only = null, clip = false, standalone = false } = {}) {
+  const u = 'i' + (uidCounter++);
+  const has = k => only === null || only === k;
+  const shadowOpacity = { light: .26, dark: .6, clear: .2, tinted: .55 }[v];
+
+  let defs = `
+    ${grad(`${u}-bg`, bgFor(c, v, hue))}
+    <radialGradient id="${u}-glow" cx=".5" cy="-.05" r=".85">
+      <stop offset="0" stop-color="#fff" stop-opacity="${v === 'light' ? .3 : .12}"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="${u}-edgeO" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".8"/><stop offset=".3" stop-color="#fff" stop-opacity=".1"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity=".04"/><stop offset="1" stop-color="#fff" stop-opacity=".35"/></linearGradient>
+    <linearGradient id="${u}-sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${u}-rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".5" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".75"/></linearGradient>
+    <radialGradient id="${u}-spec" cx=".34" cy=".26" r=".42">
+      <stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="${u}-edge" filterUnits="userSpaceOnUse" x="0" y="0" width="${S}" height="${S}">
+      <feMorphology in="SourceAlpha" operator="erode" radius="7" result="e"/>
+      <feComposite in="SourceGraphic" in2="e" operator="out"/>
+      <feGaussianBlur stdDeviation="1.3"/></filter>
+    <filter id="${u}-sh" filterUnits="userSpaceOnUse" x="-200" y="-200" width="${S + 400}" height="${S + 400}">
+      <feGaussianBlur stdDeviation="20"/><feOffset dy="22"/></filter>
+    <clipPath id="${u}-clip"><path d="${SQUIRCLE}"/></clipPath>
+    ${c.defs ? c.defs(u) : ''}`;
+
+  let body = '';
+  if (has('base')) {
+    body += `<rect width="${S}" height="${S}" fill="url(#${u}-bg)"/><rect width="${S}" height="${S}" fill="url(#${u}-glow)"/>`;
+  }
+
+  c.layers.forEach((L, i) => {
+    if (!has(i)) return;
+    if (L.role === 'line') { body += L.draw(lineFor(L, v, hue)); return; }
+
+    const [x0, y0, x1, y1] = L.box;
+    const box = `x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}"`;
+    const shape = L.shape(u);
+    defs += `
+      <mask id="${u}-m${i}" maskUnits="userSpaceOnUse" x="0" y="0" width="${S}" height="${S}">${shape}</mask>
+      <mask id="${u}-r${i}" maskUnits="userSpaceOnUse" x="0" y="0" width="${S}" height="${S}"><g filter="url(#${u}-edge)">${shape}</g></mask>
+      ${grad(`${u}-f${i}`, fillFor(c, L, v, hue))}`;
+    body += `
+      <g filter="url(#${u}-sh)" opacity="${shadowOpacity}"><rect ${box} fill="#000" mask="url(#${u}-m${i})"/></g>
+      <g mask="url(#${u}-m${i})">
+        <rect ${box} fill="url(#${u}-f${i})"/>
+        <rect ${box} fill="url(#${u}-sheen)" opacity="${L.sheen ?? (L.role === 'accent' ? .55 : .8)}"/>
+        ${L.sphere ? `<rect ${box} fill="url(#${u}-spec)"/>` : ''}
+      </g>
+      <rect ${box} fill="url(#${u}-rim)" mask="url(#${u}-r${i})"/>`;
+  });
+
+  if (has('base')) {
+    body += `<path d="${SQUIRCLE}" fill="none" stroke="url(#${u}-edgeO)" stroke-width="10" opacity=".7"/>`;
+  }
+  if (clip) body = `<g clip-path="url(#${u}-clip)">${body}</g>`;
+
+  const ns = standalone ? ` xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}"` : '';
+  return `<svg${ns} viewBox="0 0 ${S} ${S}"><defs>${defs}</defs>${body}</svg>`;
+}
+
+function iconEl(c, v, size) {
+  const el = document.createElement('div');
+  el.className = 'icon';
+  el.style.setProperty('--s', size + 'px');
+  el.innerHTML = `${size > 20 ? '<div class="shadow"></div>' : ''}<div class="face ${v}">${renderSvg(c, v, state.hue)}</div>`;
+  return el;
+}
+
+function explodedEl(c, v) {
+  const el = document.createElement('div');
+  el.className = 'explode';
+  const rig = document.createElement('div');
+  rig.className = 'rig';
+  const planes = ['base', ...c.layers.map((_, i) => i).filter(i => c.layers[i].role !== 'line' || c.layers[i].onGlass === undefined)];
+  planes.forEach((p, k) => {
+    const plane = document.createElement('div');
+    plane.className = 'plane ' + (p === 'base' ? 'base' : 'layer');
+    plane.style.transform = `translateZ(${k * 62}px)`;
+    // Lines that sit on a glass layer travel with the layer below them.
+    let svg = renderSvg(c, v, state.hue, { only: p });
+    const next = c.layers[p + 1];
+    if (p !== 'base' && next && next.role === 'line' && next.onGlass) {
+      svg = svg.replace('</svg>', renderSvg(c, v, state.hue, { only: p + 1 }).replace(/^<svg[^>]*>|<\/svg>$/g, '') + '</svg>');
+    }
+    plane.innerHTML = svg;
+    rig.appendChild(plane);
+  });
+  el.appendChild(rig);
+  return el;
+}
+
+function download(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function exportSvg(c, v) {
+  download(`orb-${c.id}-${v}.svg`, new Blob([renderSvg(c, v, state.hue, { standalone: true })], { type: 'image/svg+xml' }));
+}
+
+function exportPng(c, v) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = S;
+    canvas.getContext('2d').drawImage(img, 0, 0, S, S);
+    canvas.toBlob(b => download(`orb-${c.id}-${v}.png`, b));
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(renderSvg(c, v, state.hue, { standalone: true, clip: true }));
+}
+
+function renderDock() {
+  const dock = document.getElementById('dock');
+  dock.innerHTML = '';
+  CONCEPTS.forEach(c => {
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.title = c.name;
+    slot.appendChild(iconEl(c, state.appearance, 84));
+    const label = document.createElement('small');
+    label.textContent = c.name;
+    slot.appendChild(label);
+    dock.appendChild(slot);
+  });
+}
+
+function renderConcepts() {
+  const root = document.getElementById('concepts');
+  root.innerHTML = '';
+  CONCEPTS.forEach((c, n) => {
+    const v = state.appearance;
+    const card = document.createElement('section');
+    card.className = 'concept panel';
+    card.innerHTML = `
+      <div class="hero">
+        <div class="stage"></div>
+        <div class="actions">
+          <a data-act="layers">Layers</a>
+          <a data-act="svg">SVG</a>
+          <a data-act="png">PNG</a>
+        </div>
+      </div>
+      <div class="meta">
+        <h2>${n + 1}. ${c.name}<small>${c.tagline}</small></h2>
+        <p class="dim">${c.blurb}</p>
+        <div class="variants"></div>
+        <div class="sizes"></div>
+      </div>`;
+
+    const stage = card.querySelector('.stage');
+    const flat = iconEl(c, v, 260);
+    flat.classList.add('flat');
+    stage.append(flat, explodedEl(c, v));
+
+    card.querySelector('[data-act=layers]').onclick = () => stage.classList.toggle('exploded');
+    card.querySelector('[data-act=svg]').onclick = () => exportSvg(c, state.appearance);
+    card.querySelector('[data-act=png]').onclick = () => exportPng(c, state.appearance);
+
+    const variants = card.querySelector('.variants');
+    VARIANTS.forEach(({ v: vv, label }) => {
+      const w = document.createElement('div');
+      w.className = 'variant';
+      w.appendChild(iconEl(c, vv, 120));
+      w.append(label);
+      variants.appendChild(w);
+    });
+
+    const sizes = card.querySelector('.sizes');
+    [128, 64, 32, 16].forEach(px => {
+      const w = document.createElement('div');
+      w.className = 'variant';
+      w.appendChild(iconEl(c, v, px));
+      w.append(`${px} pt`);
+      sizes.appendChild(w);
+    });
+
+    root.appendChild(card);
+  });
+}
+
+function render() {
+  document.documentElement.style.setProperty('--hue', state.hue);
+  renderDock();
+  renderConcepts();
+}
+
+document.querySelectorAll('#appearance span').forEach(s => s.onclick = () => {
+  document.querySelectorAll('#appearance span').forEach(x => x.classList.toggle('on', x === s));
+  state.appearance = s.dataset.v;
+  render();
+});
+document.querySelectorAll('#wallpaper span').forEach(s => s.onclick = () => {
+  document.querySelectorAll('#wallpaper span').forEach(x => x.classList.toggle('on', x === s));
+  document.body.classList.toggle('light', s.dataset.w === 'light');
+});
+document.getElementById('hue').oninput = e => { state.hue = +e.target.value; render(); };
+
+render();
+</script>
+</body>
+</html>

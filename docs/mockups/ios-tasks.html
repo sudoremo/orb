@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orb for iPhone — Tasks</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: #e9eaee; min-height: 100vh;
+    background:
+      radial-gradient(55vw 40vw at 5% 0%, #31407e 0, transparent 65%),
+      radial-gradient(45vw 35vw at 100% 25%, #6a2a4e 0, transparent 62%),
+      radial-gradient(60vw 45vw at 50% 110%, #0f5c4d 0, transparent 60%),
+      #0b0c14;
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.page-light {
+    color: #1d1e22;
+    background:
+      radial-gradient(55vw 40vw at 5% 0%, #c3cff8 0, transparent 65%),
+      radial-gradient(45vw 35vw at 100% 25%, #f6cddd 0, transparent 62%),
+      radial-gradient(60vw 45vw at 50% 110%, #bfeadb 0, transparent 60%),
+      #eef0f6;
+    background-attachment: fixed;
+  }
+
+  /* ---------- Page ---------- */
+  .page { width: 1400px; margin: 0 auto; padding: 0 0 80px; }
+  .ctl {
+    position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 18px;
+    padding: 18px 0 14px; margin-bottom: 6px;
+  }
+  .ctl::before { content: ""; position: absolute; inset: 0 -40px; z-index: -1;
+    -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+    background: rgba(11,12,20,.55); border-bottom: 1px solid rgba(255,255,255,.06); }
+  .page-light .ctl::before { background: rgba(238,240,246,.6); border-bottom-color: rgba(0,0,0,.06); }
+  .ctl h1 { font-size: 15px; font-weight: 600; margin: 0 auto 0 0; letter-spacing: -.01em; }
+  .ctl h1 span { opacity: .55; font-weight: 400; }
+  .ctl nav { display: flex; gap: 4px; }
+  .ctl nav a { color: inherit; text-decoration: none; font-size: 12.5px; padding: 4px 10px; border-radius: 6px; opacity: .7; }
+  .ctl nav a:hover { opacity: 1; background: rgba(127,127,127,.15); }
+  .seg { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(255,255,255,.08); }
+  .page-light .seg { background: rgba(0,0,0,.06); }
+  .seg button { font: inherit; font-size: 12px; color: inherit; border: 0; background: none;
+    padding: 4px 11px; border-radius: 6px; cursor: pointer; opacity: .7; white-space: nowrap; }
+  .seg button.on { background: rgba(255,255,255,.18); opacity: 1; }
+  .page-light .seg button.on { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+
+  .intro { display: grid; grid-template-columns: 1.05fr 1fr; gap: 44px; margin: 22px 0 10px; }
+  .intro h2 { font-size: 26px; letter-spacing: -.02em; margin: 0 0 10px; }
+  .intro p { margin: 0 0 10px; opacity: .85; max-width: 62ch; }
+  .intro h3, .area h3 { font-size: 12px; font-weight: 600; margin: 0 0 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
+  .intro ul { margin: 0 0 14px; padding-left: 18px; }
+  .intro li { margin: 0 0 5px; opacity: .85; }
+  .intro table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 16px; }
+  .intro td, .intro th { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid rgba(127,127,127,.18); vertical-align: top; }
+  .intro th { font-weight: 600; opacity: .6; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+  .intro td:first-child { white-space: nowrap; font-weight: 500; }
+  .intro code, .note code { font: 12px ui-monospace, "SF Mono", Menlo, monospace; opacity: .9; }
+
+  .area { margin-top: 56px; scroll-margin-top: 70px; }
+  .area > h2 { font-size: 22px; letter-spacing: -.02em; margin: 0 0 4px; }
+  .area > p { margin: 0 0 26px; opacity: .7; max-width: 90ch; }
+  .shots { display: flex; flex-wrap: wrap; gap: 40px 44px; }
+  figure { margin: 0; width: 424px; }
+  figcaption { margin: 16px 4px 0; }
+  figcaption > b { display: block; font-size: 14px; margin-bottom: 4px; }
+  .note { font-size: 13px; opacity: .8; margin: 0; }
+  .note + .note { margin-top: 6px; }
+  .tagp { display: inline-block; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    padding: 1px 6px; border-radius: 4px; background: rgba(240,180,80,.2); color: #f0b450; margin-left: 6px; vertical-align: 1px; }
+  .page-light .tagp { color: #8a5a00; background: rgba(200,140,0,.15); }
+
+  /* ---------- Device ---------- */
+  .phone {
+    width: 424px; height: 896px; padding: 11px; border-radius: 73px; position: relative;
+    background: linear-gradient(145deg, #3a3b40, #18191c 40%, #2b2c30);
+    box-shadow: 0 40px 90px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(255,255,255,.12), 0 0 0 1px rgba(0,0,0,.6);
+  }
+  .scr {
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    position: relative; width: 402px; height: 874px; border-radius: 62px; overflow: hidden;
+    font-family: var(--font); font-size: 17px; line-height: 22px; letter-spacing: -.41px;
+    color: var(--label); background: var(--bg); isolation: isolate;
+  }
+  .light .scr, .scr.light {
+    --bg: #ffffff; --grouped: #f2f2f7; --cell: #ffffff; --cell-hi: #e5e5ea;
+    --label: #000; --label2: rgba(60,60,67,.6); --label3: rgba(60,60,67,.3); --label4: rgba(60,60,67,.18);
+    --sep: rgba(60,60,67,.22); --fill: rgba(120,120,128,.12); --fill2: rgba(120,120,128,.08);
+    --accent: #3b64f1; --accent-soft: rgba(59,100,241,.12);
+    --warm: #f29d00; --red: #ff3b30; --orange: #ff9500; --green: #34c759; --teal: #30b0c7;
+    --check: #c4c4c9; --done: #aeaeb2;
+    --glass: rgba(255,255,255,.66); --glass-hi: rgba(255,255,255,.95); --glass-edge: rgba(0,0,0,.06);
+    --glass-shadow: 0 8px 28px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.06);
+    --pill-on: rgba(120,120,128,.16);
+    --menu: rgba(250,250,252,.8);
+    --kb: rgba(209,212,219,.9); --key: #fff; --key2: #abb0ba; --keyfg: #000;
+    --scrim: rgba(0,0,0,.18);
+    --tag-work: #5856d6; --tag-personal: #28a745; --tag-orb: #af52de; --tag-errands: #e07800; --tag-home: #30b0c7;
+    color-scheme: light;
+  }
+  .dark .scr, .scr.dark {
+    --bg: #000; --grouped: #000; --cell: #1c1c1e; --cell-hi: #2c2c2e;
+    --label: #fff; --label2: rgba(235,235,245,.6); --label3: rgba(235,235,245,.3); --label4: rgba(235,235,245,.16);
+    --sep: rgba(84,84,88,.55); --fill: rgba(120,120,128,.24); --fill2: rgba(120,120,128,.16);
+    --accent: #6f8cff; --accent-soft: rgba(111,140,255,.2);
+    --warm: #ffc53d; --red: #ff453a; --orange: #ff9f0a; --green: #30d158; --teal: #40c8e0;
+    --check: #545458; --done: #636366;
+    --glass: rgba(38,38,42,.62); --glass-hi: rgba(255,255,255,.14); --glass-edge: rgba(255,255,255,.08);
+    --glass-shadow: 0 10px 30px rgba(0,0,0,.5);
+    --pill-on: rgba(255,255,255,.14);
+    --menu: rgba(44,44,48,.78);
+    --kb: rgba(43,43,45,.92); --key: #6b6b6f; --key2: #47474a; --keyfg: #fff;
+    --scrim: rgba(0,0,0,.45);
+    --tag-work: #7d7aff; --tag-personal: #30d158; --tag-orb: #bf5af2; --tag-errands: #ff9f0a; --tag-home: #40c8e0;
+    color-scheme: dark;
+  }
+  .scr.grouped { background: var(--grouped); }
+  .island { position: absolute; top: 11px; left: 50%; width: 126px; height: 37px; margin-left: -63px; border-radius: 20px; background: #000; z-index: 40; }
+  .home-ind { position: absolute; bottom: 8px; left: 50%; width: 140px; height: 5px; margin-left: -70px; border-radius: 3px; background: var(--label); z-index: 40; }
+  .sbar { position: absolute; top: 0; left: 0; right: 0; height: 54px; z-index: 39; display: flex; align-items: center;
+    justify-content: space-between; padding: 6px 34px 0 50px; font-weight: 600; font-size: 17px; letter-spacing: -.3px; color: var(--label); }
+  .sbar .r { display: flex; gap: 7px; align-items: center; }
+  .sbar svg { display: block; fill: currentColor; }
+  .on-wall .sbar, .on-wall .home-ind { color: #fff; background: none; }
+  .on-wall .home-ind { background: #fff; }
+
+  /* ---------- Icons ---------- */
+  .ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; display: inline-block; vertical-align: middle; }
+  .ic .duo { stroke: var(--accent); }
+  .ic.warm .duo, .warmline .duo { stroke: var(--warm); }
+  .ic.mono .duo { stroke: currentColor; }
+  .ic.fill { fill: currentColor; stroke: none; }
+
+  /* ---------- Bars ---------- */
+  .glass {
+    background: var(--glass); -webkit-backdrop-filter: blur(22px) saturate(1.8); backdrop-filter: blur(22px) saturate(1.8);
+    box-shadow: var(--glass-shadow), inset 0 0 0 .5px var(--glass-edge), inset 0 1px 0 var(--glass-hi);
+  }
+  .edge-top { position: absolute; top: 0; left: 0; right: 0; height: 120px; z-index: 30; pointer-events: none;
+    background: linear-gradient(var(--bg) 40%, transparent); }
+  .grouped .edge-top { background: linear-gradient(var(--grouped) 40%, transparent); }
+  .edge-bot { position: absolute; bottom: 0; left: 0; right: 0; height: 150px; z-index: 30; pointer-events: none;
+    background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 85%, transparent) 60%); }
+  .grouped .edge-bot { background: linear-gradient(transparent, color-mix(in srgb, var(--grouped) 85%, transparent) 60%); }
+  .nav { position: absolute; top: 54px; left: 0; right: 0; height: 52px; z-index: 35; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 16px; }
+  .nav .mid { position: absolute; left: 90px; right: 90px; text-align: center; font-weight: 600; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav .mid small { display: block; font-size: 12px; font-weight: 400; color: var(--label2); line-height: 14px; letter-spacing: 0; }
+  .gb { height: 44px; min-width: 44px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; gap: 0; color: var(--label); font-size: 22px; padding: 0 11px; }
+  .gb.txt { font-size: 17px; font-weight: 500; padding: 0 16px; }
+  .gb.prim { background: var(--accent); color: #fff; box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255,255,255,.35); }
+  .gb.prim.txt { font-weight: 600; }
+  .gb-group { display: inline-flex; border-radius: 22px; height: 44px; align-items: center; }
+  .gb-group .gb { box-shadow: none; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; min-width: 42px; padding: 0 9px; }
+  .gb-right { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+  .gb .ic { stroke-width: 2; }
+  .gb .ic.sm { font-size: 19px; }
+
+  .ltitle { padding: 0 20px; margin: 4px 0 0; }
+  .ltitle h1 { margin: 0; font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: .37px; display: flex; align-items: center; gap: 10px; }
+  .ltitle h1 .ic { font-size: 30px; stroke-width: 2.1; }
+  .ltitle .sub { color: var(--label2); font-size: 15px; line-height: 20px; letter-spacing: -.24px; margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+  .ltitle .sub .ic { font-size: 15px; }
+
+  .content { position: absolute; inset: 0; padding-top: 106px; overflow: hidden; }
+
+  /* Tab bar: a floating glass capsule plus the separate search button (iOS 26). */
+  .tabbar { position: absolute; left: 21px; right: 89px; bottom: 25px; height: 62px; border-radius: 31px; z-index: 36;
+    display: flex; align-items: center; padding: 4px; }
+  .tab { flex: 1; height: 54px; border-radius: 27px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; font-size: 10px; line-height: 12px; font-weight: 600; letter-spacing: .1px; color: var(--label); position: relative; }
+  .tab .ic { font-size: 25px; stroke-width: 1.9; }
+  .tab .ic .duo { stroke: currentColor; }
+  .tab.on { color: var(--accent); background: var(--pill-on); }
+  .tab.on .ic.warm .duo { stroke: var(--warm); }
+  .tab .badge { position: absolute; top: 3px; left: calc(50% + 9px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--red);
+    color: #fff; font-size: 12px; line-height: 18px; text-align: center; padding: 0 5px; font-weight: 600; }
+  .tabsearch { position: absolute; right: 21px; bottom: 25px; width: 62px; height: 62px; border-radius: 31px; z-index: 36;
+    display: grid; place-items: center; font-size: 24px; color: var(--label); }
+  .tabsearch .ic .duo { stroke: currentColor; }
+  .tabsearch.on { color: var(--accent); }
+
+  /* The bottom accessory: what this iPhone is working on. */
+  .acc { position: absolute; left: 21px; right: 21px; bottom: 97px; height: 50px; border-radius: 25px; z-index: 36;
+    display: flex; align-items: center; gap: 11px; padding: 0 6px 0 16px; font-size: 15px; letter-spacing: -.24px; }
+  .acc .play { color: var(--accent); font-size: 13px; }
+  .acc .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .acc .t small { font-weight: 400; color: var(--label2); margin-left: 6px; }
+  .acc .done { width: 38px; height: 38px; border-radius: 19px; display: grid; place-items: center; color: var(--label); font-size: 19px; }
+
+  .toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: 157px; height: 46px; border-radius: 23px; z-index: 37;
+    display: flex; align-items: center; gap: 10px; padding: 0 8px 0 15px; font-size: 15px; white-space: nowrap; letter-spacing: -.24px; }
+  .toast .ic { color: var(--green); font-size: 18px; stroke-width: 2.4; }
+  .toast b { color: var(--accent); font-weight: 600; padding: 0 10px; }
+
+  /* ---------- Task rows ---------- */
+  .list { position: relative; }
+  .trow { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: 13px; padding: 11px 20px 11px 20px; background: var(--bg); }
+  .grouped .trow { background: var(--cell); }
+  .trow::after { content: ""; position: absolute; left: 57px; right: 0; bottom: 0; height: .5px; background: var(--sep); }
+  .trow.last::after, .trow:last-child::after { display: none; }
+  .chk { width: 24px; height: 24px; border-radius: 7px; box-shadow: inset 0 0 0 1.7px var(--check); display: grid; place-items: center; margin-top: -1px; flex: none; }
+  .chk.on { background: var(--done); box-shadow: none; }
+  .chk.on::after, .chk.tick::after { content: ""; width: 10px; height: 5px; border: 2.2px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+  .chk.sm { width: 21px; height: 21px; border-radius: 6px; }
+  .chk.sm.on::after { width: 8px; height: 4px; border-width: 2px; }
+  .trow .tt { min-width: 0; }
+  .trow .ti { display: block; }
+  .trow .ti .wk { color: var(--accent); font-size: 11px; margin: 0 6px 2px 0; vertical-align: 1px; }
+  .trow.done .ti { color: var(--label2); text-decoration: line-through; text-decoration-color: var(--label3); }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 11px; margin-top: 3px; font-size: 13px; line-height: 17px; letter-spacing: -.08px; color: var(--label2); }
+  .meta > span { display: inline-flex; align-items: center; gap: 4px; }
+  .meta .ic { font-size: 13px; stroke-width: 2; }
+  .meta .ic .duo { stroke: currentColor; }
+  .meta .unsaved { color: var(--orange); }
+  .prog svg { width: 13px; height: 13px; transform: rotate(-90deg); fill: none; stroke-width: 2.6; }
+  .prog circle { stroke: var(--label4); }
+  .prog circle.arc { stroke: var(--accent); stroke-linecap: round; }
+  .tg { font-weight: 500; }
+  .tg.work { color: var(--tag-work); } .tg.personal { color: var(--tag-personal); } .tg.orb { color: var(--tag-orb); } .tg.errands { color: var(--tag-errands); } .tg.home { color: var(--tag-home); }
+  .due { font-size: 15px; color: var(--label2); padding-top: 1px; white-space: nowrap; letter-spacing: -.24px; }
+  .due.today { color: var(--orange); font-weight: 500; }
+  .due.late { color: var(--red); font-weight: 600; }
+  .due.late::before { content: "! "; }
+  .trow.done .due { color: var(--label3); }
+  .trashed .trow .chk { opacity: .4; }
+  .trashed .trow .ti { color: var(--label2); }
+  mark { background: color-mix(in srgb, var(--warm) 32%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+  .sh { display: flex; align-items: baseline; gap: 8px; padding: 22px 20px 6px; font-size: 20px; line-height: 25px; font-weight: 700; letter-spacing: .38px; }
+  .sh .n { font-size: 15px; font-weight: 400; color: var(--label2); letter-spacing: -.24px; }
+  .sh .r { margin-left: auto; font-size: 15px; font-weight: 400; color: var(--accent); letter-spacing: -.24px; }
+  .sh.sm { font-size: 13px; line-height: 18px; font-weight: 600; color: var(--label2); text-transform: uppercase; letter-spacing: -.08px; padding: 20px 20px 6px; }
+  /* Day headings, as in search results (§26): the date big, the day beside it. */
+  .dh { display: flex; align-items: baseline; gap: 9px; padding: 20px 20px 6px; margin: 0 20px 0 20px; padding-left: 0; padding-right: 0; border-bottom: .5px solid var(--sep); }
+  .dh .num { font-size: 28px; line-height: 32px; font-weight: 700; letter-spacing: .3px; }
+  .dh .day { font-size: 17px; font-weight: 600; }
+  .dh .ic { font-size: 22px; align-self: center; }
+  .dh .n { margin-left: auto; color: var(--label2); font-size: 15px; }
+  .tight .dh { padding-top: 12px; }
+  .tight .fold { margin-top: 8px; padding-top: 10px; }
+  .dh.empty { color: var(--label3); padding-top: 12px; padding-bottom: 4px; }
+  .dh.empty .num { font-size: 20px; line-height: 24px; }
+  .dh.empty .day { font-size: 15px; font-weight: 500; }
+  .dh.mon .day { font-size: 22px; font-weight: 700; letter-spacing: .35px; }
+
+  .banner { margin: 12px 16px 2px; padding: 11px 14px; border-radius: 16px; display: flex; gap: 11px; align-items: flex-start;
+    background: var(--fill2); font-size: 15px; line-height: 20px; letter-spacing: -.24px; }
+  .banner .ic { font-size: 20px; color: var(--orange); margin-top: 0; }
+  .banner .ic .duo { stroke: currentColor; }
+  .banner small { display: block; color: var(--label2); font-size: 13px; line-height: 18px; margin-top: 1px; letter-spacing: -.08px; }
+
+  /* ---------- Grouped cards ---------- */
+  .card { margin: 0 16px; background: var(--cell); border-radius: 26px; overflow: hidden; position: relative; }
+  .card + .card, .card + .ch { margin-top: 0; }
+  .ch { display: flex; align-items: baseline; padding: 22px 32px 7px; font-size: 13px; line-height: 18px; color: var(--label2); letter-spacing: -.08px; font-weight: 500; text-transform: uppercase; }
+  .ch .r { margin-left: auto; text-transform: none; font-weight: 400; }
+  .cf { padding: 7px 32px 0; font-size: 13px; line-height: 18px; color: var(--label2); letter-spacing: -.08px; }
+  .cr { position: relative; display: flex; align-items: center; gap: 13px; min-height: 52px; padding: 10px 18px; }
+  .cr::after { content: ""; position: absolute; left: 54px; right: 0; bottom: 0; height: .5px; background: var(--sep); }
+  .cr:last-child::after { display: none; }
+  .cr > .ic { font-size: 22px; color: var(--label); }
+  .cr .k { flex: 1; min-width: 0; }
+  .cr .k small { display: block; color: var(--label2); font-size: 13px; line-height: 17px; letter-spacing: -.08px; }
+  .cr .v { color: var(--label2); text-align: right; white-space: nowrap; }
+  .cr .v.warm { color: var(--warm); font-weight: 500; }
+  .cr .v.set { color: var(--label); }
+  .cr .chev { font-size: 14px; color: var(--label3); stroke-width: 2.6; }
+  .cr.act { color: var(--accent); }
+  .cr.act > .ic { color: var(--accent); }
+  .cr.danger { color: var(--red); }
+  .cr .tglbtn { width: 63px; height: 28px; border-radius: 14px; background: var(--fill); position: relative; flex: none; }
+  .cr .tglbtn::after { content: ""; position: absolute; top: 2px; left: 2px; width: 37px; height: 24px; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+  .cr .tglbtn.on { background: var(--green); }
+  .cr .tglbtn.on::after { left: 24px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 14px; background: var(--fill); font-size: 15px; letter-spacing: -.24px; font-weight: 500; white-space: nowrap; }
+  .chip .ic { font-size: 15px; }
+  .chip.tg { background: color-mix(in srgb, currentColor 13%, transparent); }
+
+  /* ---------- Detail ---------- */
+  .td-head { display: grid; grid-template-columns: 30px 1fr; gap: 14px; padding: 10px 24px 4px; align-items: start; }
+  .td-head .chk { width: 30px; height: 30px; border-radius: 9px; margin-top: 3px; box-shadow: inset 0 0 0 2px var(--check); }
+  .td-head h2 { margin: 0; font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: .2px; }
+  .td-head .wkl { grid-column: 2; display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: -.08px; margin-top: 4px; }
+  .td-head .wkl .ic { font-size: 10px; }
+  .td-head .wkl .sync { color: var(--orange); font-weight: 500; margin-left: 8px; display: inline-flex; gap: 4px; align-items: center; }
+  .td-head .wkl .sync .ic { font-size: 14px; }
+  .td-head .wkl .sync .ic .duo { stroke: currentColor; }
+  .notes { padding: 14px 18px; font-size: 17px; line-height: 23px; color: var(--label); }
+  .pbar { height: 4px; border-radius: 2px; background: var(--label4); flex: 1; max-width: 90px; margin-left: 10px; align-self: center; overflow: hidden; }
+  .pbar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+  .step { position: relative; display: flex; align-items: center; gap: 13px; min-height: 48px; padding: 8px 18px; }
+  .step::after { content: ""; position: absolute; left: 52px; right: 0; bottom: 0; height: .5px; background: var(--sep); }
+  .step.done span:not(.chk) { color: var(--label2); text-decoration: line-through; text-decoration-color: var(--label3); }
+  .step .nx { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 1px 7px; letter-spacing: 0; }
+  .step.next span:nth-child(2) { font-weight: 600; }
+  .lnk { position: relative; display: grid; grid-template-columns: 36px 1fr auto; gap: 2px 12px; padding: 12px 18px; }
+  .lnk::after { content: ""; position: absolute; left: 66px; right: 0; bottom: 0; height: .5px; background: var(--sep); }
+  .lnk:last-child::after { display: none; }
+  .lnk .tile { grid-row: span 2; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 19px; color: #fff; }
+  .lnk .tile.mail { background: linear-gradient(#5b86ff, #3b64f1); }
+  .lnk .tile.chat { background: linear-gradient(#ff5f7e, #e0245e); }
+  .lnk .tile.pdf { background: linear-gradient(#ff6b5e, #e53935); font-size: 10px; font-weight: 800; letter-spacing: .5px; }
+  .lnk .tile .ic .duo { stroke: #fff; }
+  .lnk b { font-weight: 600; font-size: 15px; letter-spacing: -.24px; }
+  .lnk .when { font-size: 13px; color: var(--label2); text-align: right; }
+  .lnk .su { grid-column: 2 / 4; font-size: 15px; line-height: 20px; letter-spacing: -.24px; color: var(--label); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lnk .rs { grid-column: 2 / 4; font-size: 13px; color: var(--label2); display: flex; gap: 4px; align-items: center; margin-top: 2px; }
+  .lnk .rs.ok { color: var(--green); }
+  .lnk .rs .ic { font-size: 13px; }
+
+  /* ---------- Sheets, menus, scrims ---------- */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 41; }
+  .blurred { position: absolute; inset: 0; filter: blur(14px) saturate(1.2); transform: scale(1.04); }
+  .recede { position: absolute; inset: 0; transform: scale(.92) translateY(-6px); transform-origin: 50% 0; border-radius: 40px; overflow: hidden; filter: brightness(.85); }
+  .sheet { position: absolute; z-index: 42; background: var(--cell); color: var(--label); overflow: hidden; }
+  .dark .sheet { background: #1c1c1e; }
+  .light .sheet.grp { background: var(--grouped); }
+  .sheet.float { left: 8px; right: 8px; bottom: 8px; border-radius: 46px; box-shadow: 0 -2px 40px rgba(0,0,0,.18); }
+  .sheet.full { left: 0; right: 0; bottom: 0; top: 62px; border-radius: 38px 38px 0 0; box-shadow: 0 -2px 40px rgba(0,0,0,.2); }
+  .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--label3); margin: 7px auto 0; }
+  .shead { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px 6px; position: relative; }
+  .shead .t { position: absolute; left: 70px; right: 70px; text-align: center; font-weight: 600; }
+  .shead .t small { display: block; color: var(--label2); font-weight: 400; font-size: 13px; line-height: 16px; }
+  .shead .gb { background: var(--fill); box-shadow: none; }
+  .shead .gb.prim { background: var(--accent); }
+  .field { display: flex; align-items: center; gap: 9px; height: 46px; border-radius: 23px; background: var(--fill); padding: 0 14px; margin: 8px 16px; color: var(--label2); }
+  .field .ic { font-size: 18px; }
+  .field .q { flex: 1; color: var(--label); }
+  .field .ph { flex: 1; color: var(--label3); }
+  .field .caret { display: inline-block; width: 2px; height: 22px; background: var(--accent); vertical-align: -5px; margin-left: 1px; border-radius: 1px; }
+  .field .x { width: 18px; height: 18px; border-radius: 9px; background: var(--label3); position: relative; flex: none; }
+  .field .x::before, .field .x::after { content: ""; position: absolute; top: 8.25px; left: 4.5px; width: 9px; height: 1.6px; background: var(--cell); border-radius: 1px; transform: rotate(45deg); }
+  .field .x::after { transform: rotate(-45deg); }
+  .token { display: inline-flex; align-items: center; gap: 3px; height: 26px; padding: 0 9px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-weight: 500; font-size: 15px; margin-right: 6px; }
+  .quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 6px 16px 4px; }
+  .qb { border-radius: 20px; background: var(--fill2); padding: 11px 6px 9px; display: grid; justify-items: center; gap: 3px; font-size: 13px; line-height: 16px; font-weight: 600; letter-spacing: -.08px; }
+  .qb .ic { font-size: 22px; }
+  .qb small { font-weight: 400; color: var(--label2); font-size: 12px; letter-spacing: 0; }
+  .qb.on { background: var(--accent); color: #fff; }
+  .qb.on small { color: rgba(255,255,255,.8); }
+  .qb.on .ic .duo { stroke: #fff; }
+  .cal { padding: 8px 18px 4px; }
+  .cal .hd { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 10px; font-weight: 600; }
+  .cal .hd > span:last-child { display: flex; gap: 24px; color: var(--accent); font-size: 20px; }
+  .cal .grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 4px; text-align: center; }
+  .cal .wd { font-size: 13px; font-weight: 600; color: var(--label3); text-transform: uppercase; padding-bottom: 6px; }
+  .cal .d { height: 44px; display: grid; place-items: center; font-size: 20px; letter-spacing: .38px; position: relative; }
+  .cal .d.past { color: var(--label3); }
+  .cal .d.today { color: var(--accent); font-weight: 600; }
+  .cal .d.sel::before { content: ""; position: absolute; width: 44px; height: 44px; border-radius: 22px; background: var(--accent); z-index: -1; }
+  .cal .d.sel { color: #fff; font-weight: 600; z-index: 0; }
+  .cal .d.dot::after { content: ""; position: absolute; bottom: 4px; width: 4px; height: 4px; border-radius: 2px; background: var(--label3); }
+  .cal .d.sel.dot::after { background: rgba(255,255,255,.8); }
+  .sfoot { display: flex; justify-content: center; padding: 10px 0 0; }
+  .sfoot .gb { color: var(--red); font-size: 17px; font-weight: 500; background: none; box-shadow: none; }
+  .sug { margin: 6px 16px 0; border-radius: 22px; background: var(--fill2); overflow: hidden; }
+  .sug .s { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px; position: relative; }
+  .sug .s::after { content: ""; position: absolute; left: 48px; right: 0; bottom: 0; height: .5px; background: var(--sep); }
+  .sug .s:last-child::after { display: none; }
+  .sug .s .ic { font-size: 20px; color: var(--label2); }
+  .sug .s .r { margin-left: auto; color: var(--label2); }
+  .sug .s.on { background: var(--accent-soft); }
+  .sug .s.on .ic { color: var(--accent); }
+  .sug .s.on .ic .duo { stroke: var(--accent); }
+
+  .menu { position: absolute; z-index: 43; width: 254px; border-radius: 26px; overflow: hidden; background: var(--menu);
+    -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8);
+    box-shadow: 0 18px 50px rgba(0,0,0,.28), inset 0 0 0 .5px var(--glass-edge); font-size: 17px; }
+  .menu .mi { display: flex; align-items: center; height: 46px; padding: 0 18px; position: relative; }
+  .menu .mi .ic { margin-left: auto; font-size: 20px; }
+  .menu .mi .ic .duo { stroke: currentColor; }
+  .menu .mi + .mi::before { content: ""; position: absolute; top: 0; left: 18px; right: 0; height: .5px; background: var(--sep); }
+  .menu .gap { height: 8px; background: color-mix(in srgb, var(--label) 7%, transparent); }
+  .menu .mi.red { color: var(--red); }
+  .menu .mh { padding: 10px 18px 2px; font-size: 13px; color: var(--label2); letter-spacing: -.08px; }
+  .menu .pal { display: grid; grid-template-columns: repeat(4, 1fr); padding: 6px 8px 10px; }
+  .menu .pal span { display: grid; justify-items: center; gap: 4px; font-size: 11px; line-height: 13px; color: var(--label); letter-spacing: 0; }
+  .menu .pal .ic { font-size: 22px; width: 44px; height: 38px; padding: 8px 11px; border-radius: 12px; }
+  .menu .pal .ic .duo { stroke: var(--warm); }
+  .menu .mi small { display: block; font-size: 13px; line-height: 15px; color: var(--label2); }
+  .menu .mi div { display: flex; flex-direction: column; }
+  .lift { position: absolute; z-index: 43; left: 12px; right: 12px; border-radius: 22px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.3); }
+  .lift .trow { padding-left: 16px; padding-right: 16px; }
+  .lift .trow::after { display: none; }
+
+  /* Edit mode */
+  .sel { width: 24px; height: 24px; border-radius: 12px; box-shadow: inset 0 0 0 1.7px var(--check); flex: none; display: grid; place-items: center; }
+  .sel.on { background: var(--accent); box-shadow: none; }
+  .sel.on::after { content: ""; width: 10px; height: 5px; border: 2.2px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+  .editing .trow { grid-template-columns: 24px 24px minmax(0, 1fr) auto; }
+  .editing .trow::after { left: 94px; }
+  .editing .trow.picked { background: color-mix(in srgb, var(--accent) 9%, var(--bg)); }
+  .grip { color: var(--label3); font-size: 20px; align-self: center; }
+  .grip .ic { stroke-width: 2; }
+  .toolbar { position: absolute; left: 21px; right: 21px; bottom: 25px; height: 62px; border-radius: 31px; z-index: 36; display: flex; align-items: center; padding: 0 6px; }
+  .toolbar span { flex: 1; display: grid; justify-items: center; gap: 2px; font-size: 10px; line-height: 12px; font-weight: 600; color: var(--accent); }
+  .toolbar span .ic { font-size: 23px; }
+  .toolbar span .ic .duo { stroke: currentColor; }
+  .toolbar span.red { color: var(--red); }
+
+  /* Swipe */
+  .swipe { position: relative; overflow: hidden; }
+  .swipe .trow { transform: translateX(-172px); }
+  .swipe .acts { position: absolute; top: 0; bottom: 0; right: 0; width: 172px; display: flex; }
+  .swipe .acts span { flex: 1; display: grid; place-items: center; align-content: center; gap: 3px; color: #fff; font-size: 13px; font-weight: 600; letter-spacing: -.08px; }
+  .swipe .acts .ic { font-size: 22px; }
+  .swipe .acts .ic .duo { stroke: #fff; }
+  .swipe.lead .trow { transform: translateX(96px); }
+  .swipe.lead .acts { left: 0; right: auto; width: 96px; }
+
+  /* Keyboard (iOS 26) */
+  .kb { position: absolute; left: 0; right: 0; bottom: 0; height: 326px; z-index: 44; background: var(--kb);
+    -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6); padding: 8px 4px 0; border-radius: 30px 30px 0 0; }
+  .kb .pred { display: flex; height: 40px; align-items: center; margin: 0 6px 6px; font-size: 16px; color: var(--keyfg); }
+  .kb .pred span { flex: 1; text-align: center; }
+  .kb .pred span + span { border-left: 1px solid color-mix(in srgb, var(--keyfg) 15%, transparent); }
+  .kb .row { display: flex; justify-content: center; gap: 6px; margin-bottom: 11px; padding: 0 2px; }
+  .kb .k { width: 34px; height: 44px; border-radius: 9px; background: var(--key); color: var(--keyfg); display: grid; place-items: center;
+    font-size: 23px; font-weight: 400; box-shadow: 0 1px 0 rgba(0,0,0,.25); letter-spacing: 0; }
+  .kb .k.f { background: var(--key2); font-size: 16px; }
+  .kb .k.w { width: 46px; }
+  .kb .k.sp { flex: 1; font-size: 16px; }
+  .kb .k.ret { width: 92px; font-size: 16px; }
+  .kb .k.ret.prim { background: var(--accent); color: #fff; }
+  .kb .bot { display: flex; justify-content: space-between; padding: 2px 26px; color: var(--keyfg); font-size: 26px; opacity: .8; }
+  .kb .bot .ic .duo { stroke: currentColor; }
+
+  /* Quick add */
+  .qa { position: absolute; left: 8px; right: 8px; bottom: 334px; z-index: 43; border-radius: 30px; padding: 16px 16px 12px; background: var(--cell); box-shadow: 0 -4px 40px rgba(0,0,0,.18); }
+  .dark .qa { background: #2c2c2e; }
+  .qa .row1 { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; }
+  .qa .ttl { font-size: 19px; line-height: 25px; font-weight: 500; }
+  .qa .nl { color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 0 3px; }
+  .qa .nl.tgx { color: var(--tag-personal); background: color-mix(in srgb, var(--tag-personal) 14%, transparent); }
+  .qa .nt { grid-column: 2; color: var(--label3); font-size: 15px; margin-top: 4px; }
+  .qa .chips { display: flex; gap: 7px; margin: 14px 0 0; align-items: center; }
+  .qa .chips .chip { height: 32px; padding: 0 11px; font-size: 14px; border-radius: 16px; }
+  .qa .chips .chip.set { background: var(--accent-soft); color: var(--accent); }
+  .qa .chips .chip.set .ic .duo { stroke: var(--warm); }
+  .qa .chips .chip.tg { color: var(--tag-personal); }
+  .qa .send { margin-left: auto; width: 36px; height: 36px; border-radius: 18px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 19px; flex: none; }
+  .qa .send .ic { stroke-width: 2.6; }
+  .qa .hint { font-size: 12px; color: var(--label2); margin-top: 10px; letter-spacing: 0; display: flex; gap: 5px; align-items: center; }
+  .qa .hint .ic { font-size: 12px; color: var(--accent); }
+
+  /* Tasks tab */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 16px 0; }
+  .tile2 { background: var(--cell); border-radius: 24px; padding: 13px 15px 12px; display: grid; grid-template-columns: 1fr auto; row-gap: 12px; }
+  .grouped .tile2 { background: var(--cell); }
+  .tile2 .ic { font-size: 30px; stroke-width: 1.7; }
+  .tile2 .c { font-size: 28px; line-height: 32px; font-weight: 700; letter-spacing: .3px; text-align: right; }
+  .tile2 .l { grid-column: 1 / -1; font-size: 15px; font-weight: 600; color: var(--label2); letter-spacing: -.24px; }
+  .tdot { width: 11px; height: 11px; border-radius: 6px; flex: none; margin: 0 6px 0 6px; }
+  .cr .hash { font-weight: 600; font-size: 20px; width: 22px; text-align: center; flex: none; }
+  .syncl { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--label2); font-size: 13px; padding: 18px 0 0; letter-spacing: -.08px; }
+  .syncl .ic { font-size: 15px; }
+  .syncl .ic .duo { stroke: var(--green); }
+
+  /* Search tab (iOS 26): the tab bar collapses into one button, the field takes the bottom. */
+  .sbot { position: absolute; left: 21px; right: 21px; bottom: 25px; height: 54px; z-index: 36; display: flex; gap: 10px; }
+  .sbot .gb { width: 54px; height: 54px; border-radius: 27px; font-size: 22px; }
+  .sbot .gb .ic.warm .duo { stroke: var(--label); }
+  .sbot .sf { flex: 1; border-radius: 27px; display: flex; align-items: center; gap: 9px; padding: 0 16px; color: var(--label2); }
+  .sbot .sf .ic { font-size: 19px; }
+  .sbot .sf .ic .duo { stroke: currentColor; }
+  .sbot .sf .q { flex: 1; color: var(--label); }
+  .sbot .sf .x { width: 20px; height: 20px; border-radius: 10px; background: var(--label3); position: relative; }
+  .sbot .sf .x::before, .sbot .sf .x::after { content: ""; position: absolute; top: 9.2px; left: 5px; width: 10px; height: 1.6px; background: var(--bg); transform: rotate(45deg); }
+  .sbot .sf .x::after { transform: rotate(-45deg); }
+  .fold { display: flex; align-items: center; gap: 10px; margin: 16px 20px 0; padding: 12px 0 0; border-top: .5px solid var(--sep); color: var(--label2); font-size: 17px; font-weight: 600; }
+  .fold .ic { font-size: 20px; }
+  .fold .n { font-weight: 400; }
+  .fold .chev { margin-left: auto; font-size: 14px; stroke-width: 2.6; }
+  .recent { padding: 0 20px; }
+  .recent .r { display: flex; gap: 12px; align-items: center; height: 46px; border-bottom: .5px solid var(--sep); color: var(--label); }
+  .recent .r .ic { color: var(--label2); font-size: 18px; }
+  .recent .r .ic .duo { stroke: currentColor; }
+
+  /* ---------- Wallpaper screens ---------- */
+  .wall { position: absolute; inset: 0;
+    background:
+      radial-gradient(140% 70% at 10% 0%, #4a5fd0 0, transparent 60%),
+      radial-gradient(120% 60% at 100% 45%, #b04580 0, transparent 60%),
+      radial-gradient(130% 60% at 40% 105%, #138a72 0, transparent 60%),
+      #121426; }
+  .dark .wall { filter: brightness(.7); }
+  .lock-date { position: absolute; top: 88px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.9); font-size: 21px; font-weight: 600; letter-spacing: .2px; }
+  .lock-time { position: absolute; top: 108px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.92); font-size: 104px; line-height: 116px; font-weight: 700; letter-spacing: -2px;
+    font-family: "SF Pro Rounded", ui-rounded, -apple-system, sans-serif; }
+  .lwid { position: absolute; top: 236px; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; color: #fff; }
+  .lw { border-radius: 20px; background: rgba(255,255,255,.16); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); padding: 7px 12px; height: 70px; font-size: 13px; line-height: 17px; }
+  .lw.rect { width: 172px; }
+  .lw.rect b { display: flex; gap: 5px; align-items: center; font-size: 14px; }
+  .lw.rect .ic { font-size: 14px; }
+  .lw.rect .ic .duo { stroke: #ffd36b; }
+  .lw.rect span { display: block; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lw.circ { width: 70px; padding: 0; border-radius: 35px; display: grid; place-items: center; position: relative; }
+  .lw.circ svg { position: absolute; inset: 6px; width: 58px; height: 58px; transform: rotate(-90deg); fill: none; stroke-width: 5; }
+  .lw.circ b { font-size: 18px; line-height: 18px; text-align: center; }
+  .lw.circ small { display: block; font-size: 10px; font-weight: 600; opacity: .8; }
+  .notif { position: absolute; left: 14px; right: 14px; border-radius: 26px; padding: 13px 15px 13px 13px; display: grid; grid-template-columns: 38px 1fr auto; gap: 1px 11px;
+    background: rgba(245,245,250,.72); -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8); color: #000; font-size: 15px; line-height: 20px; letter-spacing: -.24px; }
+  .dark .notif { background: rgba(40,40,44,.72); color: #fff; }
+  .notif .app { grid-row: span 3; width: 38px; height: 38px; border-radius: 10px; align-self: center; }
+  .notif b { font-weight: 600; }
+  .notif .tm { font-size: 13px; color: rgba(60,60,67,.6); }
+  .dark .notif .tm, .dark .notif .bd { color: rgba(235,235,245,.6); }
+  .notif .bd { grid-column: 2 / 4; color: rgba(60,60,67,.75); }
+  .notif.stack::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -8px; height: 20px; border-radius: 0 0 20px 20px; background: inherit; opacity: .6; z-index: -1; }
+  /* The app icon, drawn from app/src-tauri/icons/Orb.icon: its layers, its light and dark fills. */
+  .orbicon { display: block; border-radius: 22.37%; overflow: hidden; flex: none; --oi-top: #30479f; --oi-bot: #0c1340; --oi-fold: rgba(25,55,140,.32);
+    box-shadow: inset 0 0 0 .5px rgba(255,255,255,.18); }
+  .dark .orbicon { --oi-top: #34343a; --oi-bot: #0d0d10; --oi-fold: rgba(0,0,0,.35); }
+  .lockbtn { position: absolute; bottom: 44px; width: 50px; height: 50px; border-radius: 25px; background: rgba(0,0,0,.28); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); display: grid; place-items: center; color: #fff; font-size: 22px; }
+  .lockbtn .ic .duo { stroke: #fff; }
+  .nactions { position: absolute; left: 14px; right: 14px; border-radius: 22px; overflow: hidden; background: rgba(245,245,250,.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8); color: #000; }
+  .dark .nactions { background: rgba(40,40,44,.8); color: #fff; }
+  .nactions div { display: flex; align-items: center; height: 50px; padding: 0 18px; position: relative; }
+  .nactions div + div::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: .5px; background: rgba(60,60,67,.25); }
+  .nactions .ic { margin-left: auto; font-size: 20px; }
+  .nactions .ic .duo { stroke: currentColor; }
+  .nexp { position: absolute; left: 14px; right: 14px; border-radius: 26px; overflow: hidden; background: rgba(245,245,250,.85); -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8); color: #000; }
+  .dark .nexp { background: rgba(40,40,44,.85); color: #fff; }
+  .nexp .top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; font-size: 13px; font-weight: 600; color: rgba(60,60,67,.7); text-transform: uppercase; letter-spacing: 0; }
+  .dark .nexp .top { color: rgba(235,235,245,.6); }
+  .nexp .top .orbicon { width: 20px; height: 20px; }
+  .nexp .bodyx { padding: 0 16px 16px; font-size: 15px; line-height: 20px; }
+  .nexp .bodyx b { display: block; font-size: 17px; margin-bottom: 4px; }
+  .nexp .stp { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 14px; color: rgba(60,60,67,.75); }
+  .dark .nexp .stp { color: rgba(235,235,245,.65); }
+  .nexp .stp .chk { width: 18px; height: 18px; border-radius: 5px; }
+  .nexp .stp .chk.on::after { width: 7px; height: 3.5px; border-width: 1.8px; }
+  .light .nexp .stp .chk { --check: #c4c4c9; --done: #aeaeb2; }
+  .widget { position: absolute; border-radius: 24px; background: rgba(255,255,255,.88); color: #000; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); padding: 14px 15px; overflow: hidden; }
+  .dark .widget { background: rgba(28,28,30,.86); color: #fff; }
+  .widget .wh { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; margin-bottom: 8px; letter-spacing: -.2px; }
+  .widget .wh .ic { font-size: 17px; }
+  .widget .wh .ic .duo { stroke: #f29d00; }
+  .widget .wh .n { color: #8e8e93; font-weight: 500; margin-left: 2px; }
+  .widget .wh .add { margin-left: auto; width: 26px; height: 26px; border-radius: 13px; background: #3b64f1; color: #fff; display: grid; place-items: center; font-size: 15px; }
+  .dark .widget .wh .add { background: #6f8cff; }
+  .widget .wr { display: flex; align-items: center; gap: 9px; font-size: 14px; line-height: 18px; padding: 5px 0; letter-spacing: -.15px; }
+  .widget .wr .chk { width: 19px; height: 19px; border-radius: 6px; --check: #c4c4c9; }
+  .dark .widget .wr .chk { --check: #545458; }
+  .widget .wr span:nth-child(2) { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .widget .wr .d { font-size: 12px; color: #8e8e93; }
+  .widget .wr .d.late { color: #ff3b30; font-weight: 600; }
+  .appgrid { position: absolute; left: 26px; right: 26px; display: grid; grid-template-columns: repeat(4, 64px); justify-content: space-between; row-gap: 26px; }
+  .appgrid i { width: 64px; height: 64px; border-radius: 16px; display: block; position: relative; }
+  .appgrid i .orbicon { width: 64px; height: 64px; }
+  .appgrid i::after { content: attr(data-n); position: absolute; top: 69px; left: -10px; right: -10px; text-align: center; font-size: 12px; color: #fff; font-style: normal; letter-spacing: 0; }
+  .dock { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 94px; border-radius: 40px; background: rgba(255,255,255,.2); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    display: flex; justify-content: space-around; align-items: center; padding: 0 14px; }
+  .dock i { width: 64px; height: 64px; border-radius: 16px; display: block; }
+
+  /* Setup */
+  .setup { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding: 150px 34px 0; text-align: center; }
+  .setup .big { width: 116px; height: 116px; border-radius: 27px; margin-bottom: 30px; box-shadow: 0 20px 50px rgba(12,19,64,.4), inset 0 0 0 .5px rgba(255,255,255,.2); }
+  .setup h1 { font-size: 34px; line-height: 41px; margin: 0 0 12px; letter-spacing: .37px; }
+  .setup p { margin: 0 0 14px; color: var(--label2); font-size: 17px; line-height: 23px; }
+  .setup .pts { text-align: left; margin: 18px 0 0; display: grid; gap: 18px; }
+  .setup .pt { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; font-size: 15px; line-height: 20px; letter-spacing: -.24px; }
+  .setup .pt .ic { font-size: 30px; color: var(--label); stroke-width: 1.6; }
+  .setup .pt b { display: block; font-size: 15px; }
+  .setup .pt span { color: var(--label2); }
+  .setup .btns { position: absolute; left: 24px; right: 24px; bottom: 46px; display: grid; gap: 12px; }
+  .setup .btn { height: 54px; border-radius: 27px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 17px; }
+  .setup .btn.prim { background: var(--accent); color: #fff; box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.3); }
+  .setup .btn.prim .ic .duo { stroke: #fff; }
+  .setup .btn.sec { color: var(--accent); background: var(--fill); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="ctl">
+    <h1>Orb for iPhone <span>— Tasks, first version</span></h1>
+    <nav id="jump"></nav>
+    <div class="seg" id="theme"><button data-v="light" class="on">Light</button><button data-v="dark">Dark</button></div>
+  </div>
+
+  <section class="intro">
+    <div>
+      <h2>A companion to Orb on the Mac</h2>
+      <p>The iPhone app opens the same tasks folder over IMAP that the Mac does (todo-spec §1, §3) and is a full peer.
+        It syncs by the same rules, writes to the same log and keeps the same invariants (§16). The first version does tasks only.
+        Mail, chat and the reading list come later and get tabs of their own. Today is then the mixed list it is on the Mac (§4.1).</p>
+      <p>The app is meant for doing tasks and capturing them on the go. It covers what you need away from the desk: see Today, tick it off, push it out,
+        capture a task in two seconds, and get reminded on time. Things that need the keyboard on the Mac become gestures here.
+        Bulk import, export and the tag registry's merge rules stay on the Mac.</p>
+      <h3>Design rules</h3>
+      <ul>
+        <li><b>Native first.</b> iOS 26 throughout: a floating glass tab bar and a separate search tab, glass nav buttons, floating sheets with detents,
+          context menus with a palette row, swipe actions, a bottom accessory, interactive widgets and notification actions. No custom chrome where the system has one.</li>
+        <li><b>One vocabulary with the Mac.</b> <i>Postpone</i> (the sun) and <i>Due</i> (the calendar) are always these two words and these two icons.
+          The same goes for <i>Steps</i>, <i>Working on</i>, <i>Someday</i>, <i>Completed</i>, <i>Archived</i> and <i>Trash</i>. A date reads the same in a row, in the detail, in a menu and in a notification.</li>
+        <li><b>One meaning per mark.</b> A red date with “!” is overdue, orange “Today” is due today, ▶ is working on, the ring is step progress
+          and the orange dashed cloud means not yet on the server. The marks are the Mac's, at touch size.</li>
+        <li><b>One accent.</b> Orb blue marks what you can act on and what is current. Today's sun is the only warm icon. Tag colours appear only on tag names.</li>
+        <li><b>Icons follow the Mac's icon guide:</b> an outline with one accent line, never filled. The app draws them as SF Symbols at matching weight.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Gestures, everywhere a task appears</h3>
+      <table>
+        <tr><th>Gesture</th><th>Does</th><th>Mac equivalent</th></tr>
+        <tr><td>Tap the box</td><td>Complete. The row stays struck through until midnight (§10.2).</td><td><code>complete-task</code></td></tr>
+        <tr><td>Tap the row</td><td>Open the task</td><td><code>edit-task</code></td></tr>
+        <tr><td>Swipe right</td><td>Work on. A full swipe toggles it.</td><td><code>work-on</code></td></tr>
+        <tr><td>Swipe left</td><td>Postpone, Delete. A full swipe postpones to tomorrow.</td><td><code>s</code>, <code>delete-task</code></td></tr>
+        <tr><td>Long press</td><td>Context menu with postpone shortcuts</td><td>—</td></tr>
+        <tr><td>Long press, then drag</td><td>Reorder in the global order (§4.4)</td><td><code>move-task-up/down</code></td></tr>
+        <tr><td>Pull down on a list</td><td>Filter this list (§4.5, <code>F</code>)</td><td><code>F</code></td></tr>
+        <tr><td>Search tab</td><td>Search all tasks (§4.5, <code>/</code>)</td><td><code>/</code></td></tr>
+        <tr><td>Undo pill, or shake</td><td>Undo the last change (§10.3)</td><td><code>⌘Z</code></td></tr>
+      </table>
+      <h3>Structure</h3>
+      <table>
+        <tr><th>Tab</th><th>Holds</th></tr>
+        <tr><td>Today</td><td>The Today list of §4.1, tasks only for now. Its badge counts the open tasks.</td></tr>
+        <tr><td>Tasks</td><td>Upcoming, Someday, Completed (Archived inside it), Trash and the tags, the Mac sidebar's Tasks section. Settings sit here too.</td></tr>
+        <tr><td>Search</td><td>Search over every task, grouped as in §26</td></tr>
+        <tr><td><i>later</i></td><td>Mail, Chat and Reading tabs go between Today and Tasks. The tab bar fits five.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <div id="areas"></div>
+</div>
+
+<script>
+/* ---------- Icons: the Mac mockup's set (Lucide shapes), plus the ones a phone needs ---------- */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  cloudx: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" stroke-dasharray="2.6 2.8"/>',
+  done: '<circle cx="12" cy="12" r="10"/>',
+  trash: '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>',
+  archive: '<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/>',
+  search: '<circle cx="11" cy="11" r="7"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>',
+  mail: '<rect x="2" y="4" width="20" height="16" rx="2"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  task: '<rect x="3" y="3" width="18" height="18" rx="4"/>',
+  tag: '<path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.41 0l8.59-8.59a1 1 0 0 0 0-1.41Z"/>',
+  clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  reply: '<path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+  repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+  chevR: '<path d="m9 18 6-6-6-6"/>',
+  chevD: '<path d="m6 9 6 6 6-6"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  grip: '<path d="M4 9h16M4 15h16"/>',
+  steps: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11"/><circle cx="5" cy="18" r="1.5"/>',
+  note: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  sunrise: '<path d="M12 2v6M4.93 10.93l1.41 1.41M2 18h2M20 18h2M17.66 12.34l1.41-1.41M22 22H2M16 18a4 4 0 0 0-8 0"/>',
+  sofa: '<path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><path d="M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M4 18v2M20 18v2"/>',
+  week: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  wifioff: '<path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M5 12.86a10 10 0 0 1 5.17-2.69M19 12.86a10 10 0 0 0-2.01-1.43M2 8.82a15 15 0 0 1 4.18-2.65M22 8.82a15 15 0 0 0-11.29-3.76M2 2l20 20"/>',
+  gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h3M21 17v4h-4"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  server: '<rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  open: '<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  play: '<path d="M6 4l14 8-14 8z"/>',
+  pause: '<path d="M7 4h3v16H7zM14 4h3v16h-3z"/>',
+  select: '<circle cx="12" cy="12" r="10"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  hist: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  restore: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  torch: '<path d="M18 6c0 2-2 2-2 4v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V10c0-2-2-2-2-4V2h12z"/><path d="M6 6h12M12 12v.01"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/>',
+  mic: '<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',
+  shift: '<path d="M9 18v-6H5l7-7 7 7h-4v6z"/>',
+  del: '<path d="M10 5a2 2 0 0 0-1.34.52L2 12l6.66 6.48A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6M18 9l-6 6"/>',
+};
+/* The accent line of each icon: the one detail that names it (the Mac's icon guide). */
+const D = {
+  sun: '<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  cal: '<path d="M16 2v4M8 2v4"/>',
+  done: '<path d="m9 12 2 2 4-4"/>',
+  archive: '<path d="M10 12h4"/>',
+  trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  mail: '<path d="m22 7-10 5L2 7"/>',
+  task: '<path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  bell: '<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  tag: '<circle cx="7" cy="7" r="1.5"/>',
+  search: '<path d="m20 20-3.5-3.5"/>',
+  chat: '<path d="M8 9h8M8 13h5"/>',
+  cloud: '<path d="m9.5 13.5 2 2 3.5-4"/>',
+};
+const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24">${D[n] ? `<g class="duo">${D[n]}</g>` : ''}${P[n]}</svg>`;
+const fic = (n, cls = '') => `<svg class="ic fill ${cls}" viewBox="0 0 24 24">${P[n]}</svg>`;
+
+/* ---------- Device chrome ---------- */
+const SB = `<div class="sbar"><span>9:41</span><span class="r">
+  <svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="8" width="3.2" height="4" rx="1"/><rect x="5" y="5.5" width="3.2" height="6.5" rx="1"/><rect x="10" y="3" width="3.2" height="9" rx="1"/><rect x="15" y="0" width="3.2" height="12" rx="1"/></svg>
+  <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 2.4c2.3 0 4.4.9 6 2.4l1.2-1.2A10.2 10.2 0 0 0 8.5.7 10.2 10.2 0 0 0 1.3 3.6l1.2 1.2a8.5 8.5 0 0 1 6-2.4Zm0 3.4c1.4 0 2.6.5 3.6 1.4l1.2-1.2a6.8 6.8 0 0 0-9.6 0l1.2 1.2c1-.9 2.2-1.4 3.6-1.4Zm0 3.4c-.5 0-.9.2-1.2.5L8.5 11l1.2-1.3c-.3-.3-.7-.5-1.2-.5Z"/></svg>
+  <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="9" rx="2.5"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2Z" opacity=".45"/></svg>
+</span></div>`;
+function phone(inner, cls = '') {
+  return `<div class="phone"><div class="scr ${cls}"><div class="island"></div>${SB}${inner}<div class="home-ind"></div></div></div>`;
+}
+function nav({ back, mid, right = '', glassRight = true } = {}) {
+  const b = back ? `<span class="gb glass">${ic('back')}</span>` : '<span></span>';
+  return `<div class="nav">${b}${mid ? `<div class="mid">${mid}</div>` : ''}<div class="gb-right">${right}</div></div>`;
+}
+const gbtn = (n, cls = '') => `<span class="gb glass ${cls}">${ic(n)}</span>`;
+const ggroup = (...names) => `<span class="gb-group glass">${names.map((n) => `<span class="gb">${ic(n)}</span>`).join('')}</span>`;
+function tabbar(active = 'today', badge = 6) {
+  const t = (k, icon, label, extra = '') => `<span class="tab ${active === k ? 'on' : ''}">${ic(icon, icon === 'sun' ? 'warm' : '')}${label}${extra}</span>`;
+  return `<div class="tabbar glass">${t('today', 'sun', 'Today', badge ? `<span class="badge">${badge}</span>` : '')}${t('tasks', 'task', 'Tasks')}</div>
+    <div class="tabsearch glass ${active === 'search' ? 'on' : ''}">${ic('search')}</div>`;
+}
+const accessory = () => `<div class="acc glass"><span class="play">${fic('play')}</span>
+  <span class="t">Review Q4 roadmap<small>2 of 4 steps</small></span><span class="done">${ic('check')}</span></div>`;
+function ltitle(title, sub = '', icon = '') {
+  return `<div class="ltitle"><h1>${icon}${title}</h1>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+}
+function keyboard({ ret = 'return', prim = false, pred = ['“next fri”', 'Friday', 'next'] } = {}) {
+  const row = (s) => s.split('').map((c) => `<span class="k">${c}</span>`).join('');
+  return `<div class="kb"><div class="pred">${pred.map((w) => `<span>${w}</span>`).join('')}</div>
+    <div class="row">${row('qwertyuiop')}</div>
+    <div class="row">${row('asdfghjkl')}</div>
+    <div class="row"><span class="k f w">${ic('shift')}</span>${row('zxcvbnm')}<span class="k f w">${ic('del')}</span></div>
+    <div class="row"><span class="k f w">123</span><span class="k f w">☺</span><span class="k sp">space</span><span class="k f ret ${prim ? 'prim' : ''}">${ret}</span></div>
+    <div class="bot">${ic('globe')}${ic('mic')}</div></div>`;
+}
+
+/* ---------- Data. Today is Monday, 26 October 2026. ---------- */
+const TODAY = [
+  { title: 'Review Q4 roadmap', working: 1, steps: [2, 4], bell: 'Thu 09:00', mail: 1, tags: ['work'], due: 'Fri' },
+  { title: 'Renew the domain', tags: ['personal'], due: '24 Oct', dueCls: 'late' },
+  { title: 'Send the roadmap numbers to Lukas', chat: 1, tags: ['work'], due: 'Today', dueCls: 'today' },
+  { title: 'Book flights to Lisbon', bell: '17:00' },
+  { title: 'Call the dentist', tags: ['personal'] },
+  { title: 'Water the plants', repeat: 'Every 3 days', tags: ['home'] },
+  { title: 'Pay the server invoice', done: 1, mail: 1 },
+];
+
+function prog([d, n]) {
+  return `<span class="prog"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><circle class="arc" cx="8" cy="8" r="6" stroke-dasharray="${(37.7 * d / n).toFixed(1)} 40"/></svg>${d}/${n}</span>`;
+}
+function metaOf(t) {
+  const m = [];
+  if (t.unsaved) m.push(`<span class="unsaved">${ic('cloudx')}</span>`);
+  if (t.steps) m.push(prog(t.steps));
+  if (t.bell) m.push(`<span>${ic('bell')}${t.bell}</span>`);
+  if (t.repeat) m.push(`<span>${ic('repeat')}${t.repeat}</span>`);
+  if (t.mail) m.push(`<span>${ic('mail')}</span>`);
+  if (t.chat) m.push(`<span>${ic('chat')}</span>`);
+  if (t.extra) m.push(`<span>${t.extra}</span>`);
+  (t.tags || []).forEach((g) => m.push(`<span class="tg ${g}">#${g}</span>`));
+  return m.length ? `<div class="meta">${m.join('')}</div>` : '';
+}
+function trow(t, { edit = false, picked = false } = {}) {
+  const cls = ['trow', t.done && 'done', picked && 'picked', t.last && 'last'].filter(Boolean).join(' ');
+  const wk = t.working ? `<span class="wk">${fic('play')}</span>` : '';
+  const right = edit ? `<span class="grip">${ic('grip')}</span>` : `<span class="due ${t.dueCls || ''}">${t.due || ''}</span>`;
+  return `<div class="${cls}">${edit ? `<span class="sel ${picked ? 'on' : ''}"></span>` : ''}<span class="chk ${t.done ? 'on' : ''}"></span>
+    <div class="tt"><span class="ti">${wk}${t.title}</span>${metaOf(t)}</div>${right}</div>`;
+}
+
+/* ---------- Screens: Today ---------- */
+function todayList(opts = {}) {
+  const rows = (opts.rows || TODAY).map((t, i) => {
+    if (opts.swipe === i) {
+      return `<div class="swipe">${trow(t)}<div class="acts"><span style="background:var(--orange)">${ic('sun', 'mono')}Postpone</span><span style="background:var(--red)">${ic('trash', 'mono')}Delete</span></div></div>`;
+    }
+    if (opts.lead === i) {
+      return `<div class="swipe lead">${trow(t)}<div class="acts"><span style="background:var(--accent)">${fic('play')}Work on</span></div></div>`;
+    }
+    return trow(t, { edit: opts.edit, picked: (opts.picked || []).includes(i) });
+  }).join('');
+  return `<div class="list ${opts.edit ? 'editing' : ''}">${rows}</div>`;
+}
+function today(opts = {}) {
+  const right = opts.edit ? `<span class="gb glass txt">Done</span>` : `${gbtn('more')}${gbtn('plus', 'prim')}`;
+  const sub = opts.offline
+    ? `${ic('wifioff')} Offline`
+    : `Monday, 26 October`;
+  const banner = opts.offline ? `<div class="banner">${ic('cloudx')}<div>3 changes are waiting to upload<small>They go up by themselves when the iPhone is back online. Everything else works as usual.</small></div></div>` : '';
+  const rows = opts.offline ? TODAY.map((t, i) => [0, 3, 6].includes(i) ? { ...t, unsaved: 1 } : t) : TODAY;
+  const head = opts.edit
+    ? `${nav({ right: `<span class="gb glass txt">Done</span>` }).replace('<span></span>', '<span class="gb glass txt">Select All</span>')}`
+    : nav({ right });
+  return `<div class="content">${opts.edit ? ltitle('3 Selected') : ltitle('Today', sub, ic('sun', 'warm'))}${banner}
+      ${todayList({ ...opts, rows })}</div>
+    <div class="edge-top"></div>${head}<div class="edge-bot"></div>
+    ${opts.edit ? `<div class="toolbar glass">
+        <span>${ic('done', 'mono')}Complete</span><span>${ic('sun', 'mono')}Postpone</span><span>${ic('cal', 'mono')}Due</span><span>${ic('tag', 'mono')}Tags</span><span>${ic('task', 'mono')}Merge</span><span class="red">${ic('trash', 'mono')}Delete</span></div>`
+      : `${opts.toast ? `<div class="toast glass">${ic('check')}<span>Completed “Call the dentist”</span><b>Undo</b></div>` : ''}${accessory()}${tabbar('today', opts.badge ?? 6)}`}`;
+}
+function todayMenu() {
+  const bg = `<div class="blurred">${today()}</div><div class="scrim"></div>`;
+  const t = TODAY[3];
+  return `${bg}<div class="lift" style="top:196px">${trow(t)}</div>
+    <div class="menu" style="top:272px; left:24px">
+      <div class="mh">Postpone</div>
+      <div class="pal"><span>${ic('sun')}Today</span><span>${ic('sunrise', 'warmline')}Tomorrow</span><span>${ic('sofa')}Weekend</span><span>${ic('week')}Next Week</span></div>
+      <div class="gap"></div>
+      <div class="mi">Complete${ic('done')}</div>
+      <div class="mi">Work On${fic('play')}</div>
+      <div class="mi">Postpone to…${ic('sun')}</div>
+      <div class="mi">Due Date…${ic('cal')}</div>
+      <div class="mi">Remind Me…${ic('bell')}</div>
+      <div class="mi">Tags…${ic('tag')}</div>
+      <div class="gap"></div>
+      <div class="mi">Select${ic('select')}</div>
+      <div class="mi red">Delete${ic('trash')}</div>
+    </div>`;
+}
+
+/* ---------- Screens: a task ---------- */
+function detail() {
+  const STEPS = [['Read sections 1–3', 1], ['Check the sync numbers', 1], ['Comment on hiring (section 4)', 0], ['Send comments to Sara', 0]];
+  return `<div class="content" style="padding-top:110px">
+    <div class="td-head"><span class="chk"></span><h2>Review Q4 roadmap</h2>
+      <span class="wkl">${fic('play')} Working on<span class="sync">${ic('cloudx')}Not yet on the server</span></span></div>
+    <div style="height:14px"></div>
+    <div class="card">
+      <div class="cr">${ic('sun', 'warm')}<span class="k">Postpone</span><span class="v warm">Today</span>${ic('chevR', 'chev')}</div>
+      <div class="cr">${ic('cal')}<span class="k">Due</span><span class="v set">Fri 30 Oct</span>${ic('chevR', 'chev')}</div>
+      <div class="cr">${ic('bell')}<span class="k">Remind</span><span class="v set">Thu 29 Oct, 09:00</span>${ic('chevR', 'chev')}</div>
+      <div class="cr">${ic('repeat')}<span class="k">Repeat</span><span class="v">Never</span>${ic('chevR', 'chev')}</div>
+      <div class="cr">${ic('tag')}<span class="k"><span class="chip tg work" style="color:var(--tag-work)">#work</span></span>${ic('chevR', 'chev')}</div>
+    </div>
+    <div class="ch">Notes</div>
+    <div class="card"><div class="notes">Focus on sync (section 2) and hiring (section 4). Comments go to Sara before the design review on Thursday.</div></div>
+    <div class="ch">Steps<span class="r">2 of 4</span><span class="pbar"><i style="width:50%"></i></span></div>
+    <div class="card">${STEPS.map(([t, d], i) => `<div class="step ${d ? 'done' : ''} ${i === 2 ? 'next' : ''}"><span class="chk sm ${d ? 'on' : ''}"></span><span>${t}</span>${i === 2 ? '<span class="nx">Next</span>' : ''}</div>`).join('')}
+      <div class="cr act" style="min-height:48px">${ic('plus')}<span class="k">Add Step</span></div></div>
+    <div class="ch">Linked</div>
+    <div class="card">
+      <div class="lnk"><span class="tile mail">${ic('mail')}</span><b>Sara Brunner</b><span class="when">Today 12:04</span>
+        <span class="su">Q4 roadmap — draft for review</span><span class="rs ok">${ic('reply')}Replied 12:45</span></div>
+      <div class="lnk"><span class="tile chat">${ic('chat')}</span><b>Lukas Meier · #planning</b><span class="when">11:40</span>
+        <span class="su">“Can you send me the hiring numbers before Thursday?”</span><span class="rs">No reply</span></div>
+      <div class="lnk"><span class="tile pdf">PDF</span><b>roadmap-q4-comments.pdf</b><span class="when">112 KB</span><span class="su" style="color:var(--label2)">Attachment</span></div>
+    </div>
+    <div style="height:22px"></div>
+    <div class="card"><div class="cr">${ic('hist')}<span class="k">History</span><span class="v">4 entries</span>${ic('chevR', 'chev')}</div></div>
+  </div>
+  <div class="edge-top"></div>${nav({ back: 1, right: ggroup('more') })}`;
+}
+function detailBg() { return `<div class="recede grouped" style="background:var(--grouped)">${detail()}</div>`; }
+
+function calendar(sel = 26) {
+  const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<span class="wd">${d.slice(0, 3)}</span>`).join('');
+  /* October 2026 starts on a Thursday. */
+  let cells = '<span></span><span></span><span></span>';
+  const dots = [27, 28, 29, 30, 31];
+  for (let d = 1; d <= 31; d++) {
+    const c = [d < 26 && 'past', d === 26 && 'today', d === sel && 'sel', dots.includes(d) && 'dot'].filter(Boolean).join(' ');
+    cells += `<span class="d ${c}">${d}</span>`;
+  }
+  return `<div class="cal"><div class="hd"><span>October 2026 <span style="color:var(--accent)">›</span></span><span>${ic('back')}${ic('chevR')}</span></div>
+    <div class="grid">${wd}${cells}</div></div>`;
+}
+function datePicker() {
+  return `${detailBg()}<div class="scrim" style="background:rgba(0,0,0,.12)"></div>
+    <div class="sheet float" style="height:668px"><div class="grab"></div>
+      <div class="shead"><span class="gb">${ic('x')}</span><span class="t">Postpone<small>Review Q4 roadmap</small></span><span class="gb prim">${ic('check')}</span></div>
+      <div class="field">${ic('search', 'mono')}<span class="ph">tomorrow, fri, in 3 weeks, 12.11.</span></div>
+      <div class="quick">
+        <span class="qb on">${ic('sun')}Today<small>Mon 26</small></span>
+        <span class="qb">${ic('sunrise', 'warmline')}Tomorrow<small>Tue 27</small></span>
+        <span class="qb">${ic('sofa')}Weekend<small>Sat 31</small></span>
+        <span class="qb">${ic('week')}Next Week<small>Mon 2 Nov</small></span>
+      </div>
+      ${calendar(26)}
+      <div class="sfoot"><span class="gb txt">Clear Date</span></div>
+    </div>`;
+}
+function dateTyping() {
+  return `${detailBg()}<div class="scrim" style="background:rgba(0,0,0,.12)"></div>
+    <div class="sheet full" style="bottom:326px; border-radius:38px"><div class="grab"></div>
+      <div class="shead"><span class="gb">${ic('x')}</span><span class="t">Due<small>Review Q4 roadmap</small></span><span class="gb prim">${ic('check')}</span></div>
+      <div class="field">${ic('search', 'mono')}<span class="q">next fri<span class="caret"></span></span><span class="x"></span></div>
+      <div class="sug">
+        <div class="s on">${ic('cal')}<span>Next Friday</span><span class="r">Oct 30</span></div>
+        <div class="s">${ic('cal')}<span>Friday after next</span><span class="r">Nov 6</span></div>
+      </div>
+      <div class="cf" style="padding:10px 32px">Return takes the highlighted date. Clear the field to get the calendar back.</div>
+    </div>
+    ${keyboard({ ret: 'Set', prim: true })}`;
+}
+function quickAdd() {
+  return `<div class="blurred" style="filter:none; transform:none">${today()}</div><div class="scrim"></div>
+    <div class="qa">
+      <div class="row1"><span class="chk"></span><div class="ttl">Pick up the parcel <span class="nl">tomorrow</span> <span class="nl tgx">#errands</span><span class="field" style="all:unset"><span class="caret" style="display:inline-block;width:2px;height:22px;background:var(--accent);vertical-align:-4px"></span></span></div>
+        <div class="nt">Notes</div></div>
+      <div class="chips">
+        <span class="chip set">${ic('sunrise', 'warmline')}Tomorrow</span>
+        <span class="chip tg" style="color:var(--tag-errands)">#errands</span>
+        <span class="chip">${ic('cal')}</span><span class="chip">${ic('bell')}</span><span class="chip">${ic('steps')}</span>
+        <span class="send">${ic('up')}</span>
+      </div>
+      <div class="hint">${ic('check')}Postponed to Tomorrow, tagged #errands. Tap a chip to undo either.</div>
+    </div>
+    ${keyboard({ ret: 'return', pred: ['“errands”', 'errand', 'errors'] })}`;
+}
+function tagPicker() {
+  const tags = [['work', 9, 1], ['personal', 6, 0], ['orb', 4, 0], ['errands', 2, 0], ['home', 3, 0]];
+  return `${detailBg()}<div class="scrim" style="background:rgba(0,0,0,.12)"></div>
+    <div class="sheet float grp" style="height:560px"><div class="grab"></div>
+      <div class="shead"><span class="gb">${ic('x')}</span><span class="t">Tags</span><span class="gb prim">${ic('check')}</span></div>
+      <div class="field">${ic('search', 'mono')}<span class="ph">Find or create a tag</span></div>
+      <div class="card" style="margin-top:10px">${tags.map(([n, c, on]) => `<div class="cr"><span class="hash" style="color:var(--tag-${n})">#</span><span class="k">${n}</span><span class="v">${c}</span>
+        ${on ? `<span style="color:var(--accent);font-size:20px">${ic('check')}</span>` : '<span style="width:20px"></span>'}</div>`).join('')}</div>
+      <div class="cf">Swipe a tag to rename, recolour or delete it. Deleting a tag never deletes its tasks.</div>
+    </div>`;
+}
+
+/* ---------- Screens: lists ---------- */
+function tasksTab() {
+  const tile = (icon, n, label) => `<div class="tile2">${ic(icon)}<span class="c">${n}</span><span class="l">${label}</span></div>`;
+  const tags = [['work', 9], ['personal', 6], ['orb', 4], ['home', 3], ['errands', 2]];
+  return `<div class="content" style="padding-top:106px">${ltitle('Tasks')}
+    <div class="tiles">${tile('cal', 12, 'Upcoming')}${tile('cloud', 31, 'Someday')}${tile('done', 48, 'Completed')}${tile('trash', 3, 'Trash')}</div>
+    <div class="ch">Tags</div>
+    <div class="card">${tags.map(([n, c]) => `<div class="cr"><span class="hash" style="color:var(--tag-${n})">#</span><span class="k">${n}</span><span class="v">${c}</span>${ic('chevR', 'chev')}</div>`).join('')}</div>
+    <div class="syncl">${ic('cloud')}Saved · Work · Tasks folder · just now</div>
+  </div>
+  <div class="edge-top"></div>${nav({ right: gbtn('gear') + gbtn('plus', 'prim') })}<div class="edge-bot"></div>${accessory()}${tabbar('tasks', 6)}`;
+}
+function upcoming() {
+  const dh = (num, day, n = '') => `<div class="dh ${n === 0 ? 'empty' : ''}"><span class="num">${num}</span><span class="day">${day}</span></div>`;
+  const mon = (m) => `<div class="dh mon"><span class="day">${m}</span></div>`;
+  const today = `<div class="dh"><span class="ic">${ic('sun', 'warm')}</span><span class="day">Today</span></div>`;
+  return `<div class="content">${ltitle('Upcoming', '', '')}
+    ${today}
+    ${trow({ title: 'Send the roadmap numbers to Lukas', chat: 1, tags: ['work'], due: '24 Oct', dueCls: 'late' })}
+    ${trow({ title: 'Call the dentist', due: 'Today', dueCls: 'today', last: 1 })}
+    ${dh(27, 'Tomorrow')}
+    ${trow({ title: 'Second hiring scenario for the roadmap', bell: '09:00', tags: ['work'] })}
+    ${trow({ title: 'Pick up the parcel', tags: ['errands'], last: 1 })}
+    ${dh(28, 'Wednesday')}
+    ${trow({ title: 'Haircut', bell: '12:15', last: 1 })}
+    ${dh(29, 'Thursday')}
+    ${trow({ title: 'Prepare the design review', steps: [0, 3], tags: ['work'], due: 'Thu', last: 1 })}
+    ${dh(30, 'Friday')}
+    ${trow({ title: 'Ask Daniel about the roadmap budget', mail: 1, last: 1 })}
+    ${dh(31, 'Saturday')}
+    ${trow({ title: 'Pack for Lucerne', steps: [0, 6], tags: ['personal'], last: 1 })}
+    ${dh(1, 'Sunday', 0)}
+    ${mon('November')}
+    ${trow({ title: 'Q1 roadmap kickoff', tags: ['work'], due: '9 Nov' })}
+    ${trow({ title: 'Dentist check-up', repeat: 'Yearly', extra: '12 Nov', due: '', last: 1 })}
+    ${mon('2028')}
+    ${trow({ title: 'Renew the domain orb.dev', due: '2 Feb 2028', last: 1 })}
+  </div><div class="edge-top"></div>${nav({ back: 1, right: gbtn('more') + gbtn('plus', 'prim') })}<div class="edge-bot"></div>${accessory()}${tabbar('tasks', 6)}`;
+}
+function completed() {
+  const r = (title, time, extra = {}) => trow({ title, done: 1, due: time, ...extra });
+  return `<div class="content">${ltitle('Completed', '48 in the last 30 days')}
+    <div class="sh sm">Today</div>
+    ${r('Pay the server invoice', '08:14', { mail: 1 })}
+    ${r('Water the plants', '07:50', { repeat: 'Next on Thu', tags: ['home'], last: 1 })}
+    <div class="sh sm">Yesterday</div>
+    ${r('Return the library books', '16:02')}
+    ${r('Slides for Lea’s talk', '11:37', { steps: [5, 5], tags: ['work'], last: 1 })}
+    <div class="sh sm">Saturday, 24 October</div>
+    ${r('Order a new keyboard', '10:20', { tags: ['personal'] })}
+    ${r('Water the plants', '09:05', { repeat: 'Every 3 days', tags: ['home'], last: 1 })}
+    <div class="sh sm">Thursday, 22 October</div>
+    ${r('Reply to the hosting support', '14:48', { mail: 1, last: 1 })}
+    <div style="height:14px"></div>
+    <div class="card" style="background:var(--fill2)"><div class="cr">${ic('archive')}<span class="k">Archived<small>Completed more than 30 days ago</small></span><span class="v">312</span>${ic('chevR', 'chev')}</div></div>
+  </div><div class="edge-top"></div>${nav({ back: 1, right: gbtn('more') })}<div class="edge-bot"></div>${accessory()}${tabbar('tasks', 6)}`;
+}
+function trash() {
+  const r = (title, when, extra = {}) => trow({ title, extra: when, ...extra });
+  return `<div class="content trashed">${ltitle('Trash', 'Deleted tasks go after 30 days')}
+    <div style="height:10px"></div>
+    <div class="swipe lead">${r('Cancel the gym membership', 'Deleted today', { tags: ['personal'] })}<div class="acts"><span style="background:var(--green)">${ic('restore')}Restore</span></div></div>
+    ${r('Duplicate: Book flights to Lisbon', 'Deleted yesterday', { bell: '17:00' })}
+    ${r('Try the other CI runner', '27 days left', { tags: ['orb'], last: 1 })}
+  </div><div class="edge-top"></div>${nav({ back: 1, right: '<span class="gb glass txt" style="color:var(--red)">Empty</span>' })}<div class="edge-bot"></div>${accessory()}${tabbar('tasks', 6)}`;
+}
+
+/* ---------- Screens: search and filter ---------- */
+function search() {
+  const g = (num, day) => `<div class="dh"><span class="num">${num}</span><span class="day">${day}</span></div>`;
+  return `<div class="content tight">${ltitle('Search')}
+    <div class="dh">${ic('sun', 'warm')}<span class="day">Today</span></div>
+    ${trow({ title: 'Review Q4 <mark>roadmap</mark>', working: 1, steps: [2, 4], bell: 'Thu 09:00', mail: 1, tags: ['work'], due: 'Fri' })}
+    ${trow({ title: 'Send the <mark>roadmap</mark> numbers to Lukas', chat: 1, tags: ['work'], due: 'Today', dueCls: 'today', last: 1 })}
+    ${g(27, 'Tomorrow')}
+    ${trow({ title: 'Second hiring scenario for the <mark>roadmap</mark>', bell: '09:00', tags: ['work'], last: 1 })}
+    ${g(30, 'Friday')}
+    ${trow({ title: 'Ask Daniel about the <mark>roadmap</mark> budget', mail: 1, last: 1 })}
+    <div class="dh mon"><span class="day">November</span></div>
+    ${trow({ title: 'Q1 <mark>roadmap</mark> kickoff', tags: ['work'], due: '9 Nov', last: 1 })}
+    <div class="dh">${ic('cloud')}<span class="day">Someday</span></div>
+    ${trow({ title: 'Public <mark>roadmap</mark> page for Orb', tags: ['orb'], last: 1 })}
+    <div class="fold">${ic('done')}Completed <span class="n">2</span>${ic('chevR', 'chev')}</div>
+  </div><div class="edge-top"></div>${nav()}<div class="edge-bot"></div>
+  <div class="sbot"><span class="gb glass">${ic('sun', 'warm')}</span><span class="sf glass">${ic('search')}<span class="q">roadmap</span><span class="x"></span></span></div>`;
+}
+function searchEmpty() {
+  return `<div class="content">${ltitle('Search')}
+    <div class="sh sm">Recent</div>
+    <div class="recent">
+      <div class="r">${ic('search')}roadmap</div>
+      <div class="r">${ic('search')}<span class="token" style="margin:0">tag:errands</span></div>
+      <div class="r">${ic('search')}s:invoice</div>
+    </div>
+    <div class="sh sm">Narrow by</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;padding:2px 20px">
+      <span class="chip" style="color:var(--tag-work)">#work</span><span class="chip" style="color:var(--tag-personal)">#personal</span>
+      <span class="chip" style="color:var(--tag-orb)">#orb</span><span class="chip" style="color:var(--tag-errands)">#errands</span>
+      <span class="chip">${ic('note')}In notes <code style="opacity:.6">b:</code></span><span class="chip">${ic('task', 'mono')}In titles <code style="opacity:.6">s:</code></span>
+    </div>
+  </div><div class="edge-top"></div>${nav()}
+  <div class="sbot" style="bottom:334px"><span class="sf glass" style="flex:1">${ic('search')}<span class="q"><span style="display:inline-block;width:2px;height:22px;background:var(--accent);vertical-align:-5px"></span><span style="color:var(--label3)"> Search all tasks</span></span></span><span class="gb glass">${ic('x')}</span></div>
+  ${keyboard({ ret: 'search', prim: true, pred: ['roadmap', 'invoice', 'Lukas'] })}`;
+}
+function filterSomeday() {
+  return `<div class="content">${ltitle('Someday')}
+    <div class="field" style="margin:8px 16px 4px">${ic('search', 'mono')}<span class="q"><span class="token">tag:orb</span>blog<span class="caret"></span></span><span class="x"></span></div>
+    <div class="cf" style="padding:2px 32px 6px">2 of 31 in Someday · search everything in the Search tab</div>
+    ${trow({ title: 'Write a <mark>blog</mark> post about task sync', tags: ['orb'] })}
+    ${trow({ title: 'Announce the iOS app on the <mark>blog</mark>', steps: [1, 5], tags: ['orb'], last: 1 })}
+  </div><div class="edge-top"></div>${nav({ back: 1, right: '<span class="gb glass txt">Cancel</span>' })}
+  ${keyboard({ ret: 'done', pred: ['“blog”', 'blogs', 'blogging'] })}`;
+}
+
+/* ---------- Screens: the system ---------- */
+const TRAJECTORY = [[214, 470], [231.5, 432.7], [252.7, 397.5], [277.7, 364.8], [306.3, 335.2], [338.3, 309.5], [373.2, 288], [410.7, 271.3],
+  [450.2, 259.7], [490.8, 253.7], [531.8, 253.4], [572.5, 259.2], [612, 270.9], [649.2, 288.4]];
+const STARS = [[210, 230, 9], [330, 150, 6], [830, 560, 8], [720, 790, 6], [560, 170, 5], [880, 160, 6]];
+let orbIconN = 0;
+function orbIcon(cls = '') {
+  const n = ++orbIconN;
+  const plane = 'translate(770 300) rotate(-30) scale(.9)';
+  return `<svg class="orbicon ${cls}" viewBox="0 0 1024 1024">
+    <defs><linearGradient id="oi-bg${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--oi-top)"/><stop offset="1" style="stop-color:var(--oi-bot)"/></linearGradient>
+      <linearGradient id="oi-pl${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffae6b"/><stop offset="1" stop-color="#ff5a4a"/></linearGradient>
+      <radialGradient id="oi-gl${n}" cx=".38" cy=".3" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+    <rect width="1024" height="1024" fill="url(#oi-bg${n})"/>
+    <g fill="#fff" fill-opacity=".78">${[...TRAJECTORY.map(([x, y]) => [x, y, 9]), ...STARS].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>
+    <circle cx="430" cy="616" r="200" fill="#000" opacity=".22"/>
+    <circle cx="430" cy="600" r="200" fill="url(#oi-pl${n})"/><circle cx="430" cy="600" r="200" fill="url(#oi-gl${n})"/>
+    <path d="M140 0 L-110 -100 L-58 0 L-110 100 Z" fill="#fff" stroke="#fff" stroke-width="14" stroke-linejoin="round" transform="${plane}"/>
+    <path d="M-58 0 L132 0" style="stroke:var(--oi-fold)" stroke-width="14" stroke-linecap="round" fill="none" transform="${plane}"/>
+  </svg>`;
+}
+function lock() {
+  return `<div class="wall"></div>
+    <div class="lock-date">Monday 26 October</div><div class="lock-time">9:41</div>
+    <div class="lwid"><div class="lw rect"><b>${ic('sun')}Today · 6 open</b><span>17:00 Book flights to Lisbon</span><span>! Renew the domain</span></div>
+      <div class="lw circ"><svg viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" stroke="rgba(255,255,255,.25)"/><circle cx="29" cy="29" r="24" stroke="#fff" stroke-linecap="round" stroke-dasharray="${(150.8 * 1 / 7).toFixed(1)} 160"/></svg><div><b>1/7</b><small>DONE</small></div></div></div>
+    <div class="notif" style="top:560px">${orbIcon('app')}<b>Review Q4 roadmap</b><span class="tm">now</span>
+      <span class="bd">Reminder · due Friday · next step: Comment on hiring (section 4)</span></div>
+    <div class="notif" style="top:672px">${orbIcon('app')}<b>3 missed reminders</b><span class="tm">9:02</span>
+      <span class="bd">From while your iPhone was off. They are in each task's history.</span></div>
+    <span class="lockbtn" style="left:46px">${ic('torch')}</span><span class="lockbtn" style="right:46px">${ic('camera')}</span>`;
+}
+function notifExpanded() {
+  return `<div class="wall" style="filter:blur(18px) brightness(.75); transform:scale(1.1)"></div>
+    <div class="nexp" style="top:230px"><div class="top">${orbIcon()}Orb · Reminder<span style="margin-left:auto;font-weight:400;text-transform:none">now</span></div>
+      <div class="bodyx"><b>Review Q4 roadmap</b>Due Friday · #work · 2 of 4 steps done
+        <div class="stp"><span class="chk on"></span>Check the sync numbers</div>
+        <div class="stp"><span class="chk"></span><b style="display:inline;font-size:14px;margin:0">Comment on hiring (section 4)</b></div>
+        <div class="stp"><span class="chk"></span>Send comments to Sara</div></div></div>
+    <div class="nactions" style="top:468px">
+      <div>Complete${ic('done')}</div>
+      <div>Remind Me in 1 Hour${ic('clock')}</div>
+      <div>Postpone to Tomorrow${ic('sunrise')}</div>
+      <div>Work On${fic('play')}</div>
+    </div>`;
+}
+function homeWidgets() {
+  return `<div class="wall"></div>
+    <div class="widget" style="top:70px; left:26px; right:26px; height:170px">
+      <div class="wh">${ic('sun')}Today<span class="n">6</span><span class="add">${ic('plus')}</span></div>
+      <div class="wr"><span class="chk"></span><span>Review Q4 roadmap</span><span class="d">Fri</span></div>
+      <div class="wr"><span class="chk"></span><span>Renew the domain</span><span class="d late">! 24 Oct</span></div>
+      <div class="wr"><span class="chk"></span><span>Send the roadmap numbers to Lukas</span><span class="d" style="color:#ff9500">Today</span></div>
+      <div class="wr"><span class="chk"></span><span>Book flights to Lisbon</span><span class="d">17:00</span></div>
+    </div>
+    <div class="widget" style="top:262px; left:26px; width:166px; height:166px; display:flex; flex-direction:column">
+      <div class="wh" style="color:#3b64f1">${fic('play')}<span style="color:inherit">Working on</span></div>
+      <div style="font-size:16px;font-weight:600;line-height:20px;flex:1">Review Q4 roadmap</div>
+      <div style="font-size:12px;color:#8e8e93">Next: Comment on hiring</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px"><span style="flex:1;height:4px;border-radius:2px;background:rgba(127,127,127,.25);overflow:hidden"><i style="display:block;width:50%;height:100%;background:#3b64f1"></i></span><span style="font-size:12px;color:#8e8e93">2/4</span></div>
+    </div>
+    <div class="appgrid" style="top:268px; left:216px; grid-template-columns:repeat(2,64px); right:26px; column-gap:30px; row-gap:38px">
+      ${['#34c759', '#ff9500', '#5ac8fa', '#ff2d55'].map((c, i) => `<i style="background:${c}" data-n="${['Messages', 'Photos', 'Weather', 'Music'][i]}"></i>`).join('')}
+    </div>
+    <div class="appgrid" style="top:470px">
+      ${['orb', '#1c1c1e', '#007aff', '#ffcc00', '#8e8e93', '#30b0c7', '#af52de', '#ff3b30'].map((c, i) => `<i ${c === 'orb' ? '' : `style="background:${c}"`} data-n="${['Orb', 'Clock', 'Files', 'Notes', 'Settings', 'Maps', 'Podcasts', 'Calendar'][i]}">${c === 'orb' ? orbIcon() : ''}</i>`).join('')}
+    </div>
+    <div class="dock">${['#34c759', '#007aff', '#5ac8fa', '#ff9500'].map((c) => `<i style="background:${c}"></i>`).join('')}</div>`;
+}
+function setup() {
+  return `<div class="setup">${orbIcon('big')}<h1>Orb for iPhone</h1>
+      <p>Your tasks, on the iPhone, from the same folder of your mail account as on the Mac.</p>
+      <div class="pts">
+        <div class="pt">${ic('server')}<div><b>Your server, nobody else's</b><span>Orb talks to your IMAP server directly. No account with us, no cloud in between.</span></div></div>
+        <div class="pt">${ic('bell')}<div><b>Reminders on time</b><span>Reminders fire even when Orb is closed. Allow notifications on the next screen.</span></div></div>
+        <div class="pt">${ic('cloud')}<div><b>Works offline</b><span>Changes wait on the iPhone and upload by themselves.</span></div></div>
+      </div>
+      <div class="btns"><span class="btn prim">${ic('qr')}Scan the Code on Your Mac</span><span class="btn sec">Set Up Manually</span></div>
+    </div>`;
+}
+function settings() {
+  return `<div class="content" style="padding-top:106px">${ltitle('Settings')}
+    <div class="ch">Tasks account</div>
+    <div class="card">
+      <div class="cr">${ic('mail')}<span class="k">Work<small>sam@example.com · imap.example.com</small></span>${ic('chevR', 'chev')}</div>
+      <div class="cr">${ic('archive')}<span class="k">Folder</span><span class="v">Tasks</span></div>
+      <div class="cr">${ic('cloud')}<span class="k">Saved</span><span class="v">Synced just now</span></div>
+    </div>
+    <div class="ch">Reminders</div>
+    <div class="card">
+      <div class="cr">${ic('bell')}<span class="k">Notifications</span><span class="v set">On</span>${ic('chevR', 'chev')}</div>
+      <div class="cr">${ic('clock')}<span class="k">Default reminder time</span><span class="v">09:00</span>${ic('chevR', 'chev')}</div>
+    </div>
+    <div class="ch">Today</div>
+    <div class="card">
+      <div class="cr"><span class="k">Keep completed tasks until midnight</span><span class="tglbtn on"></span></div>
+      <div class="cr"><span class="k">Completed first</span><span class="tglbtn"></span></div>
+    </div>
+    <div class="ch">Completed</div>
+    <div class="card"><div class="cr"><span class="k">Archive after</span><span class="v">30 days</span>${ic('chevR', 'chev')}</div></div>
+    <div class="cf">These settings are kept on this iPhone, just as each Mac keeps its own in its config file.</div>
+  </div><div class="edge-top"></div>${nav({ right: '<span class="gb glass prim">' + ic('check') + '</span>' })}`;
+}
+
+/* ---------- Page ---------- */
+const AREAS = [
+  { id: 'today', title: 'Today', intro: 'The landing tab. Tasks postponed or due today or earlier, plus those completed today, in the one global order (§4.1, §4.4). Everything else on the phone works from here.',
+    shots: [
+      ['Today', today, '', [
+        'The large title carries the warm sun, as Today does in the Mac sidebar. The tab badge counts open tasks. A completed task counts for nothing and stays struck through in its place until midnight (§10.2). <i>Completed first</i> in Settings moves those tasks above the open ones (§24).',
+        'Rows use the Mac\'s marks at touch size. The second line shows step progress, reminder, repeat, linked mail or chat, and tags in their colour. On the right is the due date: “! 24 Oct” in red is overdue, “Today” in orange is due today.',
+        'The bar above the tab bar is the <b>working on</b> mark (§19). It is the iOS 26 tab bar accessory and shows on every tab. Tap it to open the task, or tick it there to complete it, which also clears the mark. The mark is local to this iPhone, as it is to each Mac.',
+        '+ opens quick add. The ⋯ menu holds Select, Hide Completed (<code>clear-completed</code>, which hides them on the Macs too) and Settings.']],
+      ['Swipe, then undo', () => today({ swipe: 3, toast: 1, badge: 5, rows: TODAY.map((t, i) => i === 4 ? { ...t, done: 1 } : t) }), '', [
+        'Swipe left: <b>Postpone</b> opens the date sheet, <b>Delete</b> moves the task to the Trash. A full swipe postpones to tomorrow, the most common case, and needs no sheet.',
+        'Swipe right: <b>Work on</b>. Completing has no swipe because the box is already one tap.',
+        'Every change shows an undo pill above the accessory for about five seconds (§10.3). Shake to undo still works, as everywhere on iOS. Here “Call the dentist” has just been ticked and stays in place, struck through.']],
+      ['Long press', todayMenu, '', [
+        'The context menu lifts the row and opens with a palette row of the four postpone shortcuts. They are the same four as at the top of the date sheet, so the most common reschedule takes two taps from anywhere.',
+        'Below come the full actions in the same order as in the detail. Delete is last and red. Holding and dragging instead of releasing reorders the task in the global order.']],
+      ['Select', () => today({ edit: 1, picked: [1, 3, 4] }), '', [
+        'Select (from ⋯ or the context menu, or a two-finger swipe down the boxes) adds selection circles and reorder grips. The task box stays where it is so that position keeps one meaning.',
+        'The tab bar gives way to a glass toolbar of bulk actions: Complete, Postpone, Due, Tags, Merge and Delete. Each is one undo step (§10.3). Merge, with two or more selected, opens a sheet as on the Mac (§29): which task stays, its title, notes and dates as proposed; the rest comes along and the others go to the Trash. A dragged selection moves as one block (§4.4).']],
+      ['Offline', () => today({ offline: 1 }), '', [
+        'Everything works offline (§3.6). The subtitle says so, and a banner gives the count of changes still to upload, as the Mac sidebar does beside <i>Tasks</i> (§23).',
+        'Each unsaved task carries the orange dashed cloud in its row, the same mark as “Not yet on the server” in the detail. The banner goes away after the first successful round.']],
+    ] },
+  { id: 'task', title: 'A task', intro: 'Opening, editing and making a task. Pickers are sheets over the task, so you never lose your place.',
+    shots: [
+      ['Task', detail, 'grouped', [
+        'Pushed from any list. The big box completes the task. The title edits in place. Under it, the local marks: <i>Working on</i> and <i>Not yet on the server</i>.',
+        'The first card holds the fields in the Mac detail\'s order and with its icons: Postpone, Due, Remind, Repeat, Tags. Each opens a sheet. An unset field reads “None” and opens the same sheet.',
+        'Steps show progress as “2 of 4” with a bar, and the first open step is marked <i>Next</i> (§17). Tap a step to tick it. Drag to reorder, swipe to delete. Select Steps in ⋯, or Select in a step’s context menu, adds selection circles; the bar below marks the selected steps done or deletes them, each as one edit, and dragging one moves them all as one block.',
+        'Linked shows each mail and chat message from what the task keeps about it (§6.1, §28.1), with its reply state. In this version there is no mail on the phone, so a tap shows those details in a sheet. Once Mail arrives, a tap opens the message.',
+        'An attachment opens in Quick Look. History pushes the log (§11).']],
+      ['Postpone', datePicker, '', [
+        'One sheet for Postpone and Due, titled by which date it sets. It starts at the medium detent, floating, with the task visible behind it.',
+        'At the top is the fuzzy field from §12. Below it are four shortcuts, the same as in the context menu, each showing its date. Then a Monday-first calendar with dots on days that already have tasks.',
+        '✓ takes the selected day. “Clear Date” unsets it, which should be as easy as setting it (§12). With both dates cleared the task moves to Someday.',
+        'Remind uses the same sheet, with a time row under the calendar that defaults to 09:00 (§5.3).']],
+      ['Typing a date', dateTyping, '', [
+        'Typing turns the calendar into suggestions, as on the Mac. The date sits on the right in a lighter colour. When a phrase has two readings both are offered, the likelier first (§12.1).',
+        'The return key reads <b>Set</b> and takes the highlighted line. Input that matches nothing says “No matching date” and never guesses.']],
+      ['Quick add', quickAdd, '', [
+        'The + button, the widget\'s + and the Home Screen quick action all open this card above the keyboard. The new task goes to the top of the global order (§4.4). From Today it is postponed to today unless the title says otherwise.',
+        'The title is read as you type. A date phrase from §12.1 and <code>#tag</code> are tinted in place and become chips. Tap a chip to drop it, and the words stay in the title.',
+        'The Due, Remind and Steps chips add the rest without leaving the card. Return saves and opens a fresh card, so several tasks can be added in a row. Pull down to close.']],
+      ['Tags', tagPicker, '', [
+        'Multi-select over the tag registry (§7), each tag in its colour with its open count. Typing a name that does not exist offers “Create #…” at the top.',
+        'Rename, recolour and delete are swipe actions here and in the Tasks tab. The footer makes the §7 rule visible: deleting a tag never deletes tasks.']],
+    ] },
+  { id: 'lists', title: 'Tasks', intro: 'The second tab is the Mac sidebar\'s Tasks section, reached the way iOS reaches lists.',
+    shots: [
+      ['Tasks', tasksTab, 'grouped', [
+        'Four tiles with counts, using the Mac\'s icons: Upcoming, Someday, Completed and Trash. Below them, the tags, each opening its own filtered list. Archived sits inside Completed, so the tiles stay at four.',
+        'The footer is the sync status in plain words, the same “Saved” as the Mac sidebar (§23). Problems replace it: offline, the server refusing, notifications turned off. Each opens what needs doing.',
+        'The gear opens Settings. The + adds an undated task, which goes to Someday.']],
+      ['Upcoming', upcoming, '', [
+        'Every open task with a date, today\'s and the overdue included, grouped as search results are (§26): Today, a big day number for each of the next six days, a heading for each month of the coming year, then one per year. An empty day stays as a small grey heading so the week keeps its shape.',
+        'Within a heading, the earlier date first, then the global order; the list is read by date, so rows are not dragged here. The right column is the due date, as everywhere. Postponing from here (swipe, menu, sheet) moves the row to its new day.']],
+      ['Completed', completed, '', [
+        'Newest first, under one heading per day, with the completion time on the right where open tasks show the due date (§10.2). Tap the box to reopen a task.',
+        'A repeating task appears once for each logged completion (§8), with when it comes up next. Archived (§18) is the last row and pages the same way.']],
+      ['Trash', trash, '', [
+        'Each row tells how long it has left before the 30-day purge (§10.1). Swipe right to restore. <b>Empty</b> asks for confirmation in an action sheet and cannot be undone. This is the one place where the app says so.']],
+    ] },
+  { id: 'search', title: 'Search and filter', intro: 'The two gestures of §4.5, kept apart as on the Mac: the Search tab looks everywhere, and pulling down on a list filters only that list.',
+    shots: [
+      ['Search', search, '', [
+        'iOS 26 search tab: the tab bar folds into one button and the field moves to the bottom, within thumb reach. The query language is the Mac\'s: bare words, <code>s:</code>, <code>b:</code>, <code>tag:</code>, <code>OR</code>, <code>-</code>.',
+        'Results are grouped as in §26 under the same headings as Upcoming: Today (overdue included and marked), the next six days, months, Someday, and Completed folded at the end. Matches are highlighted.']],
+      ['Search, before typing', searchEmpty, '', [
+        'Before typing, the tab offers recent searches and the tags and fields to narrow by. Tapping one inserts the token, so the query language is learned by using it.']],
+      ['Filter a list', filterSomeday, '', [
+        'Pull down on any list to show its filter field (Mac <code>F</code>). It narrows what is on screen, says how many of how many it shows, and is dropped when you leave the list.',
+        'Tag terms become tokens. The hint below the field points to the Search tab for looking everywhere.']],
+    ] },
+  { id: 'system', title: 'Beyond the app', intro: 'Reminders, widgets, the first launch and settings. These are where a task app on the phone earns its place.',
+    shots: [
+      ['Lock Screen', lock, 'on-wall', [
+        'Reminders are local notifications scheduled by the system (§5.1), so they fire with Orb closed. As on the Mac, the nearest 64 are scheduled, and the window is refilled after every sync, at launch and at midnight.',
+        'Missed reminders older than 24 hours arrive as one summary, never as a pile (§5.2).',
+        'Two Lock Screen widgets: Today\'s count with the next timed and the overdue task, and a ring of what is done today.']],
+      ['Reminder actions', notifExpanded, 'on-wall', [
+        'Long press on a reminder: the task with its steps, so the next step can be read without unlocking. Below are Complete, Remind Me in 1 Hour, Postpone to Tomorrow and Work On.',
+        'Each action is an ordinary edit. It is logged, synced and undoable in the app.']],
+      ['Home Screen', homeWidgets, 'on-wall', [
+        'The interactive Today widget ticks tasks without opening the app. Its + opens quick add. Overdue and due-today use the same colours as in the app.',
+        'The small widget shows what you are working on: the next step and the progress. With nothing marked it shows the next timed task instead.']],
+      ['First launch', setup, '', [
+        'Three promises, then the account. <b>Scan the Code on Your Mac</b> reads a QR code shown by Orb on the Mac (Settings → iPhone) and fills in the tasks account and folder. The password is never in the code: you type it once and it goes into the Keychain.',
+        '<b>Set Up Manually</b> asks for the server, the account and the folder name, which is taken verbatim, as in §1. The notification prompt follows, because reminders that silently never fire are the worst failure (§5.1).']],
+      ['Settings', settings, 'grouped', [
+        'The phone\'s counterpart of the Mac\'s config keys: <code>tasks.keep_completed_in_today</code>, <code>tasks.completed_first_in_today</code> and <code>tasks.archive_after_days</code>. They are kept on this iPhone, just as each Mac keeps its own (§18, §24).',
+        'If notifications are off, that row turns red and says reminders will not fire, and the Tasks tab footer says so too.']],
+    ] },
+];
+
+const PROPOSALS = new Set(['First launch']);
+function render() {
+  const theme = document.querySelector('#theme .on').dataset.v;
+  document.body.classList.toggle('page-light', theme === 'light');
+  document.getElementById('jump').innerHTML = AREAS.map((a) => `<a href="#${a.id}">${a.title}</a>`).join('');
+  document.getElementById('areas').innerHTML = AREAS.map((a) => `<section class="area" id="${a.id}"><h2>${a.title}</h2><p>${a.intro}</p>
+    <div class="shots">${a.shots.map(([title, fn, cls, notes]) => `<figure class="${theme}">${phone(fn(), cls)}
+      <figcaption><b>${title}${PROPOSALS.has(title) ? '<span class="tagp">Needs Mac support</span>' : ''}</b>${notes.map((n) => `<p class="note">${n}</p>`).join('')}</figcaption></figure>`).join('')}</div></section>`).join('');
+}
+document.getElementById('theme').addEventListener('click', (e) => {
+  if (!e.target.dataset.v) return;
+  document.querySelectorAll('#theme button').forEach((b) => b.classList.toggle('on', b === e.target));
+  render();
+});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+[
+  {
+    "classes": "row chat-row unread cursor",
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(255, 255, 255)",
+        "weight": "400"
+      },
+      {
+        "classes": "from",
+        "text": "Lukas Meier",
+        "color": "rgb(255, 255, 255)",
+        "weight": "400"
+      },
+      {
+        "classes": "subject",
+        "text": "DirectCan you have a quick look at the PR? The sync test is red again.",
+        "color": "rgb(255, 255, 255)",
+        "weight": "400"
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgba(255, 255, 255, 0.85)",
+        "weight": "400"
+      },
+      {
+        "classes": "date",
+        "text": "Aug 07 12:41",
+        "color": "rgba(255, 255, 255, 0.85)",
+        "weight": "400"
+      }
+    ]
+  },
+  {
+    "classes": "row chat-row unread",
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "weight": "400"
+      },
+      {
+        "classes": "from",
+        "text": "Sara Brunner",
+        "color": "rgb(200, 206, 232)",
+        "weight": "400"
+      },
+      {
+        "classes": "subject",
+        "text": "#orb-devRelease 0.9 — what is still missing?3@sam the notarisation step fails on CI, see the log",
+        "color": "rgb(200, 206, 232)",
+        "weight": "400"
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "weight": "400"
+      },
+      {
+        "classes": "date",
+        "text": "Aug 07 12:20",
+        "color": "rgb(154, 161, 194)",
+        "weight": "400"
+      }
+    ]
+  },
+  {
+    "classes": "row chat-row",
+    "cells": [
+      {
+        "classes": "status",
+        "text": "",
+        "color": "rgb(200, 206, 232)",
+        "weight": "400"
+      },
+      {
+        "classes": "from",
+        "text": "Daniel Rossi",
+        "color": "rgb(200, 206, 232)",
+        "weight": "400"
+      },
+      {
+        "classes": "subject",
+        "text": "#supportCustomer cannot sign in after the update4They are on Safari 17, does that ring a bell?",
+        "color": "rgb(200, 206, 232)",
+        "weight": "400"
+      },
+      {
+        "classes": "meta",
+        "text": "",
+        "color": "rgb(138, 145, 184)",
+        "weight": "400"
+      },
+      {
+        "classes": "date",
+        "text": "Aug 07 11:05",
+        "color": "rgb(138, 145, 184)",
+        "weight": "400"
+      }
+    ]
+  }
+]

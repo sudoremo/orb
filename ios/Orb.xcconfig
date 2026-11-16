@@ -1,0 +1,12 @@
+// The identity Orb is signed and grouped under. The bundle IDs and the App
+// Group (group.<prefix>.orb) all derive from the prefix. Set your own team,
+// and your own prefix if com.sudoremo is not your team's, in Local.xcconfig
+// beside this file (ignored by git), so that `xcodegen generate` keeps them:
+//
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   ORB_BUNDLE_PREFIX = com.example
+
+ORB_BUNDLE_PREFIX = com.sudoremo
+CODE_SIGN_STYLE = Automatic
+
+#include? "Local.xcconfig"

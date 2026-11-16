@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orb — Working through tracker mail: concepts</title>
+<!--
+  Concepts, not the shipped UI: three ways to work through a morning of
+  issue-tracker notifications. The tokens and the hybrid look are copied from
+  main-window.html so the concepts read as Orb. A is implemented (main-window.html
+  shows it as shipped); B and C are not, see docs/conversation-ideas.md.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: #e9eaee; min-height: 100vh;
+    background:
+      radial-gradient(55vw 40vw at 5% 0%, #31407e 0, transparent 65%),
+      radial-gradient(45vw 35vw at 100% 25%, #6a2a4e 0, transparent 62%),
+      radial-gradient(60vw 45vw at 50% 110%, #0f5c4d 0, transparent 60%),
+      #0b0c14;
+    background-attachment: fixed; -webkit-font-smoothing: antialiased;
+  }
+  body.page-light {
+    color: #1d1e22;
+    background:
+      radial-gradient(55vw 40vw at 5% 0%, #c3cff8 0, transparent 65%),
+      radial-gradient(45vw 35vw at 100% 25%, #f6cddd 0, transparent 62%),
+      radial-gradient(60vw 45vw at 50% 110%, #bfeadb 0, transparent 60%),
+      #eef0f6;
+    background-attachment: fixed;
+  }
+
+  /* ---------- Page controls ---------- */
+  .ctl { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; width: 1280px; margin: 0 auto; padding: 26px 0 18px; }
+  .ctl h1 { font-size: 15px; font-weight: 600; margin: 0 auto 0 0; letter-spacing: -.01em; }
+  .ctl h1 span { opacity: .55; font-weight: 400; }
+  .seg { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(255,255,255,.08); }
+  .page-light .seg { background: rgba(0,0,0,.06); }
+  .seg button { font: inherit; font-size: 12px; color: inherit; border: 0; background: none; padding: 4px 11px; border-radius: 6px; cursor: pointer; opacity: .7; white-space: nowrap; }
+  .seg button.on { background: rgba(255,255,255,.18); opacity: 1; }
+  .page-light .seg button.on { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .states { flex-basis: 100%; display: flex; align-items: center; gap: 10px; }
+  .states .sep { opacity: .35; }
+  .ctl .keys { font: 11px ui-monospace, "SF Mono", Menlo, monospace; opacity: .5; }
+
+  .stage { width: 1280px; margin: 0 auto; }
+  .notes { width: 1280px; margin: 26px auto 60px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; font-size: 13px; }
+  .notes h3 { font-size: 12px; font-weight: 600; margin: 0 0 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
+  .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { margin: 0 0 6px; opacity: .88; }
+  .notes p { margin: 0 0 10px; opacity: .88; }
+  .notes .pro li::marker { content: "+  "; color: #5ec48c; font-weight: 700; }
+  .notes .con li::marker { content: "−  "; color: #f0726b; font-weight: 700; }
+  .notes pre { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: rgba(0,0,0,.28); font: 11.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre; overflow: auto; }
+  .page-light .notes pre { background: rgba(255,255,255,.7); }
+  .notes code { font: 11.5px ui-monospace, "SF Mono", Menlo, monospace; }
+  .verdict { width: 1280px; margin: -30px auto 70px; padding: 22px 28px; border-radius: 12px; background: rgba(255,255,255,.06); }
+  .page-light .verdict { background: rgba(255,255,255,.6); }
+  .verdict h3 { margin: 0 0 10px; font-size: 13px; }
+  .verdict table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  .verdict th, .verdict td { text-align: left; padding: 6px 10px; border-bottom: 1px solid rgba(127,127,127,.2); vertical-align: top; }
+  .verdict th { font-weight: 600; opacity: .7; }
+
+  /* ---------- Window and tokens ---------- */
+  .win {
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+    --row-pad-l: 10px; --row-pad-r: 16px; --status-w: 18px; --col-gap: 10px;
+    --text-x: calc(var(--row-pad-l) + var(--status-w) + var(--col-gap));
+    --sb-w: 224px; --sb-top: 44px; --tb-h: 40px; --st-h: 26px; --row-h: 24px; --sec-h: 30px;
+    --cols: var(--status-w) minmax(0, 1fr) auto 76px;
+    position: relative; width: 1280px; height: 800px; border-radius: 12px; overflow: hidden;
+    display: grid; grid-template-columns: var(--sb-w) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+    font-family: var(--font); font-size: 13px; color: var(--fg);
+    box-shadow: 0 30px 80px rgba(0,0,0,.45), 0 0 0 .5px rgba(0,0,0,.6);
+  }
+  .win::after { content: ""; position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 1px var(--frame); }
+  .win.dark {
+    --sb-bg: rgba(34, 35, 42, .64); --pane: #1c1d21; --line: rgba(255,255,255,.075); --frame: rgba(255,255,255,.1);
+    --fg: #e7e8eb; --fg2: #a2a5ad; --fg3: #888b93; --accent: #6f8cff; --accent-fg: #fff; --accent-soft: rgba(111,140,255,.15);
+    --cursor-fill: #4060c0; --sb-active: rgba(255,255,255,.1); --chip: rgba(255,255,255,.07); --menu-bg: rgba(44, 45, 52, .92);
+    --warn: #e7b04c; --danger: #f0726b; --ok: #5ec48c; --kbd: rgba(255,255,255,.08); --card: rgba(255,255,255,.03);
+    color-scheme: dark;
+  }
+  .win.light {
+    --sb-bg: rgba(236, 237, 242, .7); --pane: #ffffff; --line: rgba(0,0,0,.075); --frame: rgba(0,0,0,.12);
+    --fg: #1c1d21; --fg2: #5c5f68; --fg3: #6f727a; --accent: #3b64f1; --accent-fg: #fff; --accent-soft: rgba(59,100,241,.1);
+    --cursor-fill: #335ce1; --sb-active: rgba(0,0,0,.075); --chip: rgba(0,0,0,.05); --menu-bg: rgba(246, 246, 249, .95);
+    --warn: #976410; --danger: #d23c35; --ok: #1b7a45; --kbd: rgba(0,0,0,.06); --card: rgba(0,0,0,.018);
+    color-scheme: light;
+  }
+  .sb { position: relative; background: var(--sb-bg); -webkit-backdrop-filter: blur(40px) saturate(1.7); backdrop-filter: blur(40px) saturate(1.7);
+        border-right: 1px solid var(--line); padding: var(--sb-top) 10px 12px; overflow: hidden; }
+  .lights { position: absolute; top: 14px; left: 16px; display: flex; gap: 8px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.25); }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .main { position: relative; background: var(--pane); display: grid; grid-template-rows: var(--tb-h) minmax(0, 1fr) var(--st-h); min-width: 0; }
+  .tb { display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--line); min-width: 0; }
+  .tb-t { font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+  .tb-s { color: var(--fg3); white-space: nowrap; }
+  .tb-sp { flex: 1; }
+  .sort { position: relative; }
+  .sortbtn { font: inherit; font-size: 12px; color: var(--fg2); background: none; border: 0; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border-radius: 6px; }
+  .sortbtn b { font-weight: 600; color: var(--fg); }
+  .sort.open .sortbtn, .sortbtn.lit { background: var(--chip); color: var(--fg); }
+  .sortbtn .ic { width: 13px; height: 13px; color: var(--fg3); }
+  .menu { position: absolute; top: 31px; right: 0; z-index: 10; width: 268px; padding: 5px; border-radius: 9px; background: var(--menu-bg); color: var(--fg); font-size: 13px;
+          -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8);
+          box-shadow: 0 12px 34px rgba(0,0,0,.32), 0 0 0 .5px var(--frame); }
+  .menu .mh { padding: 5px 9px 3px; font-size: 11px; font-weight: 600; color: var(--fg3); }
+  .menu .mi { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 9px; border-radius: 5px; white-space: nowrap; }
+  .menu .mi.on { background: var(--accent); color: var(--accent-fg); }
+  .menu .mi.on * { color: inherit !important; }
+  .menu .mi .ck { width: 12px; }
+  .menu .mi .d { color: var(--fg3); font-size: 11.5px; }
+  .menu .mi kbd { margin-left: auto; }
+  .menu hr { border: 0; height: 1px; background: var(--line); margin: 5px 8px; }
+  .search { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 8px 0 9px; width: 200px; border-radius: 7px; background: var(--chip); color: var(--fg3); }
+  .search .ic { width: 13px; height: 13px; }
+  kbd { font: 10.5px/1 var(--mono); color: var(--fg2); background: var(--kbd); border-radius: 4px; padding: 3px 5px; min-width: 16px; text-align: center; display: inline-block; }
+
+  .panes { display: grid; min-height: 0; }
+  .panes.v { grid-template-rows: 50% minmax(0, 1fr); }
+  .panes.h { grid-template-columns: 470px minmax(0, 1fr); }
+  .list, .reader { position: relative; overflow: hidden; min-width: 0; }
+  .list { padding: 4px 0; }
+  .panes.v .list { border-bottom: 1px solid var(--line); }
+  .panes.h .list { border-right: 1px solid var(--line); }
+  .panes.h { --cols: var(--status-w) minmax(0, 1fr) auto 70px; }
+  .more::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 40px; pointer-events: none; background: linear-gradient(transparent, var(--pane)); }
+
+  .st { display: flex; align-items: center; gap: 14px; padding: 0 14px; border-top: 1px solid var(--line); font: 11px var(--mono); color: var(--fg3); white-space: nowrap; min-width: 0; }
+  .st-msg { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; }
+  .st kbd { font-size: 10px; padding: 2px 4px; }
+  .st-sp { flex: 1; }
+  .st .cmd { color: var(--fg); }
+
+  .ic { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .sbi .ic .duo { stroke: var(--duo, var(--accent)); }
+
+  /* ---------- Sidebar ---------- */
+  .sbg { display: flex; align-items: center; gap: 6px; margin: 14px 8px 4px; font-size: 10.5px; font-weight: 600; color: var(--fg3); text-transform: uppercase; letter-spacing: .06em; }
+  .sbi { display: flex; align-items: center; gap: 9px; height: 28px; padding: 0 8px 0 calc(8px + var(--d, 0) * 16px); border-radius: 6px; color: var(--fg); white-space: nowrap; }
+  .sbi .ic { color: var(--fg3); }
+  .sbi.on { background: var(--sb-active); }
+  .sbi.on .ic { color: var(--fg); }
+  .sbi.today .ic { --duo: var(--warn); }
+  .sbi-l { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .sbi-n { font: 11px var(--mono); color: var(--fg3); }
+
+  /* ---------- Rows ---------- */
+  .row, .sec { display: grid; align-items: center; column-gap: var(--col-gap); grid-template-columns: var(--cols); height: var(--row-h);
+               padding: 0 var(--row-pad-r) 0 var(--row-pad-l); white-space: nowrap; position: relative; }
+  .row.two { height: 40px; align-items: start; padding-top: 3px; }
+  .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .c-st { display: flex; justify-content: center; align-items: center; height: 18px; }
+  .c-st .u { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .c-from { color: var(--fg); }
+  .c-subj { color: var(--fg2); }
+  .c-subj .s { color: var(--fg); }
+  .c-subj .snip { color: var(--fg3); margin-left: 8px; }
+  .c-subj .last { display: block; color: var(--fg3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  .c-subj .last b { color: var(--fg2); font-weight: 500; }
+  .c-meta { display: flex; gap: 5px; align-items: center; justify-content: flex-end; }
+  .c-date { font: 11.5px var(--mono); color: var(--fg3); text-align: right; }
+  .row.unread .c-from { font-weight: 600; }
+  .row.unread .c-subj .s { font-weight: 500; }
+  .row.unread .c-date { color: var(--fg2); }
+  .row.dim .c-from, .row.dim .c-subj { opacity: .55; }
+  .thr { display: inline-block; font: 10.5px/15px var(--mono); color: var(--fg3); padding: 0 5px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); margin-left: 7px; vertical-align: 1px; }
+  .thr .un { color: var(--accent); }
+  .tree { display: inline-block; margin: 0 6px 0 calc(var(--d, 0) * 14px); color: var(--fg3); font: 11px var(--mono); }
+  .hl { font-size: 10.5px; line-height: 16px; padding: 0 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 500; white-space: nowrap; }
+  .hl.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+  .hl.danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
+  .hl.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+  .hl.muted { color: var(--fg3); background: var(--chip); }
+  .row.cursor { background: var(--cursor-fill); --fg: var(--accent-fg); --fg2: rgba(255,255,255,.85); --fg3: rgba(255,255,255,.8); --accent: var(--accent-fg); --ok: var(--accent-fg); --danger: var(--accent-fg); --warn: var(--accent-fg); color: var(--fg); }
+  .row.soft { background: var(--accent-soft); }
+
+  /* A group's heading in the list: the key's label, its counts, and a caret. */
+  .sec { height: 30px; margin-top: 4px; color: var(--fg); font-size: 12.5px; }
+  .sec .sec-t { grid-column: 2 / -1; display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .sec .car { width: 11px; height: 11px; color: var(--fg3); }
+  .sec.shut .car { transform: rotate(-90deg); }
+  .sec .k { font: 600 11.5px var(--mono); color: var(--accent); }
+  .sec .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .sec .n { font: 11px var(--mono); color: var(--fg3); white-space: nowrap; }
+  .sec .n .un { color: var(--accent); }
+  .sec .sp { flex: 1; }
+  .sec.cursor { background: var(--cursor-fill); --fg: #fff; --fg3: rgba(255,255,255,.8); --accent: #fff; --ok: #fff; --danger: #fff; --warn: #fff; color: #fff; }
+  .sec + .row, .sec + .row + .row { }
+  .in { --pad: 18px; }
+  .in .c-from { padding-left: 18px; }
+
+  /* ---------- Reader ---------- */
+  .rd { padding: 20px 24px 22px 24px; }
+  .h-subj { font-size: 17px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+  .h-sub { margin-top: 6px; display: flex; gap: 8px; align-items: center; color: var(--fg3); font-size: 12px; flex-wrap: wrap; }
+  .rd-body { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13.5px; line-height: 1.6; }
+  .rd-body p { margin: 0 0 12px; }
+
+  /* A conversation in the reader: one card per message, oldest first. */
+  .stack { margin-top: 16px; display: grid; gap: 6px; }
+  .m { border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line); background: var(--card); }
+  .m .mh { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 12px; white-space: nowrap; }
+  .m .mh .who { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .m .mh .who .pv { font-weight: 400; color: var(--fg3); margin-left: 8px; }
+  .m .mh .at { font: 11.5px var(--mono); color: var(--fg3); }
+  .m .mh .u { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .m.shut .mh .who { font-weight: 400; color: var(--fg2); }
+  .m .mb { padding: 0 12px 10px 34px; font-size: 13px; line-height: 1.55; color: var(--fg); }
+  .m .mb p { margin: 0 0 8px; }
+  .m .mb .q { color: var(--fg3); }
+  .m.cur { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .m.cur .mh .at::after { content: " ◂"; color: var(--accent); }
+  .fold { padding: 5px 12px; color: var(--fg3); font-size: 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px dashed var(--line); border: 1px dashed var(--line); }
+  .facts { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--fg3); }
+  .facts .ar { font-family: var(--mono); }
+  .endbar { margin-top: 12px; padding: 9px 12px; border-radius: 8px; background: var(--chip); color: var(--fg2); font-size: 12px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .endbar kbd { margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div class="ctl">
+  <h1>Orb <span>· working through tracker mail — concepts</span></h1>
+  <div class="seg" id="theme"><button data-val="dark" class="on">Dark</button><button data-val="light">Light</button></div>
+  <span class="keys">1 2 3 · ← →</span>
+  <nav class="states"><div class="seg" id="concepts"></div><span class="sep">›</span><div class="seg" id="views"></div></nav>
+</div>
+
+<div class="stage"><div class="win dark" id="win"></div></div>
+<div class="notes" id="notes"></div>
+
+<section class="verdict" id="verdict">
+  <h3>Side by side</h3>
+  <table>
+    <tr><th></th><th>A · Conversation reader</th><th>B · Group by</th><th>C · Thread keys</th></tr>
+    <tr><td>What it fixes</td><td>Reading a conversation and acting on it as one</td><td>Seeing the inbox by any key, not only by thread</td><td>Conversations the headers fail to join</td></tr>
+    <tr><td>Config needed for the tracker case</td><td>None — the References already join the mails</td><td>One <code>groupings</code> entry</td><td>One <code>thread_keys</code> entry</td></tr>
+    <tr><td>Helps beyond trackers</td><td>Every reply chain, every mailing list</td><td>Sender, list, team, severity, day</td><td>Tools that send no References (some CI, some ticket systems)</td></tr>
+    <tr><td>New concepts for the user</td><td>None; <code>zt</code> gets a better reader</td><td>A second kind of grouping beside conversations</td><td>None visible; a config key</td></tr>
+    <tr><td>Cost</td><td>Medium: reader stack, lazy bodies, whole-thread actions, iOS parity</td><td>High: a stored group key per message, a sectioned paged list, group actions, config, menu</td><td>Low: one rule type, a re-thread on config change</td></tr>
+    <tr><td>Verdict</td><td><b>Do first.</b></td><td>Later, if a non-thread grouping is still missed</td><td>Only when a real case appears</td></tr>
+  </table>
+</section>
+
+<script>
+const P = {
+  inbox: '<path d="M3 13h5l1.5 2.5h5L16 13h5"/><path class="duo" d="M5.5 5h13L21 13v6H3v-6z"/>',
+  sun: '<circle class="duo" cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  folder: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/>',
+  archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path class="duo" d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M10 12h4"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4z"/><path class="duo" d="M22 2 11 13"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
+  layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
+};
+const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24">${P[n]}</svg>`;
+
+/* ---------- Sample mail: a morning of tracker notifications and some ordinary mail ---------- */
+// Tracker conversations. `msgs`: [from, time, unread, preview, body?]
+const ISSUES = {
+  412: {
+    title: 'Import of supplier invoices stops at row 5000', team: 'Finance', labels: [['P1', 'danger'], ['resolved', 'ok']],
+    msgs: [
+      ['Lea Brunner', 'Yest 16:20', false, 'Opened: The import of supplier invoices stops at row 5000 without an error message.'],
+      ['Sara Vogt', 'Yest 17:05', false, 'Can reproduce with the attached file; the log ends mid-batch.'],
+      ['Tracker', '22:14', true, 'Severity changed from 2 to 1.'],
+      ['Marc Huber', '06:50', true, 'Found it: the batch limit was hard-coded to 5000.', ['Found it: the importer still had the batch limit hard-coded to 5000 from the old version, and it swallows the error the database raises after that.', 'The fix is in review. I would like to ship it together with the logging change so the next failure says what went wrong.']],
+      ['Marc Huber', '07:30', true, 'Fixed in 8.0.3, deployed to production. Lea, please re-run yesterday’s import.', ['Fixed in 8.0.3, deployed to production at 07:25.', 'Lea, please re-run yesterday’s import; it picks up where it stopped.']],
+      ['Tracker', '07:42', true, 'Status changed from In progress to Resolved.'],
+    ],
+  },
+  455: { title: 'Typo in the German offer template', team: 'Sales', labels: [['resolved', 'ok']],
+    msgs: [['Nina Graf', '06:40', true, 'The offer says “Angebott”.'], ['Nina Graf', '07:10', true, 'Corrected, thanks.']] },
+  388: { title: 'Password reset link expires too early', team: 'Security', labels: [['P2', 'warn'], ['mentioned', '']],
+    msgs: [['Tom Meier', 'Yest 18:02', false, 'Customers report the link is dead after ten minutes.'], ['Tracker', '05:58', true, 'Assigned to Security.'], ['Tom Meier', '06:31', true, 'Can you check the token TTL? It should be 24 h.']] },
+  301: { title: 'Nightly export misses archived customers', team: 'Finance', labels: [['P3', 'muted']],
+    msgs: [['Lea Brunner', 'Yest 09:12', false, 'Archived customers are missing in the CSV.'], ['Sara Vogt', 'Yest 11:40', false, 'Probably the default scope.'], ['Tracker', 'Yest 15:03', false, 'Severity changed from 2 to 3.'], ['Lea Brunner', '05:47', true, 'Reproduced on staging.']] },
+  211: { title: 'Audit log shows the wrong user after a merge', team: 'Security', labels: [['P2', 'warn']],
+    msgs: [['Jonas Rossi', 'Mon 14:10', false, 'After merging two contacts the audit log names the admin.'], ['Jonas Rossi', '05:20', true, 'Still open, any news?']] },
+};
+const OTHER = [
+  ['GitHub', '[orb] CI failed on main', 'Run 4812: cargo clippy failed', '06:58', true],
+  ['Anna Keller', 'Lunch on Thursday?', 'Shall we try the new place by the station?', '06:02', false],
+  ['Swiss Rail', 'Your ticket for Friday', 'Zürich HB → Bern, 07:32', '04:15', false],
+];
+
+const subj = (n) => `#${n} ${ISSUES[n].title}`;
+const unreadOf = (n) => ISSUES[n].msgs.filter((m) => m[2]).length;
+const newest = (n) => ISSUES[n].msgs[ISSUES[n].msgs.length - 1];
+const chips = (labels) => labels.map(([t, c]) => `<span class="hl ${c}">${t}</span>`).join('');
+const people = (n) => [...new Set(ISSUES[n].msgs.map((m) => m[0]).filter((w) => w !== 'Tracker'))];
+
+/* ---------- Window chrome ---------- */
+function sidebar() {
+  const it = (icon, label, n, cls = '', d = 0) => `<div class="sbi ${cls}" style="--d:${d}">${ic(icon)}<span class="sbi-l">${label}</span><span class="sbi-n">${n}</span></div>`;
+  return `<aside class="sb"><div class="lights"><i></i><i></i><i></i></div>
+    ${it('sun', 'Today', 14, 'today')}
+    <div class="sbg">Work</div>
+    ${it('inbox', 'Inbox', 14, 'on')}
+    ${it('send', 'Sent', '')}
+    ${it('archive', 'Archive', '')}
+    ${it('folder', 'Tracker', '', '', 0)}
+    <div class="sbg">Private</div>
+    ${it('inbox', 'Inbox', 2)}
+    ${it('archive', 'Archive', '')}
+  </aside>`;
+}
+function toolbar(extra = '', sub = '24 messages · 14 unread') {
+  return `<div class="tb"><span class="tb-t">Inbox</span><span class="tb-s">${sub}</span><span class="tb-sp"></span>${extra}
+    <span class="search">${ic('search')}<span class="q">Search</span><kbd>/</kbd></span></div>`;
+}
+function win(body, status) {
+  return `${sidebar()}<div class="main">${body}<div class="st">${status}</div></div>`;
+}
+const groupBtn = (label, open = false, menu = '') => `<div class="sort ${open ? 'open' : ''}"><button class="sortbtn ${label !== 'None' ? 'lit' : ''}">${ic('layers')}Group: <b>${label}</b>${ic('chev')}</button>${menu}</div>`;
+
+/* ---------- A · Conversation reader ---------- */
+// The conversation row as today (oldest message's subject), plus the newest member's words underneath.
+function convRow(n, { cursor = false, two = true } = {}) {
+  const [who, at, , text] = newest(n);
+  const u = unreadOf(n), all = ISSUES[n].msgs.length;
+  return `<div class="row ${two ? 'two' : ''} ${u ? 'unread' : ''} ${cursor ? 'cursor' : ''}">
+    <span class="c-st">${u ? '<i class="u"></i>' : ''}</span>
+    <span class="c-subj"><span class="s">${subj(n)}</span><span class="thr">${u ? `<span class="un">${u}</span>/` : ''}${all} ▸</span>
+      ${two ? `<span class="last"><b>${who}:</b> ${text}</span>` : ''}</span>
+    <span class="c-meta">${chips(ISSUES[n].labels)}</span>
+    <span class="c-date">${at}</span></div>`;
+}
+function plainRow([from, s, snip, at, u], two = true) {
+  return `<div class="row ${two ? 'two' : ''} ${u ? 'unread' : ''}">
+    <span class="c-st">${u ? '<i class="u"></i>' : ''}</span>
+    <span class="c-subj"><span class="s">${s}</span>${two ? `<span class="last"><b>${from}:</b> ${snip}</span>` : `<span class="snip">${snip}</span>`}</span>
+    <span class="c-meta"></span><span class="c-date">${at}</span></div>`;
+}
+function convList(cursorOn) {
+  return [
+    convRow(412, { cursor: cursorOn === 412 }), convRow(455), plainRow(OTHER[0]),
+    convRow(388), plainRow(OTHER[1]), convRow(301), convRow(211), plainRow(OTHER[2]),
+  ].join('');
+}
+function stackCard(m, { open, cur }) {
+  const [who, at, u, prev, body] = m;
+  if (!open) return `<div class="m shut ${cur ? 'cur' : ''}"><div class="mh"><span>${u ? '<i class="u"></i>' : ''}</span><span class="who">${who}<span class="pv">${prev}</span></span><span class="at">${at}</span></div></div>`;
+  const paras = (body || [prev]).map((p) => `<p>${p}</p>`).join('');
+  return `<div class="m ${cur ? 'cur' : ''}"><div class="mh"><span>${u ? '<i class="u"></i>' : ''}</span><span class="who">${who}</span><span class="at">${at}</span></div><div class="mb">${paras}</div></div>`;
+}
+function A_reader(n) {
+  const iss = ISSUES[n];
+  const read = iss.msgs.filter((m) => !m[2]);
+  const unread = iss.msgs.filter((m) => m[2]);
+  return `<div class="rd">
+    <div class="h-subj">${subj(n)}</div>
+    <div class="h-sub">${iss.msgs.length} messages · ${people(n).join(', ')} · ${chips(iss.labels)}</div>
+    <div class="stack">
+      <div class="fold">${read.length} read · ${read.map((m) => m[0]).join(', ')} — <kbd>za</kbd> shows them</div>
+      ${unread.map((m, i) => stackCard(m, { open: (m[4] || m[3].length > 70) || i === 0, cur: i === 0 })).join('')}
+    </div>
+    <div class="endbar"><span>End of the conversation</span><span><kbd>e</kbd>archive all ${iss.msgs.length}</span><span><kbd>t</kbd>task from it</span><span><kbd>J</kbd>next conversation</span></div>
+  </div>`;
+}
+
+/* ---------- B · Group by ---------- */
+function groupMenu(sel) {
+  const mi = (label, d, key, on) => `<div class="mi ${on ? 'on' : ''}"><span class="ck">${on ? '✓' : ''}</span>${label}<span class="d">${d}</span>${key ? `<kbd>${key}</kbd>` : ''}</div>`;
+  return `<div class="menu">
+    ${mi('None', '', '', sel === 'None')}
+    ${mi('Conversation', '', 'zt', sel === 'Conversation')}
+    ${mi('Sender', '', '', false)}
+    ${mi('Mailing list', 'List-Id', '', false)}
+    ${mi('Day', '', '', false)}
+    <hr><div class="mh">From the config</div>
+    ${mi('Issue', 'subject  #(\\d+)', 'g1', sel === 'Issue')}
+    ${mi('Team', 'X-Ticket-Team', 'g2', sel === 'Team')}
+    ${mi('Severity', 'X-Ticket-Priority', 'g3', false)}
+  </div>`;
+}
+function secRow(key, title, n, u, labels = [], { shut = false, cursor = false } = {}) {
+  return `<div class="sec ${shut ? 'shut' : ''} ${cursor ? 'cursor' : ''}"><span class="sec-t">${ic('chev', 'car')}
+    ${key ? `<span class="k">${key}</span>` : ''}<span class="t">${title}</span>
+    <span class="n">${u ? `<span class="un">${u}</span>/` : ''}${n}</span><span class="sp"></span>${chips(labels)}</span></div>`;
+}
+function memberRow([who, at, u, text], cursor = false) {
+  return `<div class="row ${u ? 'unread' : 'dim'} ${cursor ? 'cursor' : ''} in">
+    <span class="c-st">${u ? '<i class="u"></i>' : ''}</span>
+    <span class="c-subj"><span class="s">${who}</span><span class="snip">${text}</span></span>
+    <span class="c-meta"></span><span class="c-date">${at}</span></div>`;
+}
+function B_byIssue(cursorAt) {
+  const grp = (n, opts = {}) => secRow(`#${n}`, ISSUES[n].title, ISSUES[n].msgs.length, unreadOf(n), ISSUES[n].labels, opts)
+    + (opts.shut ? '' : ISSUES[n].msgs.map((m, i) => memberRow(m, cursorAt && cursorAt[0] === n && cursorAt[1] === i)).join(''));
+  return grp(412) + grp(455, { shut: true }) + grp(388) + grp(301, { shut: true }) + grp(211, { shut: true })
+    + secRow('', 'Not in a group', 3, 1) + OTHER.map((o) => memberRow([o[0], o[3], o[4], `${o[1]} — ${o[2]}`])).join('');
+}
+function B_byTeam() {
+  const teams = {};
+  for (const [n, iss] of Object.entries(ISSUES)) (teams[iss.team] ||= []).push(Number(n));
+  const out = [];
+  for (const [team, ns] of Object.entries(teams)) {
+    const all = ns.reduce((a, n) => a + ISSUES[n].msgs.length, 0);
+    const un = ns.reduce((a, n) => a + unreadOf(n), 0);
+    out.push(secRow('', team, all, un, [], { cursor: team === 'Security' }));
+    // Inside a group, conversations still fold as they do today.
+    for (const n of ns) out.push(convRow(n, { two: false }));
+  }
+  out.push(secRow('', 'Not in a group', 3, 1));
+  out.push(...OTHER.map((o) => plainRow(o, false)));
+  return out.join('');
+}
+function B_reader() {
+  const m = ISSUES[412].msgs[3];
+  return `<div class="rd"><div class="h-subj">${subj(412)}</div>
+    <div class="h-sub"><b style="color:var(--fg)">${m[0]}</b> · ${m[1]} · ${chips(ISSUES[412].labels)}</div>
+    <div class="rd-body">${m[4].map((p) => `<p>${p}</p>`).join('')}</div></div>`;
+}
+
+/* ---------- C · Thread keys ---------- */
+function C_list(merged) {
+  if (merged) return convRow(412, { cursor: true }) + convRow(455) + plainRow(OTHER[0]) + convRow(388) + plainRow(OTHER[1]) + convRow(301);
+  // By headers alone, the tracker started a new References chain when the issue changed severity:
+  // the same issue shows as two conversations.
+  const iss = ISSUES[412];
+  const half = (msgs, cursor, labels) => {
+    const [who, at, , text] = msgs[msgs.length - 1];
+    const u = msgs.filter((m) => m[2]).length;
+    return `<div class="row two unread ${cursor ? 'cursor' : ''}"><span class="c-st"><i class="u"></i></span>
+      <span class="c-subj"><span class="s">${subj(412)}</span><span class="thr"><span class="un">${u}</span>/${msgs.length} ▸</span><span class="last"><b>${who}:</b> ${text}</span></span>
+      <span class="c-meta">${chips(labels)}</span><span class="c-date">${at}</span></div>`;
+  };
+  return half(iss.msgs.slice(2), true, iss.labels) + convRow(455) + plainRow(OTHER[0]) + convRow(388) + plainRow(OTHER[1]) + half(iss.msgs.slice(0, 2), false, [['P2', 'warn']]) + convRow(301);
+}
+
+/* ---------- Concepts and their states ---------- */
+const CONCEPTS = {
+  A: {
+    name: 'A · Conversation reader',
+    views: {
+      list: {
+        label: 'Inbox as conversations',
+        render: () => win(`${toolbar(groupBtn('Conversation'), '24 messages in 8 conversations · 14 unread')}
+          <div class="panes v"><div class="list more">${convList(412)}</div><div class="reader">${A_reader(412)}</div></div>`,
+          `<span class="st-msg">#412 · 4 of 6 unread</span><span class="st-sp"></span><span><kbd>j</kbd><kbd>k</kbd> conversation</span><span><kbd>Space</kbd> read on</span><span><kbd>e</kbd> archive all</span>`),
+      },
+      read: {
+        label: 'Reading one',
+        render: () => win(`${toolbar(groupBtn('Conversation'), '8 conversations')}
+          <div class="panes h"><div class="list more">${[412, 455, 388, 301, 211].map((n) => convRow(n, { cursor: n === 412, two: true })).join('')}</div>
+          <div class="reader">${A_reader(412)}</div></div>`,
+          `<span class="st-msg">message 3 of 6 · the first unread</span><span class="st-sp"></span><span><kbd>Space</kbd> next message, then next conversation</span><span><kbd>za</kbd> show read ones</span><span><kbd>e</kbd> archive conversation</span>`),
+      },
+    },
+    notes: () => `
+      <div><h3>How it works</h3>
+        <p>Conversations exist already (<code>zt</code>), and the tracker’s <code>References</code> are enough to join an issue’s mails. What is missing is the
+        reading: today a conversation is a row you unfold into more rows, then read message by message.</p>
+        <ul>
+          <li><b>The row says how it ended.</b> A second line shows the newest member’s sender and words; the chips are every highlight rule that matches <i>any</i> member (so “resolved”, from a <code>header:</code> or <code>body</code> rule, shows on the row).</li>
+          <li><b>The reader shows the conversation.</b> Oldest first; read members fold into one line; the reader opens on the first unread one. Short messages (“Severity changed”) stay one line.</li>
+          <li><b><kbd>Space</kbd> reads on</b>: page, next message, and at the end the next conversation — the morning becomes one key.</li>
+          <li><b>Actions take the whole conversation</b> on its row: <code>e</code>, <code>d</code>, <code>u</code>, <code>t</code> act on every member. On a member in the stack, they act on that message.</li>
+        </ul></div>
+      <div class="pro"><h3>Pros</h3><ul>
+        <li>Fits the routine exactly: read oldest to newest, see the resolution at the end, archive six mails with one key.</li>
+        <li>No configuration at all, and nothing tracker-shaped in Orb: every reply chain and mailing list profits.</li>
+        <li>Builds on what is there — threading, highlight rules, the <code>zt</code>/<code>za</code>/<code>gc</code> keys.</li>
+        <li>The pattern users know from Apple Mail, Gmail and Fastmail; nothing new to learn.</li>
+        <li>“Resolved” is visible before opening, through a rule the user already can write.</li>
+      </ul></div>
+      <div class="con"><h3>Cons</h3><ul>
+        <li>Only as good as the headers: a tool that sends no <code>References</code> stays split (see C).</li>
+        <li>The reader gets a second mode: a cursor inside the stack, bodies loaded lazily for long conversations, one HTML frame per expanded member.</li>
+        <li>Acting on a whole conversation must be obvious: archiving a row must not silently take mail the user has not seen — the status line has to say “archived 6”.</li>
+        <li>Conversations stay per folder; mail already archived does not appear in the stack (<code>gc</code> still gathers it).</li>
+        <li>Needs a counterpart on iOS.</li>
+      </ul></div>`,
+  },
+  B: {
+    name: 'B · Group by',
+    views: {
+      menu: {
+        label: 'Choosing a grouping',
+        render: () => win(`${toolbar(groupBtn('Issue', true, groupMenu('Issue')))}
+          <div class="panes v"><div class="list more">${B_byIssue([412, 2])}</div><div class="reader">${B_reader()}</div></div>`,
+          `<span class="cmd">:group-by issue</span><span class="st-sp"></span><span><kbd>zg</kbd> group by…</span>`),
+      },
+      issue: {
+        label: 'By issue',
+        render: () => win(`${toolbar(groupBtn('Issue'))}
+          <div class="panes v"><div class="list more">${B_byIssue([412, 3])}</div><div class="reader">${B_reader()}</div></div>`,
+          `<span class="st-msg">#412 · 4 of 6 unread</span><span class="st-sp"></span><span><kbd>za</kbd> fold group</span><span><kbd>]g</kbd> next group</span><span><kbd>e</kbd> on a heading: archive the group</span>`),
+      },
+      team: {
+        label: 'By team',
+        render: () => win(`${toolbar(groupBtn('Team'))}
+          <div class="panes v"><div class="list more">${B_byTeam()}</div><div class="reader">${A_reader(388)}</div></div>`,
+          `<span class="st-msg">Security · 5 messages in 2 conversations</span><span class="st-sp"></span><span><kbd>zg</kbd> group by…</span>`),
+      },
+    },
+    notes: () => `
+      <div><h3>How it works</h3>
+        <p>A <i>grouping</i> computes a key for each message and the list shows one section per key, newest activity first, members oldest first. A few are built in;
+        the rest come from the config, with the same pattern-and-capture vocabulary as <code>message_links</code>:</p>
+<pre>groupings:
+  - name: issue
+    from: '*@tracker.example.com'
+    pattern: '#(\\d+)'          # subject, the default
+    label: '#$1'
+  - name: team
+    header: X-Ticket-Team  # the value is the key
+  - name: severity
+    header: X-Ticket-Priority
+    order: ascending
+
+bindings:
+  index_normal:
+    g1: group-by issue</pre>
+        <p>The toolbar menu, <code>zg</code> and <code>:group-by &lt;name&gt;</code> switch it; a folder remembers its grouping as it remembers <code>zt</code>. Conversation becomes one entry of the same menu.</p></div>
+      <div class="pro"><h3>Pros</h3><ul>
+        <li>The most general: any header, any pattern, built-in keys too. “By team” or “by severity” is something no threading can give.</li>
+        <li>Every message stays a row you can see; nothing hides behind a caret.</li>
+        <li>Fits the existing command / menu / binding design and the config style of <code>message_links</code> and highlights.</li>
+        <li>Groups by issue even when the tracker’s headers are poor, so it also covers what C covers.</li>
+      </ul></div>
+      <div class="con"><h3>Cons</h3><ul>
+        <li>Two ideas of “together” — conversations and groups — that must be one menu, not two features fighting over the list (and conversations inside a group, as “By team” shows, are a second level).</li>
+        <li>The list is paged from SQLite; a group must be sortable there, so the key has to be <b>stored</b> per message and recomputed when a rule changes — a schema change and a backfill.</li>
+        <li>A header key needs the header fetched; the highlight machinery does this, but only from the day a rule names it.</li>
+        <li>The tracker case needs configuration before it helps, while A works out of the box.</li>
+        <li>Reading a group is still row by row unless A’s reader comes too — the costliest option solves the reading part least.</li>
+        <li>Today’s mixed timeline and the iOS app would each need their own sectioned rendering.</li>
+      </ul></div>`,
+  },
+  C: {
+    name: 'C · Thread keys',
+    views: {
+      before: {
+        label: 'Headers only',
+        render: () => win(`${toolbar(groupBtn('Conversation'), '24 messages in 9 conversations')}
+          <div class="panes v"><div class="list more">${C_list(false)}</div><div class="reader">${A_reader(412)}</div></div>`,
+          `<span class="st-msg">#412 appears twice: the tracker began a new References chain</span>`),
+      },
+      after: {
+        label: 'With a thread key',
+        render: () => win(`${toolbar(groupBtn('Conversation'), '24 messages in 8 conversations')}
+          <div class="panes v"><div class="list more">${C_list(true)}</div><div class="reader">${A_reader(412)}</div></div>`,
+          `<span class="st-msg">#412 · joined by the thread key “issue”</span>`),
+      },
+    },
+    notes: () => `
+      <div><h3>How it works</h3>
+        <p>No new view. A rule tells threading what makes two messages one conversation when the headers do not:</p>
+<pre>thread_keys:
+  - name: issue
+    from: '*@tracker.example.com'
+    pattern: '#(\\d+)'           # or header: X-Ticket-Id
+    key: 'issue-$1'</pre>
+        <p>Threading still follows <code>In-Reply-To</code> and <code>References</code> first; a message with a key joins the conversation of the oldest message with the same key. <code>zt</code>, <code>za</code>, <code>gc</code> and A’s reader all just work.</p></div>
+      <div class="pro"><h3>Pros</h3><ul>
+        <li>Smallest change: one rule type next to <code>subject_munges</code> and <code>message_links</code>, no UI.</li>
+        <li>Fixes the class of tools that thread badly (no <code>References</code>, a new chain per state change, subjects that change).</li>
+        <li><code>gc</code> could follow a key across folders too, so a new comment finds its issue in the Archive.</li>
+      </ul></div>
+      <div class="con"><h3>Cons</h3><ul>
+        <li>For such a tracker it is probably redundant: its mails carry the whole <code>References</code> chain.</li>
+        <li>Only repairs grouping; the reading and acting stays as today without A.</li>
+        <li>Changing a rule means re-threading every folder it applies to.</li>
+        <li>A too-loose pattern merges unrelated mail silently — <code>:highlights</code>-style debugging output would be needed.</li>
+      </ul></div>`,
+  },
+};
+
+/* ---------- Page state ---------- */
+const state = { concept: 'A', view: 'list', theme: 'dark' };
+function render() {
+  const c = CONCEPTS[state.concept];
+  if (!c.views[state.view]) state.view = Object.keys(c.views)[0];
+  document.getElementById('concepts').innerHTML = Object.entries(CONCEPTS)
+    .map(([k, v]) => `<button data-c="${k}" class="${k === state.concept ? 'on' : ''}">${v.name}</button>`).join('');
+  document.getElementById('views').innerHTML = Object.entries(c.views)
+    .map(([k, v]) => `<button data-v="${k}" class="${k === state.view ? 'on' : ''}">${v.label}</button>`).join('');
+  const w = document.getElementById('win');
+  w.className = `win ${state.theme}`;
+  w.innerHTML = c.views[state.view].render();
+  document.getElementById('notes').innerHTML = c.notes();
+  document.body.classList.toggle('page-light', state.theme === 'light');
+  document.querySelectorAll('#theme button').forEach((b) => b.classList.toggle('on', b.dataset.val === state.theme));
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.c) { state.concept = b.dataset.c; state.view = Object.keys(CONCEPTS[b.dataset.c].views)[0]; }
+  if (b.dataset.v) state.view = b.dataset.v;
+  if (b.dataset.val) state.theme = b.dataset.val;
+  render();
+});
+document.addEventListener('keydown', (e) => {
+  if (['1', '2', '3'].includes(e.key)) { state.concept = 'ABC'[Number(e.key) - 1]; state.view = ''; }
+  const vs = Object.keys(CONCEPTS[state.concept].views);
+  if (e.key === 'ArrowRight') state.view = vs[(vs.indexOf(state.view) + 1) % vs.length];
+  if (e.key === 'ArrowLeft') state.view = vs[(vs.indexOf(state.view) + vs.length - 1) % vs.length];
+  render();
+});
+render();
+</script>
+</body>
+</html>

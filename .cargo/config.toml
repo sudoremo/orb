@@ -1,0 +1,4 @@
+# One target dir for orb-core and the app (app/src-tauri is a workspace of its
+# own): the core and every dependency are built and kept once, not twice.
+[build]
+target-dir = "target"

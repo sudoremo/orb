@@ -1,0 +1,15 @@
+# Built by scripts/build-xcframework.sh and XcodeGen, never committed.
+/OrbKit/OrbFFI.xcframework/
+/OrbKit/Sources/OrbKit/Generated/
+/OrbKit/.build/
+/OrbKit/.swiftpm/
+/Orb.xcodeproj/
+/Orb/Info.plist
+/Orb/Orb.entitlements
+/OrbWidgets/Info.plist
+/OrbWidgets/OrbWidgets.entitlements
+/OrbShare/Info.plist
+/OrbShare/OrbShare.entitlements
+/OrbNotification/Info.plist
+/Local.xcconfig
+/build/

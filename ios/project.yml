@@ -1,0 +1,166 @@
+# The Xcode project is generated from this file: `xcodegen` in ios/.
+name: Orb
+options:
+  bundleIdPrefix: com.sudoremo
+configFiles:
+  Debug: Orb.xcconfig
+  Release: Orb.xcconfig
+  deploymentTarget:
+    iOS: "26.1"
+  createIntermediateGroups: true
+packages:
+  OrbKit:
+    path: OrbKit
+targets:
+  Orb:
+    type: application
+    platform: iOS
+    sources:
+      - Orb
+      - Shared
+      # The desktop's Icon Composer document, compiled for iOS by actool:
+      # one source for the icon on both platforms.
+      - path: ../app/src-tauri/icons/Orb.icon
+        buildPhase: resources
+    dependencies:
+      - package: OrbKit
+      - target: OrbWidgets
+      - target: OrbShare
+      - target: OrbNotification
+    entitlements:
+      path: Orb/Orb.entitlements
+      properties:
+        com.apple.security.application-groups: [group.$(ORB_BUNDLE_PREFIX).orb]
+    info:
+      path: Orb/Info.plist
+      properties:
+        UIBackgroundModes: [fetch]
+        NSCameraUsageDescription: Orb uses the camera to scan the setup code Orb on your Mac shows.
+        BGTaskSchedulerPermittedIdentifiers: [$(PRODUCT_BUNDLE_IDENTIFIER).refresh]
+        OrbAppGroup: group.$(ORB_BUNDLE_PREFIX).orb
+        UIApplicationShortcutItems:
+          - UIApplicationShortcutItemType: com.sudoremo.orb.new-task
+            UIApplicationShortcutItemTitle: New Task
+            UIApplicationShortcutItemIconSymbolName: plus.circle
+        CFBundleURLTypes:
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
+            CFBundleURLSchemes: [orb]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ORB_BUNDLE_PREFIX).orb
+        ASSETCATALOG_COMPILER_APPICON_NAME: Orb
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Orb
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) ORB_APP"
+  OrbWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [OrbWidgets, Shared]
+    info:
+      path: OrbWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Orb
+        OrbAppGroup: group.$(ORB_BUNDLE_PREFIX).orb
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: OrbWidgets/OrbWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.$(ORB_BUNDLE_PREFIX).orb]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ORB_BUNDLE_PREFIX).orb.widgets
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+  OrbShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - OrbShare
+      - Shared/ShareInbox.swift
+      - Shared/Snapshot.swift
+    info:
+      path: OrbShare/Info.plist
+      properties:
+        CFBundleDisplayName: Orb
+        OrbAppGroup: group.$(ORB_BUNDLE_PREFIX).orb
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsFileWithMaxCount: 5
+              NSExtensionActivationSupportsImageWithMaxCount: 5
+    entitlements:
+      path: OrbShare/OrbShare.entitlements
+      properties:
+        com.apple.security.application-groups: [group.$(ORB_BUNDLE_PREFIX).orb]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ORB_BUNDLE_PREFIX).orb.share
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        # NSItemProvider is not Sendable, and its async loading cannot be
+        # called under Swift 6's checking.
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+  OrbNotification:
+    type: app-extension
+    platform: iOS
+    sources: [OrbNotification]
+    dependencies:
+      # Linked explicitly: the extension's context class comes from it, and in
+      # a debug build the code that imports it sits in a separate dylib.
+      - sdk: UserNotificationsUI.framework
+    info:
+      path: OrbNotification/Info.plist
+      properties:
+        CFBundleDisplayName: Orb
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.content-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationViewController
+          NSExtensionAttributes:
+            UNNotificationExtensionCategory: orb.task
+            UNNotificationExtensionInitialContentSizeRatio: 0.4
+            UNNotificationExtensionDefaultContentHidden: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ORB_BUNDLE_PREFIX).orb.notification
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+  OrbUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [OrbUITests]
+    dependencies:
+      - target: Orb
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        TEST_TARGET_NAME: Orb
+schemes:
+  Orb:
+    build:
+      targets:
+        Orb: all
+    test:
+      targets:
+        - OrbUITests

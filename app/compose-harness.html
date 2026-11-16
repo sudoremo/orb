@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>New message</title>
+    <!--
+      The compose window against a stubbed backend, as harness.html is the
+      mailbox. Neovim cannot start here, so the window falls back to its plain
+      editor. ?identities=2 gives the account a second identity, ?accounts=2
+      adds a second account, ?bcc=1 hands over a draft with a Bcc,
+      ?recipients=1 one with three in To and one in Cc (=dup: Cc holds To's first too), ?files=1
+      one with an attachment, ?saved=1 one saved before, ?tasks=0 leaves the
+      tasks unconfigured. ?warn=1 has the core warn about the draft, and
+      ?answer=cancel answers every dialog with its cancel button. ?new=1 hands over
+      a new message, ?templates=0 leaves the templates folder empty; otherwise it holds two templates and
+      a file that cannot be read.
+
+      Served by `pnpm dev` at /compose-harness.html. Not part of the app bundle.
+    -->
+    <script>
+      const params = new URLSearchParams(location.search);
+      // The core's templates::expand, for the stubbed templates' simple text.
+      const expand = (text) => {
+        const marks = [];
+        const lines = text.split("\n").map((line, index) => {
+          for (const m of line.matchAll(/\{([A-Za-zÀ-ÿ][\w .-]*)\}/g)) {
+            marks.push({ name: m[1], line: index, start: m.index, end: m.index + m[0].length,
+              start16: m.index, end16: m.index + m[0].length });
+          }
+          return line;
+        });
+        return { lines, marks };
+      };
+      const names = (...texts) => [...new Set(texts.flatMap((t) => [...t.matchAll(/\{([A-Za-zÀ-ÿ][\w .-]*)\}/g)].map((m) => m[1])))];
+      const firstName = (to) => (to[0] ?? "").match(/^\s*"?([^"<@\s]+)[^<]*</)?.[1];
+      const suggest = (list, to) => {
+        const first = firstName(to);
+        return first && list.includes("Vorname") ? { Vorname: first } : {};
+      };
+      const TEMPLATES = [
+        { name: "Einladung zum internen Workshop", subject: "Workshop am {Datum}", accounts: ["Personal"],
+          body: "Lieber {Vorname}\n\nFür den Workshop vom {Datum} bitte vorbereiten.\n\n[1] {Webseite}",
+          path: "/tmp/templates/workshop.yml" },
+        { name: "Thanks for the introduction", subject: null, accounts: [],
+          body: "Thanks, {Vorname} — great to meet you.", path: "/tmp/templates/thanks.yml" },
+      ].map((t) => ({ ...t, placeholders: names(t.subject ?? "", t.body), expanded: expand(t.body) }));
+      window.__TAURI_INTERNALS__ = {
+        metadata: {
+          currentWindow: { label: "compose-1" },
+          currentWebview: { windowLabel: "compose-1", label: "compose-1" },
+        },
+        transformCallback: (cb) => {
+          const id = "cb_" + Math.random().toString(36).slice(2);
+          window[id] = cb;
+          return id;
+        },
+        convertFileSrc: (p) => p,
+        invoke: async (cmd, args) => {
+          const mock = (window.__mock = window.__mock || { calls: [] });
+          mock.calls.push([cmd, args]);
+          await new Promise((r) => setTimeout(r, 8));
+          switch (cmd) {
+            case "take_compose_draft":
+              return {
+                account: "Personal",
+                to: params.get("new") ? []
+                  : params.get("recipients") ? ["Sara Brunner <sara@example.com>", "Lukas Meier <lukas@example.com>", "Mia Keller <mia@example.com>"]
+                  : ["Sara Brunner <sara@example.com>"],
+                cc: params.get("recipients") === "dup" ? ["Tom Berger <tom@example.com>", "sara@example.com"]
+                  : params.get("recipients") ? ["Tom Berger <tom@example.com>"] : [],
+                bcc: params.get("bcc") ? ["archive@example.com"] : [],
+                subject: params.get("new") ? "" : "Re: Q4 roadmap",
+                body: params.get("new") ? "" : "Hi Sara,\n\nthanks.\n",
+                attachments: params.get("files") ? ["/tmp/roadmap-comments.pdf"] : [],
+                savedUid: params.get("saved") ? 3 : null,
+                outboxId: params.get("outbox") ? 7 : null,
+              };
+            case "senders":
+              return [
+                { account: "Personal", name: "Personal", from: "Sam Taylor <sam@example.com>", signature: null },
+                ...(params.get("identities") === "2"
+                  ? [{ account: "Personal", name: "Work", from: "Sam Taylor <sam@work.example>", signature: "-- \nSam Taylor" }]
+                  : []),
+                ...(params.get("accounts") === "2"
+                  ? [{ account: "Office", name: "Office", from: "Sam Taylor <sam@office.example>", signature: null }]
+                  : []),
+              ];
+            case "draft_warnings": {
+              const found = params.get("warn")
+                ? [{ kind: "attachment", message: "Mentions an attachment (“anbei”) but has none" }]
+                : [];
+              const { subject, body, placeholders } = args.input;
+              for (const name of placeholders ?? []) {
+                const at = (body ?? "").split("\n").findIndex((l) => !l.startsWith(">") && l.includes(`{${name}}`));
+                if ((subject ?? "").includes(`{${name}}`)) found.push({ kind: "placeholder", placeholder: name, message: `{${name}} is not filled in (subject)` });
+                else if (at >= 0) found.push({ kind: "placeholder", placeholder: name, line: at + 1, message: `{${name}} is not filled in (line ${at + 1})` });
+              }
+              return found;
+            }
+            case "templates":
+              return params.get("templates") === "0"
+                ? { folder: "/tmp/templates", templates: [], problems: [] }
+                : {
+                    folder: "/tmp/templates",
+                    templates: TEMPLATES.filter((t) => !t.accounts.length || t.accounts.includes(args.account))
+                      .map((t) => ({ ...t, suggestions: suggest(t.placeholders, args.to) })),
+                    problems: [{ path: "/tmp/templates/broken.yml", message: "invalid YAML at line 1" }],
+                  };
+            case "use_template": {
+              const t = TEMPLATES.find((t) => t.path === args.path);
+              return { name: t.name, subject: t.subject ? expand(t.subject) : null, body: t.expanded,
+                placeholders: t.placeholders, suggestions: suggest(t.placeholders, args.to) };
+            }
+            case "template_suggestions":
+              return suggest(args.names, args.to);
+            case "plugin:dialog|message": {
+              const [ok, cancel] = args.buttons?.OkCancelCustom ?? ["Ok", "Cancel"];
+              return params.get("answer") === "cancel" ? cancel : ok;
+            }
+            case "identities":
+              return [
+                { name: "Personal", from: "Sam Taylor <sam@example.com>", signature: null },
+                ...(params.get("identities") === "2"
+                  ? [{ name: "Work", from: "Sam Taylor <sam@work.example>", signature: "-- \nSam Taylor" }]
+                  : []),
+              ];
+            case "switch_identity":
+              return args.body;
+            case "bindings":
+              return { compose_normal: null };
+            case "ui_settings":
+              return { look: params.get("look") ?? "hybrid" };
+            case "editor_open":
+              throw "no Neovim in the harness";
+            case "save_draft":
+              if (params.get("savefails")) throw "the server cannot be reached";
+              return 7;
+            case "tasks_configured":
+              return params.get("tasks") !== "0";
+            case "suggest_dates":
+              return [{ date: "2026-08-20", time: null, primary: "Thursday", secondary: "20 Aug" }];
+            case "send_mail":
+              return {
+                sent: true, queued: false, saved_to_sent: true, sent_folder: "Sent", warning: null,
+                follow_up: args.input.follow_up ? { task: { id: 1 } } : null,
+              };
+            default:
+              return null;
+          }
+        },
+      };
+    </script>
+  </head>
+  <body class="compose">
+    <div id="host"></div>
+    <script type="module">
+      // The window's own markup, so the harness cannot drift from it.
+      const html = await (await fetch("/compose.html")).text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      document.getElementById("host").replaceWith(doc.getElementById("compose"));
+      await import("/src/compose.ts");
+    </script>
+  </body>
+</html>
