@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Every check of the iOS side, as CI runs them (.github/workflows/ci.yml).
+# Every check of the iOS side.
 #
 #   scripts/test-ios.sh        the core as iOS builds it, orb-mobile, OrbKit's
-#                              tests and the app built: a few minutes
+#                              tests and the app built: a few minutes, and what
+#                              CI runs (.github/workflows/ci.yml)
 #   scripts/test-ios.sh --ui   the app's UI tests as well: ten minutes and more,
-#                              for a change to the app itself (ios/)
+#                              for a change to the app itself (ios/); local
+#                              only, as they share from Safari and wait for
+#                              notification banners
 #
 # The tests run on simulators of their own, created on first use, because
 # every UI test wipes the app's data: "Orb Tests iPhone", and with

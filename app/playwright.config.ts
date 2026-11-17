@@ -8,9 +8,13 @@ export default defineConfig({
   // The snapshots are computed styles in JSON, the same on every platform.
   snapshotPathTemplate: "{testDir}/__snapshots__/{testFileName}/{arg}{ext}",
   fullyParallel: true,
+  // The hosted macOS runners are slow enough for an interaction to race the
+  // page now and then; a retry there is reported as flaky, not hidden.
+  retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: "http://localhost:1421",
+    trace: "on-first-retry",
     viewport: { width: 1280, height: 800 },
     colorScheme: "dark",
     timezoneId: "Europe/Zurich",

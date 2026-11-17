@@ -146,6 +146,15 @@ jobs:
         working-directory: app
         run: pnpm exec playwright install --with-deps chromium webkit && pnpm test
 
+      # The error context and the trace of every test that failed or retried.
+      - name: Keep the Playwright results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: playwright-results
+          path: app/test-results
+          retention-days: 14
+
       - name: Check formatting
         working-directory: app/src-tauri
         run: cargo fmt -- --check
@@ -159,8 +168,9 @@ jobs:
         run: cargo test
 
   # The iOS side: the core as iOS builds it, orb-mobile, OrbKit's tests on a
-  # simulator and the app built. Its UI tests take ten minutes and more, so
-  # they run on main only.
+  # simulator and the app built. Not the app's UI tests: they share from
+  # Safari and wait for notification banners, which a hosted simulator does
+  # not deliver, so they stay local (scripts/test-ios.sh --ui).
   ios:
     name: iOS
     runs-on: macos-latest
@@ -183,7 +193,7 @@ jobs:
         run: brew install xcodegen
 
       - name: Run the iOS checks
-        run: scripts/test-ios.sh ${{ github.event_name == 'push' && '--ui' || '' }}
+        run: scripts/test-ios.sh
 
   # The one check branch protection needs: green only when every job is.
   ci-success:
