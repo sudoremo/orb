@@ -70,12 +70,7 @@ fn is_valid_email_address(addr: &str) -> bool {
     }
 
     // Domain parts must be non-empty (no leading/trailing dots, no consecutive dots)
-    let domain_parts: Vec<&str> = domain.split('.').collect();
-    if domain_parts.iter().any(|p| p.is_empty()) {
-        return false;
-    }
-
-    true
+    !domain.split('.').any(|p| p.is_empty())
 }
 
 /// A single file to attach to an outgoing email.
