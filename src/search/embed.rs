@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn an_unset_model_path_means_disabled_rather_than_broken() {
-        assert!(model_directory(Some("   ")).is_none() || model_directory(Some("   ")).is_some());
+        assert_eq!(model_directory(Some("   ")), model_directory(None));
         assert_eq!(
             model_directory(Some("~/models/potion")),
             Some(PathBuf::from(
