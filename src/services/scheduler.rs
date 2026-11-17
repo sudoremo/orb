@@ -124,7 +124,9 @@ impl SyncScheduler {
 }
 
 /// Which folders of an account to watch with IDLE: INBOX, then the ones the
-/// configuration marks, in a stable order.
+/// configuration marks, in alphabetical order, as many as the server allows
+/// connections for. The IDLE service evicts beyond that cap, so handing it
+/// more would only open connections to close them again.
 pub fn watched_folders(account: &AccountConfig) -> Vec<String> {
     let mut folders = vec!["INBOX".to_string()];
     let mut marked: Vec<&String> = account
@@ -134,6 +136,19 @@ pub fn watched_folders(account: &AccountConfig) -> Vec<String> {
         .map(|(name, _)| name)
         .collect();
     marked.sort();
+    let room = super::idle::MAX_IDLE_PER_ACCOUNT - folders.len();
+    if marked.len() > room {
+        crate::logger::warn(&format!(
+            "{}: only {room} folders besides INBOX can be watched; not watching {}",
+            account.name,
+            marked[room..]
+                .iter()
+                .map(|name| name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+        marked.truncate(room);
+    }
     folders.extend(marked.into_iter().cloned());
     folders
 }
@@ -471,5 +486,19 @@ mod tests {
             sync_interval(&account),
             Duration::from_secs(DEFAULT_SYNC_INTERVAL_SECONDS)
         );
+    }
+
+    #[test]
+    fn marked_folders_beyond_the_idle_cap_are_left_out() {
+        let account: AccountConfig = serde_saphyr::from_str(
+            "name: Test\nimap_server: imap.example.com\nimap_port: 993\nimap_username: u\n\
+             imap_password_command: echo x\nfrom: t@example.com\n\
+             folders:\n  Work: { watch: true }\n  Archive: { watch: true }\n  \
+             Lists: { watch: true }\n  Builds: { watch: true }\n",
+        )
+        .expect("an account");
+        let watched = watched_folders(&account);
+        assert_eq!(watched.len(), super::super::idle::MAX_IDLE_PER_ACCOUNT);
+        assert_eq!(watched, vec!["INBOX", "Archive", "Builds"]);
     }
 }

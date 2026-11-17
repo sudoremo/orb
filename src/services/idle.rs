@@ -31,7 +31,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 /// Maximum IDLE connections per account
-const MAX_IDLE_PER_ACCOUNT: usize = 3;
+pub(crate) const MAX_IDLE_PER_ACCOUNT: usize = 3;
 
 /// How long one IDLE runs before it is ended and re-issued.
 ///
