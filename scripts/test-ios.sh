@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Every check of the iOS side, run here rather than in CI: macOS runners cost
-# GitHub minutes ten times over.
+# Every check of the iOS side, as CI runs them (.github/workflows/ci.yml).
 #
 #   scripts/test-ios.sh        the core as iOS builds it, orb-mobile, OrbKit's
 #                              tests and the app built: a few minutes

@@ -221,6 +221,34 @@ mailbox reaches:
 cd app && pnpm dev     # then open http://localhost:1420/harness.html?total=200000
 ```
 
+### Releasing
+
+A tag `vX.Y.Z` on GitHub builds the macOS app as a universal binary and
+attaches the DMG to a draft release for the tag (`.github/workflows/release.yml`);
+publish the draft once you have looked at it. The tag has to match the version
+in `app/src-tauri/tauri.conf.json` and `app/src-tauri/Cargo.toml`, so bump
+those first:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The bundle is signed with a Developer ID certificate and notarized when the
+repository holds these secrets, best kept in a GitHub environment named
+`release` whose deployment branches are restricted to `v*` tags:
+
+| Secret | Value |
+|---|---|
+| `APPLE_CERTIFICATE` | The *Developer ID Application* certificate with its private key, exported from Keychain Access as `.p12` and encoded with `openssl base64 -A -in certificate.p12`. |
+| `APPLE_CERTIFICATE_PASSWORD` | The password given when exporting it. |
+| `APPLE_SIGNING_IDENTITY` | Its name, `Developer ID Application: Your Name (TEAMID)`. |
+| `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_KEY_CONTENT` | An App Store Connect API key with the Developer role (Users and Access ▸ Integrations): the issuer ID, the key ID and the contents of the downloaded `.p8` file. Used for notarization; without them the bundle is signed but not notarized. |
+
+Without `APPLE_CERTIFICATE` the workflow still runs and signs the bundle ad
+hoc, so a fork builds without an Apple account. The same workflow run by hand
+(Actions ▸ Release ▸ Run workflow) builds the bundle as a workflow artifact
+without creating a release.
+
 ## Configuration
 
 Orb is configured via a YAML file at **`~/.config/orb/config.yml`**. On a

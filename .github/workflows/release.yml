@@ -1,0 +1,121 @@
+name: Release
+
+# A tag `vX.Y.Z` builds the macOS app as a universal binary, signs and
+# notarizes it when the repository holds the credentials (see "Releasing" in
+# README.md), and attaches the DMG to a draft GitHub release for the tag, to be
+# published by hand. Run by hand (workflow_dispatch) it builds the same bundle
+# and keeps it as a workflow artifact, without touching the releases.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Third-party actions are pinned to a commit, with the tag as a comment;
+# Dependabot (.github/dependabot.yml) moves both together.
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  CARGO_TERM_COLOR: always
+  # A step's `if` cannot read secrets; this can.
+  HAS_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' }}
+
+jobs:
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    timeout-minutes: 120
+    # The signing credentials live in this environment, so GitHub can be told
+    # to release them only to runs on protected `v*` tags, or after approval.
+    environment: release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # The bundle reports the version in tauri.conf.json; a tag that says
+      # something else is a mistake, caught before an hour of building.
+      - name: Check that the tag matches the app's version
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(jq -r .version app/src-tauri/tauri.conf.json)
+          crate=$(sed -nE 's/^version = "(.*)"/\1/p' app/src-tauri/Cargo.toml | head -n1)
+          if [[ "v$version" != "$GITHUB_REF_NAME" || "$crate" != "$version" ]]; then
+            echo "tag $GITHUB_REF_NAME, tauri.conf.json $version, Cargo.toml $crate" >&2
+            exit 1
+          fi
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: app/src-tauri -> ../../target
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          version: 11
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      # Without the certificate the bundle is signed ad hoc, as tauri.conf.json
+      # says, which is what a fork without an Apple account gets. With it, the
+      # Tauri CLI imports the certificate into a keychain of its own on this
+      # runner, signs with it under the hardened runtime, notarizes with the
+      # App Store Connect key and deletes the keychain again.
+      - name: Set up signing and notarization
+        if: env.HAS_CERTIFICATE == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY; do
+            [[ -n "${!name}" ]] || { echo "secret $name is missing" >&2; exit 1; }
+            printf '%s=%s\n' "$name" "${!name}" >> "$GITHUB_ENV"
+          done
+          if [[ -n "$APPLE_API_KEY_CONTENT" ]]; then
+            key="$RUNNER_TEMP/AuthKey_$APPLE_API_KEY.p8"
+            printf '%s\n' "$APPLE_API_KEY_CONTENT" > "$key"
+            printf 'APPLE_API_ISSUER=%s\nAPPLE_API_KEY=%s\nAPPLE_API_KEY_PATH=%s\n' \
+              "$APPLE_API_ISSUER" "$APPLE_API_KEY" "$key" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No App Store Connect key: the bundle is signed but not notarized"
+          fi
+
+      - name: Build the bundle
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app
+          tauriScript: pnpm tauri
+          args: --target universal-apple-darwin
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: ${{ github.ref_type == 'tag' && format('Orb {0}', github.ref_name) || '' }}
+          releaseDraft: true
+          generateReleaseNotes: true
+          # No updater plugin in the app, so no latest.json.
+          uploadUpdaterJson: false
+          uploadWorkflowArtifacts: true

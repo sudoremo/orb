@@ -6,14 +6,27 @@ on:
   pull_request:
     branches: [main]
 
+# Third-party actions are pinned to a commit, with the tag as a comment;
+# Dependabot (.github/dependabot.yml) moves both together.
+
+permissions:
+  contents: read
+
+# A push to a pull request cancels the run of the one before it; on main
+# every run finishes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
   test:
-    name: Test (${{ matrix.os }})
+    name: Core (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -21,23 +34,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           components: rustfmt, clippy
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -66,25 +71,17 @@ jobs:
   docker:
     name: Docker-backed integration tests
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-docker-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-docker-
-            ${{ runner.os }}-cargo-
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
 
       - name: Run the Docker-backed suites
         run: cargo test --test imap_integration --test smtp_integration --test task_sync_integration --test filter_integration --test feed_integration --test task_export_roundtrip -- --ignored
@@ -95,43 +92,36 @@ jobs:
       - name: Run the sync fault tests
         run: cargo test --test sync_faults -- --ignored --test-threads=1
 
-  # Final check that all jobs passed
-  ci-success:
-    name: CI Success
-    needs: [test, docker]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Check all jobs passed
-        run: |
-          if [[ "${{ needs.test.result }}" != "success" || "${{ needs.docker.result }}" != "success" ]]; then
-            echo "One or more jobs failed"
-            exit 1
-          fi
-          echo "All CI jobs passed!"
-
   app:
     name: App (Tauri)
     runs-on: macos-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           components: rustfmt, clippy
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      # app/src-tauri is a workspace of its own; its target dir is the
+      # repository's (.cargo/config.toml).
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          version: 10
+          workspaces: app/src-tauri -> ../../target
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          version: 11
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: app/pnpm-lock.yaml
 
@@ -143,6 +133,12 @@ jobs:
       - name: Build frontend
         working-directory: app
         run: pnpm build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('app/pnpm-lock.yaml') }}
 
       # The harness against its stubbed backend: the list's highlight styles,
       # its roles, the cursor, and Today's tasks and inboxes.
@@ -161,3 +157,48 @@ jobs:
       - name: Run tests
         working-directory: app/src-tauri
         run: cargo test
+
+  # The iOS side: the core as iOS builds it, orb-mobile, OrbKit's tests on a
+  # simulator and the app built. Its UI tests take ten minutes and more, so
+  # they run on main only.
+  ios:
+    name: iOS
+    runs-on: macos-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          components: clippy
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Run the iOS checks
+        run: scripts/test-ios.sh ${{ github.event_name == 'push' && '--ui' || '' }}
+
+  # The one check branch protection needs: green only when every job is.
+  ci-success:
+    name: CI Success
+    needs: [test, docker, app, ios]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if grep -qE 'failure|cancelled|skipped' <<<"$RESULTS"; then
+            echo "One or more jobs did not succeed"
+            exit 1
+          fi
+          echo "All CI jobs passed!"

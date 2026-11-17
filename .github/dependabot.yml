@@ -1,0 +1,11 @@
+# Keeps the commit-pinned actions in .github/workflows current, all of a week's
+# updates in one pull request.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
