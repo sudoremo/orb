@@ -9,7 +9,7 @@
 #
 # Most values can be written bare. Quote a key or a value that begins with
 # ! & * # [ ] { } | > % @ ~ ' " or a backtick, that is - or ? followed by a
-# space, or that contains ": " or " #". Bracketed keys such as <c-r> and bare
+# space, or that contains ": " or " #". Bracketed keys such as <c-s> and bare
 # letters need no quotes.
 
 # Path to the local SQLite cache. Required; ~ is expanded.
@@ -37,13 +37,44 @@ appearance:
   look: hybrid           # hybrid (default), or terminal: monospace, denser rows
 
 # Directory holding the embedding model used by `~` semantic search. Optional;
-# unset means semantic search is off, and exact search is unaffected. The
-# packaged app finds the model inside its own bundle without this key.
+# unset means semantic search is off, unless ORB_EMBEDDING_MODEL in the
+# environment names one. Exact search is unaffected either way.
 embedding_model: ~/.config/orb/model
 
 # Seconds a message must stay on screen before it is marked read. Optional,
 # default 2.0. Moving the cursor cancels it; 0 never marks automatically.
 mark_read_after_seconds: 2.0
+
+# Senders whose HTML mail may load its remote images without asking: full
+# addresses, or domains (with or without a leading @) that cover every address
+# at them and at their subdomains. Optional; everyone else's remote images stay
+# blocked until asked for per message. Stylesheets and fonts are never loaded.
+load_remote_images_from:
+  - newsletter@example.com
+  - shop.example
+
+# Messages whose remote images load without asking, for what a sender alone
+# cannot say: the same conditions as a highlight rule's `when`, at least one.
+# Optional. `name` is optional, `accounts` defaults to every account.
+load_remote_images:
+  - name: Shop newsletter
+    when:
+      list_id: "*.shop.example"
+  - accounts: [Work]
+    when:
+      from: "*@reports.example.com"
+      subject: "Weekly report*"
+
+# What the Dock icon counts. Optional; without it one badge counts the unread
+# mail in every inbox. Up to four badges, one per corner (top right, top left,
+# bottom right, bottom left), each counting the unread mail in `folder`
+# (default INBOX) of `account`, or of every account without one, in `color`
+# (#rrggbb, red by default).
+dock_badges:
+  - account: Personal
+  - account: Work
+    folder: INBOX
+    color: "#0a84ff"
 
 # Where Ctrl+H/J/K/L go once Orb has nothing to move to that way. Optional;
 # without it they stop at Orb's edges. Run with left, right, up or down.
@@ -69,7 +100,8 @@ accounts:
     # Display name, and what the other sections refer to the account by.
     # Required.
   - name: Personal
-    # IMAP server and port; the connection is always TLS. Required.
+    # IMAP server and port. Required; imap_encryption below says how the
+    # connection is secured.
     imap_server: imap.example.com
     imap_port: 993
     # IMAP login. Required.
@@ -94,6 +126,9 @@ accounts:
     imap_auth: password            # or xoauth2: the password command prints a token
     smtp_encryption: starttls      # or tls (port 465); unset, the port decides
     smtp_auth: password            # or xoauth2
+    # How often every synced folder of the account is synced whether or not
+    # the server said anything, in seconds. Optional, default 300.
+    sync_interval_seconds: 300
     # Signature of the account's own address. Optional; the "-- " line that
     # marks it off is added unless the file starts with one.
     signature_file: ~/.config/orb/signature.txt
@@ -154,6 +189,9 @@ accounts:
         show_unread: false
         sort: date_oldest
         threads: true          # open as conversations (default: the account's `threads`)
+      Work:
+        watch: true            # watch with IMAP IDLE too; INBOX always is, and at
+                               # most two others, the first in alphabetical order
       Sent:
         columns: [meta, to, subject, date]  # this folder's own columns
 
@@ -243,7 +281,7 @@ reading:
   # RSS, Atom and JSON feeds whose new items arrive in the reading folder.
   # Optional. `name` is the sender the items show; the feed's title otherwise.
   feeds:
-    - url: https://this-week-in-rust.org/rss.xml
+    - url: https://feeds.example.org/rust.xml
     - url: https://example.com/feed.xml
       name: Example
   # How often each feed is asked for new items. Optional, default 60, at least 5.
@@ -261,8 +299,11 @@ reply:
   signature: below                           # or `above`: before the quote
 
 # -----------------------------------------------------------------------------
-# What the compose window checks before a message is sent. Optional.
+# The compose window. Optional.
 compose:
+  # Where the mail templates live, one YAML file each. Optional, default
+  # ~/.config/orb/templates, beside the config file.
+  templates_dir: ~/.config/orb/templates
   # Words that mention an attachment: own text with one of them and nothing
   # attached is warned about. Each matches at the start of a word, so
   # `attach` finds `attached`; [] turns the check off. The default:
@@ -415,14 +456,23 @@ message_links:
 # -----------------------------------------------------------------------------
 # Key bindings. Optional; each table is merged over the built-in one, so only
 # the keys you change need to be here. Bind a key to noop to switch a default
-# off. Keys are written as a bare character or as a bracketed name: <c-r>,
+# off. Keys are written as a bare character or as a bracketed name: <c-s>,
 # <enter>, <down>, <space>. Commands chain with &&.
 # -----------------------------------------------------------------------------
 
 bindings:
+  # Chains with a name of your own, usable wherever a command is: on a key,
+  # on the command line and in the command palette, under `title`.
+  commands:
+    file-and-next:
+      run: stage-read && mark-move Archive && advance
+      title: File and Move On
+    task-and-file: create-task-from-message && file-and-next   # the short form
+
   # Browsing the message list.
   index_normal:
-    <c-r>: sync
+    <c-s>: sync
+    m: toggle-read
     d: mark-delete
     D: delete-immediate
     "!": toggle-flag
@@ -449,6 +499,14 @@ bindings:
   date_picker:
     <c-t>: today
 
+  # Chat: the list of threads and the conversation, and the composer while it
+  # has the keyboard.
+  chat_normal:
+    a: chat-done
+    m: chat-toggle-read
+  chat_compose:
+    <d-enter>: chat-send
+
   # The compose window, whether the keyboard is in a field or in Neovim:
   # send, save, save-and-close, discard, pick-sender, cycle-identity,
   # follow-up, next-field and prev-field. A key bound here is taken before
@@ -469,8 +527,9 @@ bindings:
   task_detail_terminal: {}
 
 # -----------------------------------------------------------------------------
-# Theme. Optional, defaults shown. Parsed but not used by the app, whose
-# appearance is fixed; see PLAN.md for where this is going.
+# Theme. Optional, defaults shown. The app reads date_format (what
+# list.date_format falls back to) and column_widths; the rest is parsed but
+# not used, the appearance being fixed. See PLAN.md for where this is going.
 # -----------------------------------------------------------------------------
 
 theme:

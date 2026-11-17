@@ -3673,7 +3673,7 @@ reply:
             r"^\[JIRA\] \((\w+-\d+)\) "
         );
 
-        assert_eq!(config.bindings.index_normal["<c-r>"], "sync");
+        assert_eq!(config.bindings.index_normal["<c-s>"], "sync");
         assert_eq!(config.bindings.index_normal["!"], "toggle-flag");
         assert_eq!(config.bindings.index_detail["q"], "back");
         assert_eq!(config.bindings.task_edit["<c-s>"], "accept-edit");

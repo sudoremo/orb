@@ -94,3 +94,23 @@ only when asked, and only against a test account.
   `OrbKit`. A developer's team and bundle prefix go into the git-ignored
   `ios/Local.xcconfig`.
 - `tests/` — Rust integration tests; `tests/common/` the container harness.
+
+## No Real Data
+
+Orb is open source, and everything in this repository is public. Nothing in
+it may identify the people who use or develop it, their employers, or the
+servers, projects and mail they work with:
+
+- Every example, fixture and test is fictional: `example.com`, `example.org`
+  and names made up for the purpose. Never copy an address, a host, a folder
+  name, a subject line, a message or a config from a real mailbox or a real
+  config file into the repository, not even redacted.
+- No personal names, company names, product names of an employer, internal
+  tracker or chat room names, licence keys, tokens or passwords, in code,
+  docs, comments, commit messages or test data.
+- Anything local stays local: personal configs under `.claude/`, personal
+  ignores in `.git/info/exclude`, personal notes in `CLAUDE.local.md`. None of
+  these is committed.
+
+When a real-world case motivates a change, reproduce it with invented data
+before anything is written down.
