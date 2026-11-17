@@ -42,7 +42,7 @@ export const DEFAULT_CHAT_BINDINGS: Record<string, string> = {
   r: "chat-reply",
   i: "chat-reply",
   a: "chat-done",
-  u: "chat-toggle-read",
+  m: "chat-toggle-read",
   t: "chat-create-task",
   "<c-t>": "chat-create-task postpone",
   za: "chat-toggle-fold",
@@ -90,9 +90,10 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   "<enter>": "open-message-detail",
   l: "open-message-detail",
   h: "back",
-  u: "toggle-read",
+  // Read or unread on `m`, as Thunderbird marks it; `u` is vim's undo.
+  m: "toggle-read",
   "!": "toggle-flag",
-  "<c-r>": "sync",
+  "<c-s>": "sync",
   C: "compose",
   r: "reply",
   R: "reply-all",
@@ -200,9 +201,11 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   "<c-j>": "focus-pane down",
   "<c-k>": "focus-pane up",
   "<c-l>": "focus-pane right",
-  // Undo is reachable from every mode on one key, because §10.3 asks for a
-  // single key *immediately afterwards* and the mutation that most wants
-  // taking back is the bulk one made from a mail selection.
+  // Undo on vim's keys and on the platform's, from every mode: §10.3 asks
+  // for a single key *immediately afterwards*, and the mutation that most
+  // wants taking back is the bulk one made from a mail selection.
+  u: "undo",
+  "<c-r>": "redo",
   "<d-z>": "undo",
   "<d-s-z>": "redo",
 };
@@ -246,11 +249,9 @@ export const DEFAULT_TASK_BINDINGS: Record<string, string> = {
   E: "empty-task-trash",
   "<d-up>": "move-task-up",
   "<d-down>": "move-task-down",
-  u: "undo",
-  "<c-y>": "redo",
   "<space>": "select-task",
   "<esc>": "clear-task-selection",
-  "<c-r>": "sync-tasks",
+  "<c-s>": "sync-tasks",
   zg: "toggle-group-by-tag",
   zd: "toggle-due-first",
 };

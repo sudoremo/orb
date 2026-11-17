@@ -1860,7 +1860,7 @@ async function markDone(): Promise<void> {
   await refreshChat();
 }
 
-/** The thread made unread with `u`, which the reader does not mark seen again until left. */
+/** The thread made unread with `m`, which the reader does not mark seen again until left. */
 let keptUnread = "";
 
 /** Mark the threads read, in Orb and on the server — or unread, when all of them are read. */

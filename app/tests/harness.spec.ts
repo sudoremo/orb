@@ -3493,7 +3493,7 @@ test("an empty folder stands alone until a folder with mail is opened", async ({
   await settled(page);
   await page.locator("#folders .sb-row", { hasText: "2025" }).click();
   await expect(page.locator("#list .empty-view h3")).toHaveText("2025 is empty");
-  await expect(page.locator("#list .empty-view kbd")).toHaveText(["C", "⌃r"]);
+  await expect(page.locator("#list .empty-view kbd")).toHaveText(["C", "⌃s"]);
   await expect(page.locator("#reader")).toBeHidden();
   await page.locator("#folders .sb-row", { hasText: "Archive" }).click();
   await expect(page.locator("#list .row.cursor")).toBeVisible();

@@ -2174,11 +2174,7 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::
         .item(&plain("subscribe-folder", "Subscribe")?)
         .item(&plain("unsubscribe-folder", "Unsubscribe")?)
         .separator()
-        .item(&item(
-            "review-pending",
-            "Review Staged Actions",
-            "Shift+CmdOrCtrl+P",
-        )?)
+        .item(&plain("review-pending", "Review Staged Actions")?)
         .item(&item(
             "expunge",
             "Apply Staged Actions in Folder",

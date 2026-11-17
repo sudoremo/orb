@@ -106,7 +106,7 @@ test("a click on a message's line opens it and puts the reader's keys on it", as
 });
 
 test("an action on a conversation's row acts on every message of it", async ({ page }) => {
-  // The harness's `u` unmarks; `gu` reads.
+  // `gu` reads: a sequence, rather than the default `m`, to cover that path too.
   await openConversations(page, "?markread=0&bind=gu:toggle-read");
   await page.keyboard.press("d");
   await expect.poll(async () => (await callsTo(page, "stage_action")).map((a) => a.uids)).toEqual([[0, 1, 2]]);

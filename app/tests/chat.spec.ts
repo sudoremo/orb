@@ -763,12 +763,12 @@ test("an image shows as a preview in its own shape, opens with a click, and is a
   expect(await callsTo(page, "chat_file_preview")).toHaveLength(2);
 });
 
-test("u marks a thread read on the server, and unread again", async ({ page }) => {
+test("m marks a thread read on the server, and unread again", async ({ page }) => {
   await openWaiting(page);
-  await page.keyboard.press("u");
+  await page.keyboard.press("m");
   await expect.poll(() => callsTo(page, "chat_set_read")).toEqual([{ rid: "r-lukas", thread: "", read: true, undo: "mark lukas read" }]);
   await expect(page.locator("#status")).toContainText("Marked read");
-  await page.keyboard.press("u");
+  await page.keyboard.press("m");
   await expect.poll(() => callsTo(page, "chat_set_read")).toHaveLength(2);
   expect((await callsTo(page, "chat_set_read"))[1]).toMatchObject({ rid: "r-lukas", thread: "", read: false });
   await expect(page.locator("#status")).toContainText("Marked unread");
