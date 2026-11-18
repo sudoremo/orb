@@ -141,6 +141,12 @@ Workflow), connect the GitHub repository, and give the workflow:
 - the environment variable `ORB_DEVELOPMENT_TEAM` with your team ID, which the
   script writes to `ios/Local.xcconfig` on the build machine.
 
+Xcode Cloud signs automatically but cannot register bundle identifiers, so all
+four have to exist on your team before the first build: the app, `.share`,
+`.widgets` and `.notification` under your prefix. An archive in Xcode on this
+Mac registers the three that carry an App Group; `.notification` carries none
+and is registered by hand under Identifiers on developer.apple.com.
+
 ## Configuration
 
 Orb reads **`~/.config/orb/config.yml`**. On a launch that finds no such
