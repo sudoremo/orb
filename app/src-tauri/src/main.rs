@@ -314,11 +314,20 @@ async fn log_recent(
 }
 
 /// A line from the window into the log: what the shell cannot time, such as
-/// how long the window took to draw an answer.
+/// how long the window took to draw an answer. One line, and a short one: a
+/// line break in the text would read as a second line somebody else logged.
 #[tauri::command]
 async fn log_frontend(message: String) -> Result<(), OrbError> {
-    orb_core::logger::info(&format!("window: {message}"));
+    orb_core::logger::info(&format!("window: {}", one_log_line(&message)));
     Ok(())
+}
+
+/// `text` as a single log line of at most 500 characters.
+fn one_log_line(text: &str) -> String {
+    text.chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .take(500)
+        .collect()
 }
 
 /// Open the window that shows tasks only, for a second screen beside the
@@ -4924,6 +4933,17 @@ mod tests {
         ] {
             assert!(!runs_rather_than_displays(name), "{name:?}");
         }
+    }
+
+    /// What the window logs is one line, however it was written.
+    #[test]
+    fn a_line_from_the_window_stays_one_line() {
+        assert_eq!(one_log_line("drew in 12ms"), "drew in 12ms");
+        assert_eq!(
+            one_log_line("fine\n2026-01-01 forged: login as root ok\r\n"),
+            "fine 2026-01-01 forged: login as root ok  "
+        );
+        assert_eq!(one_log_line(&"x".repeat(900)).chars().count(), 500);
     }
 
     /// A window shows its own page and nothing else: the same address stays,
