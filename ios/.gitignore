@@ -1,9 +1,12 @@
-# Built by scripts/build-xcframework.sh and XcodeGen, never committed.
+# Built by scripts/build-xcframework.sh and XcodeGen, never committed. The
+# Xcode project itself is committed, because Xcode Cloud reads it from the
+# repository: run `xcodegen generate` after a change to project.yml.
 /OrbKit/OrbFFI.xcframework/
 /OrbKit/Sources/OrbKit/Generated/
 /OrbKit/.build/
 /OrbKit/.swiftpm/
-/Orb.xcodeproj/
+/Orb.xcodeproj/xcuserdata/
+/Orb.xcodeproj/project.xcworkspace/xcuserdata/
 /Orb/Info.plist
 /Orb/Orb.entitlements
 /OrbWidgets/Info.plist

@@ -1,0 +1,950 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		01042A755B5195BBED3B4773 /* CodeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 554C2038F6DF510BAC4E1145 /* CodeScanner.swift */; };
+		06A17F3B40BB6CFB48752A10 /* Dates.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7FA4F4F8D27571D37FB8AF /* Dates.swift */; };
+		0734050CEDB7D7F146BF4CDD /* TasksUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5BB6DFA466AFD5FCB0904D /* TasksUITests.swift */; };
+		09F96E35FE1876F8E8DCE023 /* OrbWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B44C78A23FB7540BB68E6F /* OrbWidgets.swift */; };
+		0CFFA004748A9FC5F0FB69C2 /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5989731E4D38F7AB87C37A8 /* Snapshot.swift */; };
+		1001CF95B20226DCABB8D881 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6678C6F0986D18FC4F34AD /* ShareInbox.swift */; };
+		2124B78AF5C361DC19F29780 /* OrbWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 147CF55CFBFE440C1715CDAF /* OrbWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		308AE0AF05AB77E34CF30D9E /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077535DE8708EA8B34F99E89 /* NotificationViewController.swift */; };
+		3354A85DD138AC050885E412 /* WidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D01624012EB96BAEEA80BED8 /* WidgetViews.swift */; };
+		38234F51A20997DC02C14EB9 /* SetupUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BDD5E3AB3D1BADF31E9B36A /* SetupUITests.swift */; };
+		44699A8E4D14360F03581E60 /* TaskIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE383991BF055ED531F7B97 /* TaskIntents.swift */; };
+		45F2BB994E1BD732A9C9EF5C /* MonthCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBCF0B8A13136A64C72784CB /* MonthCalendar.swift */; };
+		4A0343DB49DB7865BF55F4B6 /* TaskRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC05ECBF4734EA0B16D38D5A /* TaskRow.swift */; };
+		52F9256D35D76E838F7BFE9F /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53F6265F79587F5C24C16EE3 /* ShareViewController.swift */; };
+		5B0DD1A3F5C48E8EADD396F8 /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736DBA5484D040F41AA2060C /* Shortcuts.swift */; };
+		667A125D90F3A4DF303838BC /* OrbApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A0972D6CDFE95DB603154B /* OrbApp.swift */; };
+		7375DFFDA9D1B3E02263A1F1 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6678C6F0986D18FC4F34AD /* ShareInbox.swift */; };
+		75E763B640C01055448DF6D3 /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5989731E4D38F7AB87C37A8 /* Snapshot.swift */; };
+		76F1DCF31D4400905B724119 /* WidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D01624012EB96BAEEA80BED8 /* WidgetViews.swift */; };
+		7C12553C64D64EA4CED70947 /* TaskDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52539E57750B903AB650E2AE /* TaskDetailView.swift */; };
+		87C1211BA848E27C1C473802 /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4AD512EDE4EC9D58D147EDE /* UserNotificationsUI.framework */; };
+		89E470E1D3F9054528B26B1A /* Reminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 051E6A0BD91BC89039A0D265 /* Reminders.swift */; };
+		8A2CC62AA6E2CE2464A66E2D /* OrbNotification.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E04D08ADD61343D306BC170F /* OrbNotification.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		8DD1C752C890FDF0ED9A4656 /* Orb.icon in Resources */ = {isa = PBXBuildFile; fileRef = 11B3E373F4A8C48DE9C6BEEA /* Orb.icon */; };
+		94FD768BB133D19FCDED88E3 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6678C6F0986D18FC4F34AD /* ShareInbox.swift */; };
+		9AABCB5F788360080BB1DDE0 /* TaskListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A1958C6960DB9DFAD69680 /* TaskListView.swift */; };
+		A8E14D7F7B8AEEA5F5921F8E /* TaskIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE383991BF055ED531F7B97 /* TaskIntents.swift */; };
+		A953EEF7CEECAA9224860E4D /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 332BDEC7BFDED29BABB2C1DF /* SetupView.swift */; };
+		AEE5CBAB614207BE6082B3E9 /* ShareUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E49D602A2C12FF74AA8172D4 /* ShareUITests.swift */; };
+		C3E2E85DEFD4C73728344B33 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1CB96AF3ABF3CC7FA147F2A /* AppModel.swift */; };
+		CC6529830903D5A4783BCE5C /* TagEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8A7784C52C2A02362910522 /* TagEditing.swift */; };
+		D425567BD9ED135868FA5423 /* WidgetSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B158FE23A5444ECC84884CE /* WidgetSupport.swift */; };
+		D5DD5925411BFFBD8A473307 /* OrbKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DEE0EB63F740AA39309631E /* OrbKit */; };
+		D69B09EAE829078FAB3C1E7F /* Sheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB0E07E4FC583EA3182FF9A7 /* Sheets.swift */; };
+		E0A9167ADE2A15C4DF5FEDF2 /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5989731E4D38F7AB87C37A8 /* Snapshot.swift */; };
+		E75FF1217E994B2E6E8441DC /* OrbShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47CA2FC2F31E0900182AC16A /* OrbShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EBC1DABAD8F4995E8F69F47B /* Tabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CA8CEBB1C6A3257FEF2897 /* Tabs.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4141D81831A723C21770C2C2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 210DE90D3F9DF35899665A51 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D94F2998D84055B3FD109C0D;
+			remoteInfo = Orb;
+		};
+		71F98F7928E593E59F161BC0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 210DE90D3F9DF35899665A51 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 848F9FB2F8E1F6AAC2E347F0;
+			remoteInfo = OrbWidgets;
+		};
+		C44D71A2ABCB3D7DCC5234B1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 210DE90D3F9DF35899665A51 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 00AF60D01FE17B6C57438DB4;
+			remoteInfo = OrbShare;
+		};
+		CDF3FB6B6D717F8DD552972D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 210DE90D3F9DF35899665A51 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4F9636BF97EC2B4FAE3AE8D7;
+			remoteInfo = OrbNotification;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B204F4258DE42DBFA4886ACE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2124B78AF5C361DC19F29780 /* OrbWidgets.appex in Embed Foundation Extensions */,
+				E75FF1217E994B2E6E8441DC /* OrbShare.appex in Embed Foundation Extensions */,
+				8A2CC62AA6E2CE2464A66E2D /* OrbNotification.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		051E6A0BD91BC89039A0D265 /* Reminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reminders.swift; sourceTree = "<group>"; };
+		077535DE8708EA8B34F99E89 /* NotificationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationViewController.swift; sourceTree = "<group>"; };
+		11B3E373F4A8C48DE9C6BEEA /* Orb.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Orb.icon; sourceTree = "<group>"; };
+		147CF55CFBFE440C1715CDAF /* OrbWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OrbWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F5BB6DFA466AFD5FCB0904D /* TasksUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksUITests.swift; sourceTree = "<group>"; };
+		332BDEC7BFDED29BABB2C1DF /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		364E705644235560E735CC19 /* Orb.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Orb.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		37A0972D6CDFE95DB603154B /* OrbApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbApp.swift; sourceTree = "<group>"; };
+		47CA2FC2F31E0900182AC16A /* OrbShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OrbShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		52539E57750B903AB650E2AE /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailView.swift; sourceTree = "<group>"; };
+		53F6265F79587F5C24C16EE3 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		554C2038F6DF510BAC4E1145 /* CodeScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeScanner.swift; sourceTree = "<group>"; };
+		5BDD5E3AB3D1BADF31E9B36A /* SetupUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupUITests.swift; sourceTree = "<group>"; };
+		5CE423B83F259FB657B918D2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6B158FE23A5444ECC84884CE /* WidgetSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSupport.swift; sourceTree = "<group>"; };
+		726C2AA7E7360DADE9549E2F /* OrbUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OrbUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		736DBA5484D040F41AA2060C /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
+		7E5A2A1FBE9724C5945FAD14 /* Orb.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Orb.entitlements; sourceTree = "<group>"; };
+		7F2275CD0140DACDA118C05B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7F7137C43C878636EC93CB58 /* OrbKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = OrbKit; path = OrbKit; sourceTree = SOURCE_ROOT; };
+		85B44C78A23FB7540BB68E6F /* OrbWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbWidgets.swift; sourceTree = "<group>"; };
+		8C6678C6F0986D18FC4F34AD /* ShareInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInbox.swift; sourceTree = "<group>"; };
+		8FE383991BF055ED531F7B97 /* TaskIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskIntents.swift; sourceTree = "<group>"; };
+		A0A1958C6960DB9DFAD69680 /* TaskListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListView.swift; sourceTree = "<group>"; };
+		A46D3538B74D506CC207497F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A5989731E4D38F7AB87C37A8 /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
+		A5CA8CEBB1C6A3257FEF2897 /* Tabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tabs.swift; sourceTree = "<group>"; };
+		AC05ECBF4734EA0B16D38D5A /* TaskRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRow.swift; sourceTree = "<group>"; };
+		B0CAFAD3F42719C24A8D8553 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		B1CB96AF3ABF3CC7FA147F2A /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		B4AD512EDE4EC9D58D147EDE /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = SDKROOT; };
+		BF7FA4F4F8D27571D37FB8AF /* Dates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dates.swift; sourceTree = "<group>"; };
+		CBCF0B8A13136A64C72784CB /* MonthCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthCalendar.swift; sourceTree = "<group>"; };
+		D01624012EB96BAEEA80BED8 /* WidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetViews.swift; sourceTree = "<group>"; };
+		D8A7784C52C2A02362910522 /* TagEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditing.swift; sourceTree = "<group>"; };
+		DEB667CE2773BFE861275A22 /* Orb.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Orb.xcconfig; sourceTree = "<group>"; };
+		E04D08ADD61343D306BC170F /* OrbNotification.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OrbNotification.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E49D602A2C12FF74AA8172D4 /* ShareUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareUITests.swift; sourceTree = "<group>"; };
+		EE7EC91750565BC3DFD014BF /* OrbShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OrbShare.entitlements; sourceTree = "<group>"; };
+		F35280DF5F875CB439BC1E1E /* OrbWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OrbWidgets.entitlements; sourceTree = "<group>"; };
+		FB0E07E4FC583EA3182FF9A7 /* Sheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheets.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		82124EAB1A8EB9CF71178B81 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				87C1211BA848E27C1C473802 /* UserNotificationsUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8B2DCA6FDA7CA511F0706D93 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D5DD5925411BFFBD8A473307 /* OrbKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		17230107BCFC27A8BD89739A /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				7F7137C43C878636EC93CB58 /* OrbKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		1BCAB57EE3C371A2A65608D1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B4AD512EDE4EC9D58D147EDE /* UserNotificationsUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		1F7BEE1D0D1A0FD51BAC05B2 /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				DEB667CE2773BFE861275A22 /* Orb.xcconfig */,
+			);
+			name = ios;
+			path = .;
+			sourceTree = "<group>";
+		};
+		5A4D69E93C20CA19AAEB577B /* OrbShare */ = {
+			isa = PBXGroup;
+			children = (
+				A46D3538B74D506CC207497F /* Info.plist */,
+				EE7EC91750565BC3DFD014BF /* OrbShare.entitlements */,
+				53F6265F79587F5C24C16EE3 /* ShareViewController.swift */,
+			);
+			path = OrbShare;
+			sourceTree = "<group>";
+		};
+		635ADEA14E221E0CE198083D = {
+			isa = PBXGroup;
+			children = (
+				83562DBBF977C3786DBF3915 /* icons */,
+				1F7BEE1D0D1A0FD51BAC05B2 /* ios */,
+				8B477AD86350F29ECD107146 /* Orb */,
+				AF4BF14F55B14B7C143D7F31 /* OrbNotification */,
+				5A4D69E93C20CA19AAEB577B /* OrbShare */,
+				96C1803D812CAB185B4EC69F /* OrbUITests */,
+				B8E9ADEC5221C7E5A0C03023 /* OrbWidgets */,
+				17230107BCFC27A8BD89739A /* Packages */,
+				C71D3BDFB862C0D686087355 /* Shared */,
+				1BCAB57EE3C371A2A65608D1 /* Frameworks */,
+				6ED1690CAB4152E7C278F5B1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6ED1690CAB4152E7C278F5B1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				364E705644235560E735CC19 /* Orb.app */,
+				E04D08ADD61343D306BC170F /* OrbNotification.appex */,
+				47CA2FC2F31E0900182AC16A /* OrbShare.appex */,
+				726C2AA7E7360DADE9549E2F /* OrbUITests.xctest */,
+				147CF55CFBFE440C1715CDAF /* OrbWidgets.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		83562DBBF977C3786DBF3915 /* icons */ = {
+			isa = PBXGroup;
+			children = (
+				11B3E373F4A8C48DE9C6BEEA /* Orb.icon */,
+			);
+			name = icons;
+			path = "../app/src-tauri/icons";
+			sourceTree = "<group>";
+		};
+		8B477AD86350F29ECD107146 /* Orb */ = {
+			isa = PBXGroup;
+			children = (
+				B1CB96AF3ABF3CC7FA147F2A /* AppModel.swift */,
+				554C2038F6DF510BAC4E1145 /* CodeScanner.swift */,
+				BF7FA4F4F8D27571D37FB8AF /* Dates.swift */,
+				B0CAFAD3F42719C24A8D8553 /* Info.plist */,
+				CBCF0B8A13136A64C72784CB /* MonthCalendar.swift */,
+				7E5A2A1FBE9724C5945FAD14 /* Orb.entitlements */,
+				37A0972D6CDFE95DB603154B /* OrbApp.swift */,
+				051E6A0BD91BC89039A0D265 /* Reminders.swift */,
+				332BDEC7BFDED29BABB2C1DF /* SetupView.swift */,
+				FB0E07E4FC583EA3182FF9A7 /* Sheets.swift */,
+				736DBA5484D040F41AA2060C /* Shortcuts.swift */,
+				A5CA8CEBB1C6A3257FEF2897 /* Tabs.swift */,
+				D8A7784C52C2A02362910522 /* TagEditing.swift */,
+				52539E57750B903AB650E2AE /* TaskDetailView.swift */,
+				A0A1958C6960DB9DFAD69680 /* TaskListView.swift */,
+				AC05ECBF4734EA0B16D38D5A /* TaskRow.swift */,
+				6B158FE23A5444ECC84884CE /* WidgetSupport.swift */,
+			);
+			path = Orb;
+			sourceTree = "<group>";
+		};
+		96C1803D812CAB185B4EC69F /* OrbUITests */ = {
+			isa = PBXGroup;
+			children = (
+				5BDD5E3AB3D1BADF31E9B36A /* SetupUITests.swift */,
+				E49D602A2C12FF74AA8172D4 /* ShareUITests.swift */,
+				1F5BB6DFA466AFD5FCB0904D /* TasksUITests.swift */,
+			);
+			path = OrbUITests;
+			sourceTree = "<group>";
+		};
+		AF4BF14F55B14B7C143D7F31 /* OrbNotification */ = {
+			isa = PBXGroup;
+			children = (
+				7F2275CD0140DACDA118C05B /* Info.plist */,
+				077535DE8708EA8B34F99E89 /* NotificationViewController.swift */,
+			);
+			path = OrbNotification;
+			sourceTree = "<group>";
+		};
+		B8E9ADEC5221C7E5A0C03023 /* OrbWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				5CE423B83F259FB657B918D2 /* Info.plist */,
+				F35280DF5F875CB439BC1E1E /* OrbWidgets.entitlements */,
+				85B44C78A23FB7540BB68E6F /* OrbWidgets.swift */,
+			);
+			path = OrbWidgets;
+			sourceTree = "<group>";
+		};
+		C71D3BDFB862C0D686087355 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				8C6678C6F0986D18FC4F34AD /* ShareInbox.swift */,
+				A5989731E4D38F7AB87C37A8 /* Snapshot.swift */,
+				8FE383991BF055ED531F7B97 /* TaskIntents.swift */,
+				D01624012EB96BAEEA80BED8 /* WidgetViews.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		00AF60D01FE17B6C57438DB4 /* OrbShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2161E06D873D47E9A5E411B6 /* Build configuration list for PBXNativeTarget "OrbShare" */;
+			buildPhases = (
+				EDE0C61520302EB4B3297543 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OrbShare;
+			packageProductDependencies = (
+			);
+			productName = OrbShare;
+			productReference = 47CA2FC2F31E0900182AC16A /* OrbShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		4F9636BF97EC2B4FAE3AE8D7 /* OrbNotification */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB935321726D51C21FF0E3DD /* Build configuration list for PBXNativeTarget "OrbNotification" */;
+			buildPhases = (
+				CA04A89F3E8477733ABFAD2F /* Sources */,
+				82124EAB1A8EB9CF71178B81 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OrbNotification;
+			packageProductDependencies = (
+			);
+			productName = OrbNotification;
+			productReference = E04D08ADD61343D306BC170F /* OrbNotification.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		848F9FB2F8E1F6AAC2E347F0 /* OrbWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7324402387F70555A72ADBF3 /* Build configuration list for PBXNativeTarget "OrbWidgets" */;
+			buildPhases = (
+				92E39DCD8EE4C1EC50C04502 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OrbWidgets;
+			packageProductDependencies = (
+			);
+			productName = OrbWidgets;
+			productReference = 147CF55CFBFE440C1715CDAF /* OrbWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		B623E3723B7F4229E6B94D39 /* OrbUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B0F2EC34B86CDCBEE2BF930A /* Build configuration list for PBXNativeTarget "OrbUITests" */;
+			buildPhases = (
+				183F7E98DD2586616800CB44 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FFDE6890268AA8CC9F1C427D /* PBXTargetDependency */,
+			);
+			name = OrbUITests;
+			packageProductDependencies = (
+			);
+			productName = OrbUITests;
+			productReference = 726C2AA7E7360DADE9549E2F /* OrbUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		D94F2998D84055B3FD109C0D /* Orb */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F55343A842E7F68788A841B4 /* Build configuration list for PBXNativeTarget "Orb" */;
+			buildPhases = (
+				175E0432AD536D95C11F7631 /* Sources */,
+				08C9984F3EAB78FC2C1F6806 /* Resources */,
+				8B2DCA6FDA7CA511F0706D93 /* Frameworks */,
+				B204F4258DE42DBFA4886ACE /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BA76DBD9D57A3F8D5ED10164 /* PBXTargetDependency */,
+				2F5BA44BEEDD94BDF52B8180 /* PBXTargetDependency */,
+				65052BF26B803EDD249E05BE /* PBXTargetDependency */,
+			);
+			name = Orb;
+			packageProductDependencies = (
+				3DEE0EB63F740AA39309631E /* OrbKit */,
+			);
+			productName = Orb;
+			productReference = 364E705644235560E735CC19 /* Orb.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		210DE90D3F9DF35899665A51 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					00AF60D01FE17B6C57438DB4 = {
+						ProvisioningStyle = Automatic;
+					};
+					4F9636BF97EC2B4FAE3AE8D7 = {
+						ProvisioningStyle = Automatic;
+					};
+					848F9FB2F8E1F6AAC2E347F0 = {
+						ProvisioningStyle = Automatic;
+					};
+					B623E3723B7F4229E6B94D39 = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = D94F2998D84055B3FD109C0D;
+					};
+					D94F2998D84055B3FD109C0D = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 3248AC45D77D306389A571C8 /* Build configuration list for PBXProject "Orb" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 635ADEA14E221E0CE198083D;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A2C2F676A2F14FCCC5339A30 /* XCLocalSwiftPackageReference "OrbKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6ED1690CAB4152E7C278F5B1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D94F2998D84055B3FD109C0D /* Orb */,
+				848F9FB2F8E1F6AAC2E347F0 /* OrbWidgets */,
+				00AF60D01FE17B6C57438DB4 /* OrbShare */,
+				4F9636BF97EC2B4FAE3AE8D7 /* OrbNotification */,
+				B623E3723B7F4229E6B94D39 /* OrbUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		08C9984F3EAB78FC2C1F6806 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8DD1C752C890FDF0ED9A4656 /* Orb.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		175E0432AD536D95C11F7631 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3E2E85DEFD4C73728344B33 /* AppModel.swift in Sources */,
+				01042A755B5195BBED3B4773 /* CodeScanner.swift in Sources */,
+				06A17F3B40BB6CFB48752A10 /* Dates.swift in Sources */,
+				45F2BB994E1BD732A9C9EF5C /* MonthCalendar.swift in Sources */,
+				667A125D90F3A4DF303838BC /* OrbApp.swift in Sources */,
+				89E470E1D3F9054528B26B1A /* Reminders.swift in Sources */,
+				A953EEF7CEECAA9224860E4D /* SetupView.swift in Sources */,
+				7375DFFDA9D1B3E02263A1F1 /* ShareInbox.swift in Sources */,
+				D69B09EAE829078FAB3C1E7F /* Sheets.swift in Sources */,
+				5B0DD1A3F5C48E8EADD396F8 /* Shortcuts.swift in Sources */,
+				0CFFA004748A9FC5F0FB69C2 /* Snapshot.swift in Sources */,
+				EBC1DABAD8F4995E8F69F47B /* Tabs.swift in Sources */,
+				CC6529830903D5A4783BCE5C /* TagEditing.swift in Sources */,
+				7C12553C64D64EA4CED70947 /* TaskDetailView.swift in Sources */,
+				44699A8E4D14360F03581E60 /* TaskIntents.swift in Sources */,
+				9AABCB5F788360080BB1DDE0 /* TaskListView.swift in Sources */,
+				4A0343DB49DB7865BF55F4B6 /* TaskRow.swift in Sources */,
+				D425567BD9ED135868FA5423 /* WidgetSupport.swift in Sources */,
+				76F1DCF31D4400905B724119 /* WidgetViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		183F7E98DD2586616800CB44 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				38234F51A20997DC02C14EB9 /* SetupUITests.swift in Sources */,
+				AEE5CBAB614207BE6082B3E9 /* ShareUITests.swift in Sources */,
+				0734050CEDB7D7F146BF4CDD /* TasksUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92E39DCD8EE4C1EC50C04502 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				09F96E35FE1876F8E8DCE023 /* OrbWidgets.swift in Sources */,
+				1001CF95B20226DCABB8D881 /* ShareInbox.swift in Sources */,
+				E0A9167ADE2A15C4DF5FEDF2 /* Snapshot.swift in Sources */,
+				A8E14D7F7B8AEEA5F5921F8E /* TaskIntents.swift in Sources */,
+				3354A85DD138AC050885E412 /* WidgetViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CA04A89F3E8477733ABFAD2F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				308AE0AF05AB77E34CF30D9E /* NotificationViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EDE0C61520302EB4B3297543 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94FD768BB133D19FCDED88E3 /* ShareInbox.swift in Sources */,
+				52F9256D35D76E838F7BFE9F /* ShareViewController.swift in Sources */,
+				75E763B640C01055448DF6D3 /* Snapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		2F5BA44BEEDD94BDF52B8180 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 00AF60D01FE17B6C57438DB4 /* OrbShare */;
+			targetProxy = C44D71A2ABCB3D7DCC5234B1 /* PBXContainerItemProxy */;
+		};
+		65052BF26B803EDD249E05BE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4F9636BF97EC2B4FAE3AE8D7 /* OrbNotification */;
+			targetProxy = CDF3FB6B6D717F8DD552972D /* PBXContainerItemProxy */;
+		};
+		BA76DBD9D57A3F8D5ED10164 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 848F9FB2F8E1F6AAC2E347F0 /* OrbWidgets */;
+			targetProxy = 71F98F7928E593E59F161BC0 /* PBXContainerItemProxy */;
+		};
+		FFDE6890268AA8CC9F1C427D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D94F2998D84055B3FD109C0D /* Orb */;
+			targetProxy = 4141D81831A723C21770C2C2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		05D261A2C38F640D75CB11B4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DEB667CE2773BFE861275A22 /* Orb.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		0CBE7FD5E9ED39C663CE1260 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sudoremo.OrbUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Orb;
+			};
+			name = Release;
+		};
+		1054CCEF5501E03D34DB50A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sudoremo.OrbUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Orb;
+			};
+			name = Debug;
+		};
+		257220372E8F84E5D097BD4C /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DEB667CE2773BFE861275A22 /* Orb.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		2A1A8565ACA838E4A97411E7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OrbNotification/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb.notification";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		312F02C57745FEB2C4A2D199 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OrbShare/OrbShare.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OrbShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb.share";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		3CA86371CA3B20F20F5AD95C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OrbShare/OrbShare.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OrbShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb.share";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		65B0656DFEE1B22FFA2ADBEC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Orb;
+				CODE_SIGN_ENTITLEMENTS = Orb/Orb.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Orb/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Orb;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ORB_APP";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8893F01594754415D75E974B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Orb;
+				CODE_SIGN_ENTITLEMENTS = Orb/Orb.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Orb/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Orb;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ORB_APP";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B7A38F9B82D903D06EC04A79 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OrbWidgets/OrbWidgets.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OrbWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb.widgets";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C5A32DBD48CF68C04364E365 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OrbNotification/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb.notification";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D2B088E82217E46D2BE2C5B3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OrbWidgets/OrbWidgets.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OrbWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ORB_BUNDLE_PREFIX).orb.widgets";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2161E06D873D47E9A5E411B6 /* Build configuration list for PBXNativeTarget "OrbShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CA86371CA3B20F20F5AD95C /* Debug */,
+				312F02C57745FEB2C4A2D199 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3248AC45D77D306389A571C8 /* Build configuration list for PBXProject "Orb" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				05D261A2C38F640D75CB11B4 /* Debug */,
+				257220372E8F84E5D097BD4C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7324402387F70555A72ADBF3 /* Build configuration list for PBXNativeTarget "OrbWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B7A38F9B82D903D06EC04A79 /* Debug */,
+				D2B088E82217E46D2BE2C5B3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B0F2EC34B86CDCBEE2BF930A /* Build configuration list for PBXNativeTarget "OrbUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1054CCEF5501E03D34DB50A0 /* Debug */,
+				0CBE7FD5E9ED39C663CE1260 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BB935321726D51C21FF0E3DD /* Build configuration list for PBXNativeTarget "OrbNotification" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C5A32DBD48CF68C04364E365 /* Debug */,
+				2A1A8565ACA838E4A97411E7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F55343A842E7F68788A841B4 /* Build configuration list for PBXNativeTarget "Orb" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				65B0656DFEE1B22FFA2ADBEC /* Debug */,
+				8893F01594754415D75E974B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A2C2F676A2F14FCCC5339A30 /* XCLocalSwiftPackageReference "OrbKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = OrbKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3DEE0EB63F740AA39309631E /* OrbKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OrbKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 210DE90D3F9DF35899665A51 /* Project object */;
+}
