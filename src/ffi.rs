@@ -2504,6 +2504,18 @@ pub fn init_with(mut config: Config, config_path: String) -> Result<Arc<OrbHandl
     let health = Arc::new(HealthBook::new(
         config.accounts.iter().map(|a| a.name.clone()),
     ));
+    // Off the launch: the cache is wherever the home directory is, and a
+    // sweep of it is nothing the first window has to wait for.
+    runtime.spawn_blocking(|| {
+        match crate::tasks::prune_attachment_cache(crate::tasks::CACHE_KEEP) {
+            Ok(0) => {}
+            Ok(removed) => crate::logger::info(&format!(
+                "removed the cached attachments of {removed} messages nobody opened in a month"
+            )),
+            Err(error) => crate::logger::warn(&format!("sweeping the attachment cache: {error}")),
+        }
+    });
+
     Ok(Arc::new(OrbHandle {
         store: Arc::new(store),
         config: std::sync::RwLock::new(config),

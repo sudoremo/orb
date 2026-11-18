@@ -1766,7 +1766,9 @@ attachment's number.
 Attachments are unpacked from the message's full source, which the backfill
 fetches for every message that has them, so they open offline; a message it
 has not reached yet fetches on demand. Files are written once under
-`~/.orb/attachments/mail/`. A message that declares more than 64 MIME parts
+`~/.orb/attachments/mail/`, and removed again, with the chat files beside
+them, a month after they were last touched; the message still has them. A
+message that declares more than 64 MIME parts
 is not taken apart at all: it is listed, but shows no text and no
 attachments, since nothing anybody writes has that many and a message built
 to have them is built to crash a mail client.

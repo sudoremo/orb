@@ -2279,6 +2279,64 @@ pub fn cached_attachment_path(relative: &str) -> Result<PathBuf> {
     Ok(attachment_cache_root().join(path))
 }
 
+/// How long a mail or chat payload stays in the cache unused. Task payloads
+/// are not touched: they are the files of tasks that still exist, and go
+/// with their task.
+pub const CACHE_KEEP: std::time::Duration = std::time::Duration::from_secs(30 * 24 * 60 * 60);
+
+/// Remove the mail and chat payloads in the cache that nothing has touched
+/// for `keep`, and return how many messages' files went. A payload is written
+/// once when its message is opened and never again; the cache would otherwise
+/// grow by every attachment ever looked at, each one a copy of mail, for as
+/// long as the machine lasts.
+pub fn prune_attachment_cache(keep: std::time::Duration) -> std::io::Result<usize> {
+    prune_cache_under(&attachment_cache_root(), keep, std::time::SystemTime::now())
+}
+
+fn prune_cache_under(
+    root: &Path,
+    keep: std::time::Duration,
+    now: std::time::SystemTime,
+) -> std::io::Result<usize> {
+    let cutoff = now.checked_sub(keep).unwrap_or(std::time::UNIX_EPOCH);
+    let mut removed = 0;
+    for area in ["mail", "chat"] {
+        let Ok(messages) = std::fs::read_dir(root.join(area)) else {
+            continue;
+        };
+        for message in messages.flatten() {
+            let dir = message.path();
+            if !dir.is_dir() {
+                continue;
+            }
+            if newest_change(&dir)?.is_none_or(|changed| changed < cutoff) {
+                std::fs::remove_dir_all(&dir)?;
+                removed += 1;
+            }
+        }
+    }
+    Ok(removed)
+}
+
+/// When anything under `dir` last changed; `None` for an empty tree.
+fn newest_change(dir: &Path) -> std::io::Result<Option<std::time::SystemTime>> {
+    let mut newest = None;
+    for entry in std::fs::read_dir(dir)?.flatten() {
+        let path = entry.path();
+        let changed = if path.is_dir() {
+            newest_change(&path)?
+        } else {
+            Some(entry.metadata()?.modified()?)
+        };
+        if let Some(changed) = changed
+            && newest.is_none_or(|known| changed > known)
+        {
+            newest = Some(changed);
+        }
+    }
+    Ok(newest)
+}
+
 /// The directory a task's payloads are cached under, or `None` for an id that
 /// is not an identifier — which no task of Orb's has, and which must not be
 /// joined onto the cache root, since `..` would name the root's parent.
@@ -2311,6 +2369,7 @@ pub fn remove_cached_attachments(task_uuid: &str) {
 mod tests {
     use super::*;
     use crate::tasks::rfc822::TAG_REGISTRY_ID;
+    use std::io::Write;
 
     /// A sync is spawned onto the runtime, so its future has to be `Send`. It
     /// stops being `Send` the moment a `TaskRepository` — which holds a
@@ -2332,6 +2391,43 @@ mod tests {
         let kept = cached_attachment_path("tasks/task-a/att-1-notes.txt").unwrap();
         assert!(kept.starts_with(attachment_cache_root()));
         assert!(kept.ends_with("tasks/task-a/att-1-notes.txt"));
+    }
+
+    /// Mail and chat payloads nobody has touched for the keep time go, with
+    /// the message's directory; what was touched stays, and task payloads
+    /// are not the sweep's to remove.
+    #[test]
+    fn the_sweep_removes_only_mail_and_chat_payloads_nobody_has_touched() {
+        use std::time::{Duration, SystemTime};
+        let root = tempfile::tempdir().unwrap();
+        let now = SystemTime::now();
+        let old = now - Duration::from_secs(40 * 24 * 60 * 60);
+        let aged = |path: &Path, at: SystemTime| {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            let mut file = std::fs::File::create(path).unwrap();
+            file.write_all(b"x").unwrap();
+            file.set_modified(at).unwrap();
+        };
+        aged(&root.path().join("mail/1/0/old.pdf"), old);
+        aged(&root.path().join("mail/2/0/fresh.pdf"), now);
+        aged(&root.path().join("chat/m1/0/old.png"), old);
+        aged(&root.path().join("chat/m1/0.preview"), now);
+        aged(&root.path().join("tasks/task-a/att-1-old.txt"), old);
+        std::fs::create_dir_all(root.path().join("mail/3")).unwrap();
+
+        let removed = prune_cache_under(root.path(), CACHE_KEEP, now).unwrap();
+        assert_eq!(removed, 2);
+        assert!(!root.path().join("mail/1").exists());
+        assert!(root.path().join("mail/2/0/fresh.pdf").exists());
+        assert!(
+            root.path().join("chat/m1/0/old.png").exists(),
+            "touched lately"
+        );
+        assert!(
+            !root.path().join("mail/3").exists(),
+            "an empty directory holds nothing"
+        );
+        assert!(root.path().join("tasks/task-a/att-1-old.txt").exists());
     }
 
     /// Removing a task's cache is `remove_dir_all` on a directory named by
