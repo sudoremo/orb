@@ -1293,12 +1293,12 @@ impl ImapClient {
             _ => mailbox_str,
         };
 
+        // Quoted when the name holds what would read as another address: a
+        // sender calling themselves `Alice <alice@bank.example>` at
+        // `evil@example.com` is stored as the one address it is.
         match name.map(decode_header) {
-            // A name that merely repeats the address adds nothing but width.
-            Some(name) if !name.trim().is_empty() && name.trim() != address => {
-                Some(format!("{} <{address}>", name.trim()))
-            }
-            _ => Some(address),
+            Some(name) => Some(crate::draft::mailbox_display(&name, &address)),
+            None => Some(address),
         }
     }
 
@@ -2418,6 +2418,25 @@ mod tests {
         assert_eq!(
             ImapClient::format_email_address(Some(b"Name"), None, Some(b"h")),
             None
+        );
+    }
+
+    /// A name that reads as an address of its own is quoted, so what is
+    /// stored is one address and the list shows the name as a name.
+    #[test]
+    fn a_name_that_looks_like_an_address_is_quoted() {
+        let shown = ImapClient::format_email_address(
+            Some(b"Alice <alice@bank.example>"),
+            Some(b"evil"),
+            Some(b"example.com"),
+        );
+        assert_eq!(
+            shown.as_deref(),
+            Some("\"Alice <alice@bank.example>\" <evil@example.com>")
+        );
+        assert_eq!(
+            crate::config::bare_address(shown.as_deref().unwrap()),
+            "evil@example.com"
         );
     }
 
