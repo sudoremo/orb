@@ -643,9 +643,14 @@ pub fn reconcile(
     plan.registry = plan_registry(&registry_messages, &local_registry, &mut plan.expunge);
 
     for (attachment_uuid, group) in server_attachments {
-        let (winner, losers) = pick_winner(&group);
-        plan.expunge
-            .extend(expunge_all(&losers, ExpungeReason::Duplicate));
+        // A payload never changes under its id, so the first copy written is
+        // the payload, and a later one under the same id is either a retried
+        // APPEND of the same bytes or somebody else's bytes. Neither is worth
+        // the risk of picking it: the revision header, which decides between
+        // copies of a task, is nothing a payload message writes and anything
+        // a forged one can. The extras are left alone; they go when the task
+        // is purged, with every other message of its id.
+        let winner = first_written(&group);
 
         let owner = winner.identity.task_uuid.as_str();
         if server_tasks.contains_key(owner) || known.contains_key(owner) {
@@ -695,6 +700,15 @@ fn pick_winner<'m>(group: &[&'m ListedMessage]) -> (&'m ListedMessage, Vec<&'m L
         .filter(|message| message.uid != winner.uid)
         .collect();
     (winner, losers)
+}
+
+/// The copy of an attachment payload that was written first: the lowest UID.
+fn first_written<'m>(group: &[&'m ListedMessage]) -> &'m ListedMessage {
+    group
+        .iter()
+        .copied()
+        .min_by_key(|message| message.uid)
+        .expect("a group exists because it has at least one message")
 }
 
 fn target(message: &ListedMessage) -> DownloadTarget {
@@ -2928,26 +2942,24 @@ mod tests {
         );
     }
 
-    /// Two copies of one payload are the same conflict as two copies of a task.
+    /// Two copies of one payload: the first written is the payload, whatever
+    /// revision a later one claims, and nothing is expunged on the strength
+    /// of a header a payload message does not write.
     #[test]
-    fn a_duplicated_attachment_payload_keeps_one_copy() {
+    fn a_duplicated_attachment_payload_keeps_the_first_copy_and_expunges_none() {
         let local = vec![row(1, "task-a", 1, Some(10))];
+        let mut later = attachment_message(25, "task-a", "att-1");
+        later.identity.revision = 9;
         let listing = vec![
             message(10, "task-a", 1),
+            later,
             attachment_message(20, "task-a", "att-1"),
-            attachment_message(25, "task-a", "att-1"),
         ];
 
         let plan = reconcile(&local, &listing, 0, false);
-        assert_eq!(
-            plan.expunge,
-            vec![ExpungeTarget {
-                uid: 20,
-                reason: ExpungeReason::Duplicate
-            }]
-        );
+        assert!(plan.expunge.is_empty(), "{:?}", plan.expunge);
         assert_eq!(plan.attachments.len(), 1);
-        assert_eq!(plan.attachments[0].uid, 25);
+        assert_eq!(plan.attachments[0].uid, 20);
     }
 
     /// The registry syncs by the task rules under a well-known id, so it needs
