@@ -1277,13 +1277,61 @@ impl TaskAttachment {
     ///
     /// Prefixed with the attachment's uuid so two files of the same name on one
     /// task do not collide, and stripped of anything path-like: the filename
-    /// arrives from a remote message, so `../../.ssh/authorized_keys` is a
-    /// filename somebody can put on the wire.
+    /// and both ids arrive from a remote message, so `../../.ssh` is something
+    /// somebody can put on the wire in any of the three. The parser refuses an
+    /// id that is not a [`is_wire_id`] identifier; an id that reaches here all
+    /// the same is reduced to one as well, so the path is three components
+    /// under `tasks/` whatever it was built from.
     pub fn cache_path(task_uuid: &str, attachment_uuid: &str, filename: &str) -> String {
         format!(
-            "tasks/{task_uuid}/{attachment_uuid}-{}",
+            "tasks/{}/{}-{}",
+            id_component(task_uuid),
+            id_component(attachment_uuid),
             sanitise_filename(filename)
         )
+    }
+}
+
+/// The longest identifier a task message may carry.
+pub const MAX_WIRE_ID_LEN: usize = 64;
+
+/// Whether `id` is an identifier Orb accepts off the wire: a task's, an
+/// attachment's or a registry's.
+///
+/// Orb mints UUIDs, and what is accepted is the alphabet a UUID is spelled in,
+/// plus `_`, up to [`MAX_WIRE_ID_LEN`] bytes. The ids name directories under
+/// the attachment cache, which is why a dot, a separator or a control
+/// character is refused rather than escaped: `..` must not be an id, and an
+/// id must not be a path.
+pub fn is_wire_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= MAX_WIRE_ID_LEN
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
+/// An id as a single path component: itself when it is a [`is_wire_id`]
+/// identifier, else what is left of it with everything else replaced.
+fn id_component(id: &str) -> String {
+    if is_wire_id(id) {
+        return id.to_string();
+    }
+    let reduced: String = id
+        .bytes()
+        .take(MAX_WIRE_ID_LEN)
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b == b'-' || b == b'_' {
+                b as char
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if reduced.is_empty() {
+        "_".to_string()
+    } else {
+        reduced
     }
 }
 
@@ -1920,6 +1968,56 @@ fn tag_change_entries(
 
 #[cfg(test)]
 mod tests {
+
+    /// An id off the wire names a directory under the attachment cache, so it
+    /// is an identifier or nothing: no dots, no separators, no `..`.
+    #[test]
+    fn a_wire_id_is_an_identifier_and_never_a_path() {
+        use super::{MAX_WIRE_ID_LEN, is_wire_id};
+        assert!(is_wire_id("11111111-2222-3333-4444-555555555555"));
+        assert!(is_wire_id("task-a"));
+        assert!(is_wire_id("things_step_1"));
+        assert!(!is_wire_id(""));
+        assert!(!is_wire_id("."));
+        assert!(!is_wire_id(".."));
+        assert!(!is_wire_id("../.."));
+        assert!(!is_wire_id("a/b"));
+        assert!(!is_wire_id("a\\b"));
+        assert!(!is_wire_id("a.b"));
+        assert!(!is_wire_id("a b"));
+        assert!(!is_wire_id("a\u{0}b"));
+        assert!(!is_wire_id("é"));
+        assert!(!is_wire_id(&"a".repeat(MAX_WIRE_ID_LEN + 1)));
+        assert!(is_wire_id(&"a".repeat(MAX_WIRE_ID_LEN)));
+    }
+
+    /// Whatever the three parts of a cache path were built from, the path is
+    /// three plain components under `tasks/`.
+    #[test]
+    fn a_cache_path_stays_three_components_under_tasks() {
+        use super::TaskAttachment;
+        use std::path::{Component, Path};
+        for (task, attachment, name) in [
+            ("../../..", "x", "a.plist"),
+            ("t", "../../../Library/LaunchAgents/com.x", "agent.plist"),
+            ("t", "a", "../../.ssh/authorized_keys"),
+            ("", "", ""),
+            ("/", "\\", "/"),
+        ] {
+            let path = TaskAttachment::cache_path(task, attachment, name);
+            let components: Vec<_> = Path::new(&path).components().collect();
+            assert_eq!(components.len(), 3, "{path}");
+            assert!(
+                components.iter().all(|c| matches!(c, Component::Normal(_))),
+                "{path}"
+            );
+            assert_eq!(components[0], Component::Normal("tasks".as_ref()));
+        }
+        assert_eq!(
+            TaskAttachment::cache_path("task-a", "att-1", "notes.txt"),
+            "tasks/task-a/att-1-notes.txt"
+        );
+    }
 
     /// Every change to a checklist but a reorder is logged by the step's
     /// title, and any change is an edit with a revision (todo-spec §17).

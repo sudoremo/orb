@@ -71,7 +71,7 @@ use uuid::Uuid;
 
 use super::model::{
     Task, TaskAttachment, TaskDates, TaskEvent, TaskLinkedEmail, TaskLogEntry, TaskReminder,
-    TaskTag, format_timestamp, parse_civil_date,
+    TaskTag, format_timestamp, is_wire_id, parse_civil_date,
 };
 use crate::{Result, logger};
 
@@ -759,7 +759,7 @@ impl TaskEmailParser {
             revision: task_header(&headers, H_REVISION)
                 .and_then(|value| value.parse().ok())
                 .unwrap_or(0),
-            attachment_uuid: task_header(&headers, H_ATTACHMENT_ID),
+            attachment_uuid: optional_id(&headers, H_ATTACHMENT_ID)?,
         })
     }
 }
@@ -802,8 +802,22 @@ fn check_version_and_kind(headers: &[mailparse::MailHeader<'_>]) -> Result<TaskM
 
 /// `X-Orb-Task-Id`, which every version 2 message must carry.
 fn required_id(headers: &[mailparse::MailHeader<'_>]) -> Result<String> {
-    task_header(headers, H_ID)
+    optional_id(headers, H_ID)?
         .ok_or_else(|| invalid(format!("task message has no {H_ID}: it has no identity")))
+}
+
+/// An id header, when present: refused unless it is an identifier
+/// ([`is_wire_id`]), because the ids name directories under the attachment
+/// cache and a message is written by whoever can reach the folder.
+fn optional_id(headers: &[mailparse::MailHeader<'_>], name: &str) -> Result<Option<String>> {
+    match task_header(headers, name) {
+        Some(id) if is_wire_id(&id) => Ok(Some(id)),
+        Some(id) => Err(invalid(format!(
+            "{name} '{}' is not an identifier",
+            truncate_bytes(&id, 80)
+        ))),
+        None => Ok(None),
+    }
 }
 
 fn parse_task(
@@ -988,15 +1002,21 @@ fn parse_attachment(mail: &ParsedMail<'_>, imap_uid: Option<u32>) -> Result<Pars
 ///
 /// `filename` is the last parameter and takes the rest of the line, so a
 /// filename containing the separator cannot truncate the descriptor. Returns
-/// `None` for a descriptor with no uuid: a payload that cannot be named cannot
-/// be matched to its message either.
+/// `None` for a descriptor whose uuid is missing or not an identifier
+/// ([`is_wire_id`]): a payload that cannot be named cannot be matched to its
+/// message either, and one named as a path must not be.
 fn parse_attachment_descriptor(task_uuid: &str, value: &str) -> Option<TaskAttachment> {
     let value = value.trim();
     let (uuid, mut rest) = match value.split_once(';') {
         Some((uuid, rest)) => (uuid.trim(), rest),
         None => (value, ""),
     };
-    if uuid.is_empty() {
+    if !is_wire_id(uuid) {
+        logger::warn(&format!(
+            "task {task_uuid}: dropping an attachment descriptor whose id '{}' is not an \
+             identifier",
+            truncate_bytes(uuid, 80)
+        ));
         return None;
     }
 
@@ -1719,6 +1739,51 @@ mod tests {
     fn a_task_message_without_an_id_is_rejected() {
         let mail = b"X-Orb-Task-Version: 2\r\nSubject: No identity\r\n\r\n";
         assert!(TaskEmailParser::parse(mail, "Work", None).is_err());
+    }
+
+    /// The id names a directory under the attachment cache, so a message whose
+    /// id is a path is no task at all — refused whole, by both parsers, and
+    /// left on the server as any unreadable message is.
+    #[test]
+    fn a_task_message_whose_id_is_a_path_is_rejected() {
+        for id in ["../../..", "..", "a/b", "a\\b", "a.b", "x y", "é"] {
+            let mail =
+                format!("X-Orb-Task-Version: 2\r\nX-Orb-Task-Id: {id}\r\nSubject: s\r\n\r\n");
+            let parsed = TaskEmailParser::parse(mail.as_bytes(), "Work", None);
+            assert!(parsed.is_err(), "{id:?} was accepted");
+            let identity = TaskEmailParser::parse_identity(mail.as_bytes());
+            assert!(identity.is_err(), "{id:?} was accepted as an identity");
+        }
+    }
+
+    #[test]
+    fn an_attachment_message_whose_attachment_id_is_a_path_is_rejected() {
+        let mail = b"X-Orb-Task-Version: 2\r\nX-Orb-Task-Type: attachment\r\n\
+                     X-Orb-Task-Id: task-a\r\nX-Orb-Task-Attachment-Id: ../../x\r\n\r\n";
+        assert!(TaskEmailParser::parse_identity(mail).is_err());
+    }
+
+    /// A descriptor naming its payload as a path is dropped; the task itself
+    /// is kept, since nothing else about it is wrong.
+    #[test]
+    fn an_attachment_descriptor_whose_id_is_a_path_is_dropped() {
+        let mail = b"X-Orb-Task-Version: 2\r\nX-Orb-Task-Id: task-a\r\nSubject: s\r\n\
+                     X-Orb-Task-Attachments: ../../../Library/LaunchAgents/com.x; size=1; \
+                     filename=agent.plist\r\n\
+                     X-Orb-Task-Attachments: att-1; size=1; filename=notes.txt\r\n\r\n";
+        let TaskMessage::Task(parsed) = TaskEmailParser::parse(mail, "Work", None).unwrap() else {
+            panic!("a task");
+        };
+        let ids: Vec<&str> = parsed
+            .attachments
+            .iter()
+            .map(|a| a.attachment_uuid.as_str())
+            .collect();
+        assert_eq!(ids, vec!["att-1"]);
+        assert_eq!(
+            parsed.attachments[0].file_path,
+            "tasks/task-a/att-1-notes.txt"
+        );
     }
 
     // -- task round trip ---------------------------------------------------

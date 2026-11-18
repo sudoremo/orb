@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 
 use super::model::{
     CachedEmailMetadata, Task, TaskAttachment, TaskDates, TaskEvent, TaskLinkedEmail, TaskLogEntry,
-    TaskReminder, TaskStep, TaskTag, format_timestamp, parse_civil_date,
+    TaskReminder, TaskStep, TaskTag, format_timestamp, is_wire_id, parse_civil_date,
 };
 use crate::{Error, Result};
 
@@ -255,11 +255,17 @@ pub fn write_snapshot(
                 safe_filename(&attachment.filename)
             );
             let destination = partial.join(&relative);
-            let placed = place_payload(
-                previous.as_deref().map(|p| p.join(&relative)),
-                &destination,
-                || payload(&source_task.task, attachment),
-            );
+            // The id came off the wire; one that is a path would place the
+            // payload outside the snapshot, so it is a missing payload instead.
+            let placed = if is_wire_id(&attachment.attachment_uuid) {
+                place_payload(
+                    previous.as_deref().map(|p| p.join(&relative)),
+                    &destination,
+                    || payload(&source_task.task, attachment),
+                )
+            } else {
+                Err("the attachment's id is not an identifier".to_string())
+            };
             attachments.push(match placed {
                 Ok(()) => ExportAttachment {
                     id: attachment.attachment_uuid.clone(),
@@ -634,9 +640,19 @@ pub fn imported(root: &Path, exported: &ExportTask, account: &str) -> ImportedTa
         })
         .collect();
 
+    // The ids name directories under the attachment cache once imported, so
+    // an export whose ids are not identifiers is not one Orb wrote; its task
+    // is reported and left out, as one with a damaged payload is.
     let mut damaged = Vec::new();
+    if !is_wire_id(&exported.id) {
+        damaged.push(format!("task id '{}'", exported.id));
+    }
     let mut attachments = Vec::new();
     for a in &exported.attachments {
+        if !is_wire_id(&a.id) {
+            damaged.push(format!("attachment id '{}'", a.id));
+            continue;
+        }
         let payload = match (&a.path, &a.sha256) {
             (Some(path), Some(sha)) => {
                 let file = root.join(path);

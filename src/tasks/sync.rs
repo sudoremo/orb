@@ -44,12 +44,13 @@
 //! the two all converge on one message and never on a gap.
 
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 
 use super::model::{
     Task, TaskAttachment, TaskLinkedEmail, TaskReminder, TaskSyncState, TaskTag, format_timestamp,
+    is_wire_id,
 };
 use super::repository::{PurgedTask, RegistryState, TaskIndexRow, TaskRepository};
 use super::rfc822::{
@@ -1821,7 +1822,7 @@ impl TaskSyncService {
         task_uuid: &str,
         attachment: &mut TaskAttachment,
     ) -> Result<bool> {
-        let path = attachment_path(&attachment.file_path);
+        let path = cached_attachment_path(&attachment.file_path)?;
         if !attachment.is_cached || !path.exists() {
             return Ok(false);
         }
@@ -2108,7 +2109,7 @@ impl TaskSyncService {
         task_uuid: &str,
         attachment: &TaskAttachment,
     ) -> Result<PathBuf> {
-        let path = attachment_path(&attachment.file_path);
+        let path = cached_attachment_path(&attachment.file_path)?;
         if attachment.is_cached && path.exists() {
             return Ok(path);
         }
@@ -2235,8 +2236,30 @@ pub fn attachment_cache_root() -> PathBuf {
 
 /// The absolute path of a cached payload, from the relative one stored on the
 /// attachment row.
-fn attachment_path(relative: &str) -> PathBuf {
-    attachment_cache_root().join(relative)
+///
+/// The relative path was built by [`TaskAttachment::cache_path`] from ids and
+/// a filename that came off the wire, and a row written before those were
+/// checked may still hold anything. So the path is read back as components,
+/// and one that is not plain names under the root — a `..`, an absolute path,
+/// an empty one — is refused rather than joined.
+pub fn cached_attachment_path(relative: &str) -> Result<PathBuf> {
+    let path = Path::new(relative);
+    let mut components = path.components().peekable();
+    if components.peek().is_none()
+        || !components.all(|component| matches!(component, Component::Normal(_)))
+    {
+        return Err(crate::Error::InvalidInput(format!(
+            "attachment path '{relative}' does not stay inside the cache"
+        )));
+    }
+    Ok(attachment_cache_root().join(path))
+}
+
+/// The directory a task's payloads are cached under, or `None` for an id that
+/// is not an identifier — which no task of Orb's has, and which must not be
+/// joined onto the cache root, since `..` would name the root's parent.
+fn task_cache_dir(task_uuid: &str) -> Option<PathBuf> {
+    is_wire_id(task_uuid).then(|| attachment_cache_root().join("tasks").join(task_uuid))
 }
 
 /// Drop a task's cached payloads once the task itself is gone for good.
@@ -2244,13 +2267,18 @@ fn attachment_path(relative: &str) -> PathBuf {
 /// Best effort by design: the cache is disposable, so a file that cannot be
 /// removed is a wasted megabyte and never a correctness problem.
 pub fn remove_cached_attachments(task_uuid: &str) {
-    let dir = attachment_cache_root().join("tasks").join(task_uuid);
+    let Some(dir) = task_cache_dir(task_uuid) else {
+        logger::warn(&format!(
+            "not removing the attachment cache of '{task_uuid}': the id is not an identifier"
+        ));
+        return;
+    };
     if dir.exists()
         && let Err(error) = std::fs::remove_dir_all(&dir)
     {
         logger::debug(&format!(
             "could not remove the attachment cache at {}: {error}",
-            Path::new(&dir).display()
+            dir.display()
         ));
     }
 }
@@ -2268,6 +2296,30 @@ mod tests {
     fn a_sync_can_be_spawned(service: &mut TaskSyncService, client: &mut ImapClient) {
         fn assert_send<T: Send>(_: &T) {}
         assert_send(&service.sync(client));
+    }
+
+    /// A cache path is plain names under the root, or it is nothing: a row
+    /// that holds `..` must not be joined onto the root and read or written.
+    #[test]
+    fn a_cache_path_that_leaves_the_cache_is_refused() {
+        for relative in ["../../..", "tasks/../../x", "/etc/passwd", "", "./t/a"] {
+            assert!(cached_attachment_path(relative).is_err(), "{relative:?}");
+        }
+        let kept = cached_attachment_path("tasks/task-a/att-1-notes.txt").unwrap();
+        assert!(kept.starts_with(attachment_cache_root()));
+        assert!(kept.ends_with("tasks/task-a/att-1-notes.txt"));
+    }
+
+    /// Removing a task's cache is `remove_dir_all` on a directory named by
+    /// the id; an id that is a path names nothing to remove.
+    #[test]
+    fn a_task_id_that_is_a_path_names_no_cache_directory() {
+        assert!(task_cache_dir("../..").is_none());
+        assert!(task_cache_dir("..").is_none());
+        assert!(task_cache_dir("").is_none());
+        assert!(task_cache_dir("a/b").is_none());
+        let dir = task_cache_dir("task-a").unwrap();
+        assert_eq!(dir, attachment_cache_root().join("tasks").join("task-a"));
     }
 
     fn identity(kind: TaskMessageKind, uuid: &str, revision: i64) -> TaskIdentity {

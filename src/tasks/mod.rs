@@ -38,7 +38,7 @@ pub use model::{
     CachedEmailMetadata, ChangeContext, DateField, ReminderShift, Task, TaskAttachment, TaskChange,
     TaskDates, TaskError, TaskEvent, TaskLinkedEmail, TaskListItem, TaskLogEntry, TaskReminder,
     TaskStep, TaskSyncState, TaskTag, TaskUpdates, TaskView, civil_day_from_unix, civil_day_unix,
-    format_timestamp, merge_logs, parse_civil_date, tag_label,
+    format_timestamp, is_wire_id, merge_logs, parse_civil_date, tag_label,
 };
 pub use recurrence::{
     AdvanceFrom, Advancement, ByDay, Frequency, RecurrenceEnd, RecurrenceError, RecurrenceRule,
@@ -64,8 +64,8 @@ pub use sync::{
     DEFAULT_TASKS_FOLDER, DownloadTarget, ExpungeReason, ExpungeTarget, FolderPlan,
     ListedAttachment, ListedMessage, Listing, LocalDeletion, Rebind, RegistryAction, SyncPlan,
     TaskSyncReport, TaskSyncService, UploadReason, UploadTarget, attachment_cache_root,
-    ensure_tasks_folder, plan_tasks_folder, read_listing, reconcile, remove_cached_attachments,
-    set_attachment_cache_root,
+    cached_attachment_path, ensure_tasks_folder, plan_tasks_folder, read_listing, reconcile,
+    remove_cached_attachments, set_attachment_cache_root,
 };
 
 /// The canonical spelling a task link is stored under: with angle brackets.

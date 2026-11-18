@@ -20,7 +20,7 @@ use crate::tasks::{
     ReminderService, ScheduledNotification, Task, TaskAttachment, TaskError, TaskLinkedEmail,
     TaskListItem, TaskLogEntry, TaskQuery, TaskReminder, TaskRepository, TaskSyncReport,
     TaskSyncService, TaskTag, TaskUpdates, TaskView, UndoEntry, UndoStep, attachment_cache_root,
-    canonical_message_id, normalise_title, tag_label,
+    cached_attachment_path, canonical_message_id, normalise_title, tag_label,
 };
 use crate::undo::{Place, Step as UndoAction};
 use crate::{Error as OrbCoreError, FolderDisplay, MessageListItem, SyncStage as RustSyncStage};
@@ -7291,7 +7291,8 @@ impl OrbHandle {
             &host,
             keep,
             |task, attachment| {
-                let cached = attachment_cache_root().join(&attachment.file_path);
+                let cached =
+                    cached_attachment_path(&attachment.file_path).map_err(|e| e.to_string())?;
                 if cached.is_file() {
                     return Ok(cached);
                 }
@@ -7477,7 +7478,7 @@ impl OrbHandle {
             let mut attachments = Vec::new();
             for (attachment, payload) in &imported.attachments {
                 let Some(payload) = payload else { continue };
-                let target = attachment_cache_root().join(&attachment.file_path);
+                let target = cached_attachment_path(&attachment.file_path)?;
                 if let Some(parent) = target.parent() {
                     std::fs::create_dir_all(parent).map_err(|e| OrbError::DatabaseError {
                         message: format!("could not prepare the attachment cache: {e}"),
@@ -8796,7 +8797,7 @@ impl OrbHandle {
             // Written to the cache before the row is inserted: a row claiming a
             // cached payload that is not there is a broken attachment, whereas a
             // file with no row is a stray byte-blob the cache sweep removes.
-            let target = attachment_cache_root().join(&attachment.file_path);
+            let target = cached_attachment_path(&attachment.file_path)?;
             if let Some(parent) = target.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| OrbError::DatabaseError {
                     message: format!("could not prepare the attachment cache: {e}"),
@@ -8871,7 +8872,7 @@ impl OrbHandle {
             Ok((task.task_uuid, attachment))
         })?;
 
-        let cached = attachment_cache_root().join(&attachment.file_path);
+        let cached = cached_attachment_path(&attachment.file_path)?;
         let bytes = match std::fs::read(&cached) {
             Ok(bytes) => bytes,
             Err(_) => {
@@ -8924,7 +8925,7 @@ impl OrbHandle {
             Ok((task.task_uuid, attachment))
         })?;
 
-        let cached = attachment_cache_root().join(&attachment.file_path);
+        let cached = cached_attachment_path(&attachment.file_path)?;
         if cached.is_file() {
             return Ok(cached.to_string_lossy().into_owned());
         }
