@@ -2913,9 +2913,9 @@ pub fn write_template(config_path: &str) -> std::io::Result<PathBuf> {
         ));
     }
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
+        crate::files::create_private_dir(parent)?;
     }
-    fs::write(&path, TEMPLATE)?;
+    crate::files::write_private(&path, TEMPLATE.as_bytes())?;
     Ok(path)
 }
 

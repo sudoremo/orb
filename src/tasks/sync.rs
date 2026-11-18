@@ -2171,9 +2171,7 @@ impl TaskSyncService {
             )));
         }
 
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
+        create_cache_dir(path.parent().unwrap_or(&path))?;
         std::fs::write(&path, &parsed.payload)?;
 
         {
@@ -2248,6 +2246,16 @@ pub fn attachment_cache_root() -> PathBuf {
         .get()
         .cloned()
         .unwrap_or_else(|| PathBuf::from(shellexpand::tilde(ATTACHMENT_CACHE_ROOT).into_owned()))
+}
+
+/// Create `dir` under the attachment cache, with the cache root itself
+/// readable by the user alone. The root is what matters: everything under
+/// it inherits nothing, but nobody else gets past it.
+pub fn create_cache_dir(dir: &Path) -> std::io::Result<()> {
+    let root = attachment_cache_root();
+    crate::files::create_private_dir(&root)?;
+    crate::files::set_dir_private(&root)?;
+    std::fs::create_dir_all(dir)
 }
 
 /// The absolute path of a cached payload, from the relative one stored on the

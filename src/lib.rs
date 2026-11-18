@@ -15,6 +15,7 @@ pub mod environment;
 pub mod error;
 pub mod feeds;
 pub mod ffi;
+pub mod files;
 pub mod filters;
 pub mod highlights;
 pub mod imap;

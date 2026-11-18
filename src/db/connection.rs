@@ -892,7 +892,7 @@ impl Database {
         if let Some(parent) = std::path::Path::new(path).parent()
             && !parent.as_os_str().is_empty()
         {
-            std::fs::create_dir_all(parent).map_err(|e| {
+            crate::files::create_private_dir(parent).map_err(|e| {
                 std::io::Error::new(
                     e.kind(),
                     format!(

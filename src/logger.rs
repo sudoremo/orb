@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::Write;
 use std::sync::{Mutex, OnceLock};
 
@@ -41,7 +41,7 @@ pub fn init(log_file: Option<String>) -> bool {
 }
 
 fn open_for_append(path: &str) -> Option<File> {
-    OpenOptions::new().create(true).append(true).open(path).ok()
+    crate::files::open_private_append(std::path::Path::new(path)).ok()
 }
 
 /// Where the log is written, if anywhere.

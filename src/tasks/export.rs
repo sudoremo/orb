@@ -6,7 +6,6 @@
 //! `OrbHandle::export_tasks` gathers both.
 
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
@@ -17,6 +16,7 @@ use super::model::{
     CachedEmailMetadata, Task, TaskAttachment, TaskDates, TaskEvent, TaskLinkedEmail, TaskLogEntry,
     TaskReminder, TaskStep, TaskTag, format_timestamp, is_wire_id, parse_civil_date,
 };
+use crate::files::{create_private_dir, set_private, write_private};
 use crate::{Error, Result};
 
 /// `format` in every `tasks.json`.
@@ -888,41 +888,6 @@ fn sanitise_host(host: &str) -> String {
     } else {
         cleaned
     }
-}
-
-fn create_private_dir(path: &Path) -> Result<()> {
-    fs::create_dir_all(path)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
-    }
-    Ok(())
-}
-
-fn set_private(path: &Path) -> Result<()> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
-    }
-    let _ = path;
-    Ok(())
-}
-
-/// Write a file readable by the user alone, and on disk before returning.
-fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
-    let mut options = fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let mut file = options.open(path)?;
-    file.write_all(bytes)?;
-    file.sync_all()?;
-    Ok(())
 }
 
 fn sync_dir(path: &Path) -> Result<()> {

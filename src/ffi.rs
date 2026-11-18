@@ -20,7 +20,7 @@ use crate::tasks::{
     ReminderService, ScheduledNotification, Task, TaskAttachment, TaskError, TaskLinkedEmail,
     TaskListItem, TaskLogEntry, TaskQuery, TaskReminder, TaskRepository, TaskSyncReport,
     TaskSyncService, TaskTag, TaskUpdates, TaskView, UndoEntry, UndoStep, attachment_cache_root,
-    cached_attachment_path, canonical_message_id, normalise_title, tag_label,
+    cached_attachment_path, canonical_message_id, create_cache_dir, normalise_title, tag_label,
 };
 use crate::undo::{Place, Step as UndoAction};
 use crate::{Error as OrbCoreError, FolderDisplay, MessageListItem, SyncStage as RustSyncStage};
@@ -2369,7 +2369,6 @@ fn safe_filename(name: &str) -> String {
     }
 }
 
-/// Write `data` to `path`, creating the directories above it.
 /// The type of an image, told from its first bytes.
 fn image_type(bytes: &[u8]) -> Option<&'static str> {
     match bytes {
@@ -2395,9 +2394,11 @@ fn image_type(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
+/// Write `data` to `path` under the attachment cache, creating the
+/// directories above it.
 fn write_file(path: &std::path::Path, data: &[u8]) -> Result<(), OrbError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| OrbError::ConfigError {
+        create_cache_dir(parent).map_err(|e| OrbError::ConfigError {
             message: format!("could not create {}: {e}", parent.display()),
         })?;
     }
@@ -7491,7 +7492,7 @@ impl OrbHandle {
                 let Some(payload) = payload else { continue };
                 let target = cached_attachment_path(&attachment.file_path)?;
                 if let Some(parent) = target.parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| OrbError::DatabaseError {
+                    create_cache_dir(parent).map_err(|e| OrbError::DatabaseError {
                         message: format!("could not prepare the attachment cache: {e}"),
                     })?;
                 }
@@ -8810,7 +8811,7 @@ impl OrbHandle {
             // file with no row is a stray byte-blob the cache sweep removes.
             let target = cached_attachment_path(&attachment.file_path)?;
             if let Some(parent) = target.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| OrbError::DatabaseError {
+                create_cache_dir(parent).map_err(|e| OrbError::DatabaseError {
                     message: format!("could not prepare the attachment cache: {e}"),
                 })?;
             }

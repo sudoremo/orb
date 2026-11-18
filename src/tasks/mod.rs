@@ -64,8 +64,8 @@ pub use sync::{
     DEFAULT_TASKS_FOLDER, DownloadTarget, ExpungeReason, ExpungeTarget, FolderPlan,
     ListedAttachment, ListedMessage, Listing, LocalDeletion, Rebind, RegistryAction, SyncPlan,
     TaskSyncReport, TaskSyncService, UploadReason, UploadTarget, attachment_cache_root,
-    cached_attachment_path, ensure_tasks_folder, plan_tasks_folder, read_listing, reconcile,
-    remove_cached_attachments, set_attachment_cache_root,
+    cached_attachment_path, create_cache_dir, ensure_tasks_folder, plan_tasks_folder, read_listing,
+    reconcile, remove_cached_attachments, set_attachment_cache_root,
 };
 
 /// The canonical spelling a task link is stored under: with angle brackets.
