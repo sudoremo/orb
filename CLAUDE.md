@@ -21,6 +21,9 @@ included. For every feature and every bug fix:
 - `README.md` — the user manual, describing what the app does **today**.
   Update it in the same change as any behaviour it documents. Never document
   planned behaviour as present.
+- `CHANGELOG.md` — what changed for users, newest first. Add a line under
+  Unreleased in the same change as any behaviour a user would notice; the
+  release workflow turns a version's section into its release notes.
 - `PLAN.md` — everything still missing, broken or rough, with a checklist of
   numbered subphases. Delete an item when it is done, tick a subphase when it
   is empty, and commit the plan in the same commit as the work.

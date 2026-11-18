@@ -103,9 +103,16 @@ cd app && pnpm dev     # then open http://localhost:1420/harness.html?total=2000
 
 A tag `vX.Y.Z` on GitHub builds the macOS app as a universal binary and
 attaches the DMG to a draft release for the tag (`.github/workflows/release.yml`);
-publish the draft once you have looked at it. The tag has to match the version
-in `app/src-tauri/tauri.conf.json` and `app/src-tauri/Cargo.toml`, so bump
-those first:
+publish the draft once you have looked at it. Before tagging:
+
+- Set the version in `app/src-tauri/tauri.conf.json`, `app/src-tauri/Cargo.toml`
+  and `MARKETING_VERSION` in `ios/project.yml`, and run `xcodegen generate` in
+  `ios/`. The tag has to match them.
+- Retitle the Unreleased section of `CHANGELOG.md` to the version and the date,
+  and start a new Unreleased section above it. The workflow refuses a tag
+  without a section for it and makes the section the release notes.
+
+Then:
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
