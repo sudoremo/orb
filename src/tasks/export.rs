@@ -852,7 +852,14 @@ fn dir_size(root: &Path) -> Result<u64> {
     walk(root)?.iter().map(|p| Ok(fs::metadata(p)?.len())).sum()
 }
 
-/// A filename as a path component: no separators, nothing hidden, never empty.
+/// The longest filename written into a snapshot, in bytes: under every file
+/// system's limit, so a name off the wire cannot make the export incomplete
+/// for good.
+const MAX_FILENAME_BYTES: usize = 200;
+
+/// A filename as a path component: no separators, nothing hidden, never
+/// empty, never longer than [`MAX_FILENAME_BYTES`]. A name cut short keeps
+/// its extension, so the file still opens with what reads it.
 fn safe_filename(name: &str) -> String {
     let cleaned: String = name
         .chars()
@@ -866,10 +873,22 @@ fn safe_filename(name: &str) -> String {
         .collect();
     let cleaned = cleaned.trim_start_matches('.').trim();
     if cleaned.is_empty() {
-        "attachment".to_string()
-    } else {
-        cleaned.to_string()
+        return "attachment".to_string();
     }
+    if cleaned.len() <= MAX_FILENAME_BYTES {
+        return cleaned.to_string();
+    }
+    let (stem, extension) = match cleaned.rsplit_once('.') {
+        Some((stem, extension)) if extension.len() <= 16 && !stem.is_empty() => {
+            (stem, format!(".{extension}"))
+        }
+        _ => (cleaned, String::new()),
+    };
+    let mut end = MAX_FILENAME_BYTES - extension.len();
+    while !stem.is_char_boundary(end.min(stem.len())) {
+        end -= 1;
+    }
+    format!("{}{extension}", &stem[..end.min(stem.len())])
 }
 
 fn sanitise_host(host: &str) -> String {
@@ -1070,6 +1089,23 @@ mod tests {
     use super::*;
     use crate::tasks::model::{ChangeContext, TaskStep};
     use chrono::TimeZone;
+
+    /// A filename off the wire longer than a file system allows made the
+    /// export incomplete on every run; it is cut to fit and keeps its
+    /// extension.
+    #[test]
+    fn a_filename_too_long_for_a_file_system_is_cut_and_keeps_its_extension() {
+        let long = format!("{}.pdf", "ü".repeat(300));
+        let cut = safe_filename(&long);
+        assert!(cut.len() <= MAX_FILENAME_BYTES, "{}", cut.len());
+        assert!(cut.ends_with(".pdf"));
+        assert!(cut.starts_with("üü"));
+        let bare = safe_filename(&"a".repeat(500));
+        assert_eq!(bare.len(), MAX_FILENAME_BYTES);
+        let odd = safe_filename(&format!("{}.{}", "a".repeat(300), "b".repeat(50)));
+        assert_eq!(odd.len(), MAX_FILENAME_BYTES);
+        assert_eq!(safe_filename("notes.txt"), "notes.txt");
+    }
 
     fn at(s: &str) -> DateTime<Utc> {
         DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc)
