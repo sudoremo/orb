@@ -2724,6 +2724,30 @@ fn resolve_tasks_account(config: &mut Config) {
     config.hide_tasks_folder(&tasks.account, &tasks.folder);
 }
 
+/// Whether an http(s) URL names this machine: `localhost`, `127.0.0.0/8`
+/// or `[::1]`, with or without a port.
+fn is_loopback_url(url: &str) -> bool {
+    let after_scheme = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let authority = after_scheme.split('/').next().unwrap_or("");
+    let host = if let Some(end) = authority.strip_prefix('[').and_then(|a| a.find(']')) {
+        &authority[1..=end]
+    } else {
+        authority
+            .rsplit_once(':')
+            .map_or(authority, |(host, port)| {
+                if port.chars().all(|c| c.is_ascii_digit()) {
+                    host
+                } else {
+                    authority
+                }
+            })
+    };
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
+}
+
 /// A chat section Orb cannot use is reported and dropped, as a broken tasks
 /// section is: chat being off must not stop mail from being read.
 fn check_chat(config: &mut Config) {
@@ -2734,6 +2758,13 @@ fn check_chat(config: &mut Config) {
     let problem = if !(chat.server.starts_with("https://") || chat.server.starts_with("http://")) {
         Some(format!(
             "chat.server '{}' is not an http(s) address",
+            chat.server
+        ))
+    } else if chat.server.starts_with("http://") && !is_loopback_url(&chat.server) {
+        // The session token and every message would travel in clear. Only a
+        // server on this machine — a test container — is reached that way.
+        Some(format!(
+            "chat.server '{}' is http, which would send the session in clear; use https",
             chat.server
         ))
     } else if chat.server.splitn(4, '/').nth(3).is_some() {
@@ -3177,12 +3208,33 @@ accounts:
             "chat:\n  server: chat.example.com\n",
             "chat:\n  server: https://chat.example.com/rocket\n",
             "chat:\n  server: https://chat.example.com\n  sign_in: token_command\n",
+            "chat:\n  server: http://chat.example.com\n",
+            "chat:\n  server: http://localhost.example.com:3000\n",
         ] {
             let config = config_with(section);
             assert!(config.chat.is_none(), "{section}");
             assert_eq!(config.warnings.len(), 1, "{section}");
             assert_eq!(config.accounts.len(), 1);
         }
+    }
+
+    /// Plain http would send the session token in clear, so it is refused —
+    /// except to this machine, where the test container listens.
+    #[test]
+    fn a_plain_http_chat_server_is_allowed_only_on_this_machine() {
+        for server in [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://[::1]:3000",
+            "http://LOCALHOST",
+        ] {
+            let config = config_with(&format!("chat:\n  server: {server}\n"));
+            assert!(config.chat.is_some(), "{server}");
+        }
+        assert!(!is_loopback_url("http://chat.example.com"));
+        assert!(!is_loopback_url("http://localhost.example.com"));
+        assert!(!is_loopback_url("http://127.example.com"));
+        assert!(!is_loopback_url("http://evil.example.com:127"));
     }
 
     /// A chat link that cannot be followed is dropped with a warning; chat
