@@ -48,7 +48,7 @@ struct RootView: View {
             } description: {
                 Text(message)
             } actions: {
-                Button("Set Up Again") { model.reset() }
+                Button("Set Up Again") { Task { await model.reset() } }
             }
         }
     }

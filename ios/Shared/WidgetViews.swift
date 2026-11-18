@@ -97,11 +97,13 @@ struct TodayAccessoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             Label("\(snapshot.openCount) for Today", systemImage: "sun.max").font(.headline)
+            // Redacted while the Lock Screen hides what is private, as the
+            // notifications are: a task's title is the person's business.
             if let next = snapshot.nextTimed, let at = snapshot.nextTimedAt {
-                Text("\(at.formatted(date: .omitted, time: .shortened)) \(next.title)").lineLimit(1)
+                Text("\(at.formatted(date: .omitted, time: .shortened)) \(next.title)").lineLimit(1).privacySensitive()
             }
             if let overdue = snapshot.today.first(where: { $0.overdue && !$0.done }) {
-                Text("! \(overdue.title)").lineLimit(1)
+                Text("! \(overdue.title)").lineLimit(1).privacySensitive()
             }
         }
     }

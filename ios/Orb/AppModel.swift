@@ -113,13 +113,31 @@ final class AppModel {
         await reminders?.requestPermission()
     }
 
-    /// Forget the configuration and the tasks cached with it, and start over.
-    func reset() {
+    /// Forget the configuration, the tasks cached with it and the account's
+    /// password, and start over.
+    func reset() async {
         enteredBackground()
+        if let service, let account = service.orb.tasksAccount() {
+            try? await service.run { try $0.forgetPassword(account: account) }
+        }
         try? FileManager.default.removeItem(at: Self.directory)
         OrbRuntime.shared.forget()
         service = nil
         state = .setup
+    }
+
+    /// The log and the attachment cache stay on this phone. A backup is a
+    /// copy of the mail they hold on another device, and both are made again
+    /// from the server; the database is what the phone works from offline and
+    /// is backed up with the rest.
+    private static func excludeFromBackup() {
+        for name in ["orb.log", "attachments"] {
+            var url = directory.appendingPathComponent(name)
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? url.setResourceValues(values)
+        }
     }
 
     private func open(_ opened: OrbService? = nil) async {
@@ -127,6 +145,7 @@ final class AppModel {
             let service = if let opened { opened } else { try await OrbRuntime.shared.open() }
             self.service = service
             state = .ready
+            Self.excludeFromBackup()
             watchNetwork(service)
             watchUploads(service)
             watchDay()
@@ -175,7 +194,7 @@ final class AppModel {
         do {
             _ = try await service.run { try $0.syncTasks() }
         } catch {
-            log.error("background refresh: \(String(describing: error), privacy: .public)")
+            log.error("background refresh: \(String(describing: error))")
         }
         await refresh()
     }
@@ -218,6 +237,9 @@ final class AppModel {
         notificationsAllowed = await reminders?.allowed()
         todaySettings = service.orb.todaySettings()
         accountDescription = service.orb.accountDescription()
+        // The cache appears with the first attachment opened; the mark goes on
+        // whenever it is there.
+        Self.excludeFromBackup()
         revision += 1
         await reminders?.reconcile(service)
         await WidgetSnapshotWriter.update(service)
@@ -250,7 +272,7 @@ final class AppModel {
             try await service.run(change)
             if let undo { undoMessage = undo }
         } catch {
-            log.error("a change failed: \(String(describing: error), privacy: .public)")
+            log.error("a change failed: \(String(describing: error))")
             undoMessage = error.message
         }
         await refresh()

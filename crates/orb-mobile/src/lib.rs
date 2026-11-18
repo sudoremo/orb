@@ -381,6 +381,16 @@ impl Orb {
             .map_err(|message| OrbError::ConfigError { message })
     }
 
+    /// Take the IMAP password of `account` out of the Keychain, for when the
+    /// account is forgotten: a password kept for an account that is gone is
+    /// one more copy nobody asked for.
+    pub fn forget_password(&self, account: String) -> Result<(), OrbError> {
+        let key = self.credential_key(&account)?;
+        Keychain
+            .delete(&key)
+            .map_err(|message| OrbError::ConfigError { message })
+    }
+
     /// One view, narrowed by `filter` when there is one: title, notes and
     /// tag names, plus `tag:<name>` (§4.5).
     pub fn list_tasks(

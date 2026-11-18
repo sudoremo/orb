@@ -84,7 +84,7 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
         do {
             plan = try await service.run { try $0.notificationPlan(pending: pending) }
         } catch {
-            log.error("could not plan reminders: \(error.message, privacy: .public)")
+            log.error("could not plan reminders: \(error.message)")
             return
         }
         if !plan.schedule.isEmpty || !plan.cancel.isEmpty {
@@ -138,7 +138,7 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
         }
         center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)) { error in
             if let error {
-                log.error("could not schedule \(identifier, privacy: .public): \(error.message, privacy: .public)")
+                log.error("could not schedule \(identifier, privacy: .public): \(error.message)")
             }
         }
     }

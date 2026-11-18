@@ -315,7 +315,7 @@ struct SettingsView: View {
                 }
                 Button("Change Account", role: .destructive) { changingAccount = true }
             } footer: {
-                Text("The tasks stay on the server; this iPhone forgets them and the account.")
+                Text("The tasks stay on the server; this iPhone forgets them, the account and its password.")
             }
         }
         .navigationTitle("Settings")
@@ -324,7 +324,7 @@ struct SettingsView: View {
             isPresented: $changingAccount,
             titleVisibility: .visible
         ) {
-            Button("Change Account", role: .destructive) { model.reset() }
+            Button("Change Account", role: .destructive) { Task { await model.reset() } }
         } message: {
             let pending = model.syncStatus?.pending ?? 0
             if pending > 0 {

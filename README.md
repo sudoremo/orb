@@ -2133,6 +2133,11 @@ replaced on its own (Enter asks for another), and the window closes it the
 moment Orb leaves the front. The iPhone shows which account and server a
 scanned code points at and asks before logging in.
 
+The iPhone keeps the password in its Keychain, on the device alone, and
+forgets it with the account under *Change Account*; its log and attachment
+cache stay out of backups. On the Lock Screen, the widgets' task titles are
+hidden whenever the phone hides what is private, as notification previews are.
+
 On the iPhone, *Select* in a list's ⋯ menu picks several tasks; the bar below
 completes, postpones, merges or deletes them, and dragging one of them moves
 them all. *Hide Completed* in Today's ⋯ menu is `clear-completed`. A step is
