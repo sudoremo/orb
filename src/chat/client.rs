@@ -284,12 +284,31 @@ const MAX_ANSWER_BYTES: usize = 64 * 1024 * 1024;
 /// message's attachment can take.
 const MAX_FILE_BYTES: usize = 256 * 1024 * 1024;
 
+/// How many times a file download follows the server elsewhere.
+const MAX_FILE_REDIRECTS: usize = 3;
+
+/// Where a redirecting answer points, resolved against the address asked.
+fn redirect_target(response: &reqwest::Response) -> Option<reqwest::Url> {
+    let location = response
+        .headers()
+        .get(reqwest::header::LOCATION)?
+        .to_str()
+        .ok()?;
+    response.url().join(location).ok()
+}
+
 impl RestClient {
     pub fn new(server: &str, session: Session) -> Result<Self, ChatError> {
+        // No redirects followed by the library: it would carry the session
+        // headers along to wherever a file-upload path points, and the
+        // library strips only the standard authorisation headers on a change
+        // of host. An API call that redirects is an error; a file download
+        // follows one itself, without the session (see `download`).
         let http = Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .connect_timeout(Duration::from_secs(15))
             .user_agent(concat!("Orb/", env!("CARGO_PKG_VERSION")))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| ChatError::Network(e.to_string()))?;
         Ok(Self {
@@ -817,7 +836,7 @@ impl RestClient {
                 "not a file of the server: {path}"
             )));
         }
-        let response = self
+        let mut response = self
             .http
             .get(format!("{}{path}", self.server))
             .header("X-User-Id", &self.session.user_id)
@@ -825,6 +844,23 @@ impl RestClient {
             .send()
             .await
             .map_err(|e| ChatError::Network(e.to_string()))?;
+        // A server that keeps its files elsewhere answers with where: that
+        // address is followed as any browser would, as a plain request with
+        // nothing of the session in it, and only so far.
+        for _ in 0..MAX_FILE_REDIRECTS {
+            if !response.status().is_redirection() {
+                break;
+            }
+            let Some(target) = redirect_target(&response) else {
+                break;
+            };
+            response = self
+                .http
+                .get(target)
+                .send()
+                .await
+                .map_err(|e| ChatError::Network(e.to_string()))?;
+        }
         let status = response.status();
         if status == StatusCode::UNAUTHORIZED {
             return Err(ChatError::SignedOut);
