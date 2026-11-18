@@ -536,3 +536,10 @@ Worth doing, not on the path to daily use.
   New template in the picker, as the mockup's Templates states draw them.
 - A draft saved with a template's placeholders still open keeps them: reopened
   from Drafts, it shows the Fill in line again and Send still checks them.
+- A signed and notarized build. The bundle is signed ad hoc
+  (`signingIdentity: "-"` in `tauri.conf.json`), so the first launch is a
+  Gatekeeper bypass and every rebuild resets the Contacts, notification and
+  accessibility grants; it needs a Developer ID certificate.
+- An upper bound on what the IMAP library buffers for one literal: it reads
+  up to 512 MB for a size the server announces, per connection. A fix
+  belongs upstream in async-imap.
