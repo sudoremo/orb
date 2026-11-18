@@ -445,9 +445,12 @@
                    { filename: "report.pdf", content_type: "application/pdf", size: 4096, part_id: "2",
                      is_inline: false, content_id: null, risk: null }]
                 : [];
+            // The shell asks about a dangerous file itself; `mock.declineAttachment`
+            // is its answer being no.
             case "open_attachment":
+              if (mock.declineAttachment) return { path: `/tmp/${args.part}`, revealed: false, declined: true };
               (mock.openedAttachments = mock.openedAttachments ?? []).push(args.part);
-              return { path: `/tmp/${args.part}`, revealed: false };
+              return { path: `/tmp/${args.part}`, revealed: false, declined: false };
             // Message 9, the spoofed one, also failed the server's check.
             case "sender_check":
               return args.id === 9

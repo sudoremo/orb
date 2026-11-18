@@ -1754,10 +1754,15 @@ the Mailbox menu.
 
 A message's attachments are listed under its headers with their size. Clicking
 a name opens it with its default application, except for file types macOS
-would run rather than display, which are revealed in Finder instead. Files
+would run, launch or install rather than display — programs and scripts,
+installers, Java archives, configuration profiles, and the link files that
+open whatever address they hold — which are revealed in Finder instead. Files
 that are dangerous to open for another reason (HTML and SVG, Office documents
 with macros, disk images, Windows programs, names that hide their type behind
-a right-to-left mark) are shown in red, and opening one asks first. The eye
+a right-to-left mark) are shown in red, and opening one asks first, in a
+dialog of the system's. Every file Orb writes out is quarantined, as a
+browser's downloads are, so what is inside an archive is checked by
+Gatekeeper before it runs. The eye
 shows it in Quick Look, the arrow saves it where you choose, and a row can be
 dragged out onto the Finder or another application. `open-attachment`,
 `quick-look` and `save-attachment` do the same from the keyboard, by the

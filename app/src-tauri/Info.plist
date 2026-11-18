@@ -12,5 +12,12 @@
   <dict>
     <key>NSContactsUsageDescription</key>
     <string>Orb suggests people from your address book while you address a message. Your contacts stay on this Mac.</string>
+    <!--
+      Every file Orb writes is quarantined, as a browser's downloads are: an
+      attachment unpacked to disk came over the network, and Gatekeeper then
+      checks whatever is inside it before it runs.
+    -->
+    <key>LSFileQuarantineEnabled</key>
+    <true/>
   </dict>
 </plist>

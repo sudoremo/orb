@@ -403,11 +403,15 @@ async function actOnTaskDetail(button: HTMLElement): Promise<void> {
     // A cache miss is a download, which is exactly the kind of wait the task
     // widget exists for (§9).
     const opened = await runTask({ id: "task-attachment", label: "Opening attachment" }, () =>
-      call<{ path: string; revealed: boolean }>(
+      call<{ path: string; revealed: boolean; declined: boolean }>(
         "open_task_attachment",
         { task: detail.task.id, attachment: uuid },
       ),
     );
+    if (opened.declined) {
+      setStatus("not opened");
+      return;
+    }
     // The payload's home is the cache, so downloading it and saving it are the
     // same act and there is nothing to choose a location for. Something the
     // system would run rather than display is revealed in Finder instead, and

@@ -4954,17 +4954,6 @@ impl OrbHandle {
         Ok(path.to_string_lossy().into_owned())
     }
 
-    /// Write the attachment to `path`, which a save dialog chose.
-    pub fn save_attachment(
-        &self,
-        message_id: i64,
-        part_id: String,
-        path: String,
-    ) -> Result<(), OrbError> {
-        let data = self.extract_attachment(message_id, part_id)?;
-        write_file(std::path::Path::new(&path), &data.data)
-    }
-
     /// Sync a specific folder
     pub fn sync_folder(
         &self,

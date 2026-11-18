@@ -247,13 +247,14 @@ pub async fn chat_file_preview(
 /// or reveal it in Finder when opening it would run it.
 #[tauri::command]
 pub async fn chat_open_file(
+    app: AppHandle,
     orb: State<'_, Handle>,
     id: String,
     index: usize,
 ) -> Result<OpenedAttachment, OrbError> {
     let orb = orb.inner().clone();
     let path = offload("chat_open_file", move || orb.chat_file_path(id, index)).await?;
-    open_on_disk(path)
+    open_on_disk(&app, path).await
 }
 
 /// Leave a room, or hide a direct message.

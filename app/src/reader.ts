@@ -3,12 +3,11 @@ import { attachChatReader, chatActive, chatReaderMarkup } from "./chat";
 import { cursorMessageId } from "./actions";
 import { renderTaskDetail, renderMessageTasks } from "./taskdetail";
 import { linkify, linkTarget, messageUrlId } from "./links";
-import { save as saveFileDialog } from "@tauri-apps/plugin-dialog";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { runTask } from "./tasks";
 import { VIEW_LABELS, windowIsDark } from "./appearance";
 import { invoke } from "@tauri-apps/api/core";
-import { askFirst, call, setStatus } from "./bridge";
+import { call, setStatus } from "./bridge";
 import { dispatchCommand } from "./commands";
 import {
   SPOOF_TITLE,
@@ -429,22 +428,17 @@ export async function actOnAttachment(index: number, action: string, message?: n
     return;
   }
   if (action === "save") {
-    const path = await saveFileDialog({ defaultPath: a.filename, title: `Save ${a.filename}` });
-    if (!path) return;
-    await call("save_attachment", { ...args, path });
-    setStatus(`saved ${a.filename}`);
+    // The shell asks where: the path the bytes go to is one a person picked.
+    const saved = await call<string | null>("save_attachment", args);
+    setStatus(saved ? `saved ${a.filename}` : "not saved");
     return;
   }
-  if (
-    a.risk &&
-    !(await askFirst(
-      `Open ${a.filename}?\n\nThis file ${a.risk}. Open it only if you expected it from this sender.`,
-      "Open",
-    ))
-  ) {
+  // A dangerous file is asked about by the shell, in a native dialog.
+  const opened = await call<{ path: string; revealed: boolean; declined: boolean }>("open_attachment", args);
+  if (opened.declined) {
+    setStatus(`${a.filename} not opened`);
     return;
   }
-  const opened = await call<{ path: string; revealed: boolean }>("open_attachment", args);
   setStatus(opened.revealed ? `revealed ${a.filename} in Finder` : `opened ${a.filename}`);
 }
 el.reader.addEventListener("click", (e) => {

@@ -1151,7 +1151,7 @@ test("a message the server found forged says so under its header", async ({ page
   await expect(warnings.last()).toContainText("Replies go to help@paypa1-support.ru");
 });
 
-test("an attachment that is dangerous to open is marked and asked about", async ({ page }) => {
+test("an attachment that is dangerous to open is marked, and the shell's answer is shown", async ({ page }) => {
   await page.goto("/harness.html");
   await page.locator("#list .row.cursor").waitFor();
   await settled(page);
@@ -1166,15 +1166,16 @@ test("an attachment that is dangerous to open is marked and asked about", async 
 
   await chips.last().locator(".att-name").click();
   await expect.poll(opened).toEqual(["2"]);
+
+  // The question is the shell's, asked in a native dialog, so the page asks
+  // nothing of its own; it only reports the answer.
+  await page.evaluate(() => ((window as unknown as { __mock: { declineAttachment?: boolean } }).__mock.declineAttachment = true));
+  await chips.first().locator(".att-name").click();
+  await expect(page.locator("#status")).toContainText("invoice.html not opened");
+  expect(await opened()).toEqual(["2"]);
   expect(await callsTo(page, "plugin:dialog|message")).toHaveLength(0);
 
-  // Cancel, the default answer, opens nothing.
-  await chips.first().locator(".att-name").click();
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __mock: { answered?: string[] } }).__mock.answered ?? []))
-    .toContain("plugin:dialog|message");
-  expect(await opened()).toEqual(["2"]);
-  await page.evaluate(() => ((window as unknown as { __askAnswer: string }).__askAnswer = "Open"));
+  await page.evaluate(() => ((window as unknown as { __mock: { declineAttachment?: boolean } }).__mock.declineAttachment = false));
   await chips.first().locator(".att-name").click();
   await expect.poll(opened).toEqual(["2", "1"]);
 });

@@ -1706,8 +1706,10 @@ async function sendDraft(): Promise<void> {
 async function openFile(id: string, index: number): Promise<void> {
   const name = state.chat.conversation?.messages.find((m) => m.id === id)?.files[index]?.name ?? "the file";
   setStatus(`Opening ${name}…`);
-  const opened = await call<{ path: string; revealed: boolean }>("chat_open_file", { id, index }).catch(() => null);
-  if (opened) setStatus(opened.revealed ? `Revealed ${name} in Finder` : `Opened ${name}`);
+  const opened = await call<{ path: string; revealed: boolean; declined: boolean }>("chat_open_file", { id, index }).catch(() => null);
+  if (!opened) return;
+  if (opened.declined) setStatus(`${name} not opened`);
+  else setStatus(opened.revealed ? `Revealed ${name} in Finder` : `Opened ${name}`);
 }
 
 /** Scroll to a message of the conversation on screen, and point it out. */

@@ -1263,16 +1263,17 @@ async fn attachment_path(
 }
 
 /// Open an attachment with its default application — or reveal it in Finder
-/// when opening it would run it.
+/// when opening it would run it, and ask first when it is dangerous to open.
 #[tauri::command]
 async fn open_attachment(
+    app: AppHandle,
     orb: State<'_, Handle>,
     id: i64,
     part: String,
 ) -> Result<OpenedAttachment, OrbError> {
     let orb = orb.inner().clone();
     let path = offload("open_attachment", move || orb.attachment_path(id, part)).await?;
-    open_on_disk(path)
+    open_on_disk(&app, path).await
 }
 
 /// Show an attachment in Quick Look.
@@ -1326,19 +1327,35 @@ async fn drag_icon() -> Result<String, OrbError> {
     Ok(path.to_string_lossy().into_owned())
 }
 
-/// Write an attachment where the save dialog pointed.
+/// Save an attachment where the user chooses: the save dialog is asked here,
+/// so the path a message's bytes are written to is one a person picked and
+/// nothing the page could name. `None` when the dialog was cancelled.
 #[tauri::command]
 async fn save_attachment(
+    app: AppHandle,
     orb: State<'_, Handle>,
     id: i64,
     part: String,
-    path: String,
-) -> Result<(), OrbError> {
+) -> Result<Option<String>, OrbError> {
     let orb = orb.inner().clone();
-    offload("save_attachment", move || {
-        orb.save_attachment(id, part, path)
-    })
-    .await
+    let data = offload("save_attachment", move || orb.extract_attachment(id, part)).await?;
+    let dialog = app
+        .dialog()
+        .file()
+        .set_file_name(&data.filename)
+        .set_title(format!("Save {}", data.filename));
+    let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file())
+        .await
+        .map_err(|e| OrbError::ConfigError {
+            message: format!("the save dialog failed: {e}"),
+        })?;
+    let Some(path) = picked.and_then(|picked| picked.into_path().ok()) else {
+        return Ok(None);
+    };
+    std::fs::write(&path, &data.data).map_err(|e| OrbError::ConfigError {
+        message: format!("could not write {}: {e}", path.display()),
+    })?;
+    Ok(Some(path.to_string_lossy().into_owned()))
 }
 
 /// Forwards sync progress from the core to the webview as it happens.
@@ -3185,32 +3202,50 @@ async fn empty_task_trash(app: AppHandle, orb: State<'_, Handle>) -> Result<u32,
     mutate_tasks(app, "empty_task_trash", move || orb.empty_task_trash()).await
 }
 
-/// Extensions macOS would *run* rather than display.
+/// Extensions macOS would *run*, launch or install rather than display.
 ///
 /// An attachment arrives over the network and its filename comes with it, so
 /// handing one of these to `open` is handing an unread message the ability to
-/// execute. These are revealed in Finder instead, where opening them is a
-/// decision somebody makes on purpose.
-const EXECUTABLE_SUFFIXES: [&str; 10] = [
+/// execute: programs and scripts, installers and archives of them, and the
+/// link files Launch Services opens by following whatever address they hold.
+/// These are revealed in Finder instead, where opening them is a decision
+/// somebody makes on purpose.
+const EXECUTABLE_SUFFIXES: &[&str] = &[
     ".app",
     ".command",
+    ".tool",
     ".sh",
     ".bash",
     ".zsh",
+    ".csh",
+    ".ksh",
+    ".fish",
     ".scpt",
     ".scptd",
+    ".applescript",
     ".workflow",
+    ".action",
     ".terminal",
     ".pkg",
+    ".mpkg",
+    ".xip",
+    ".jar",
+    ".inetloc",
+    ".webloc",
+    ".fileloc",
+    ".url",
+    ".mobileconfig",
 ];
 
-/// What happened when a task attachment was opened.
+/// What happened when an attachment was opened.
 #[derive(serde::Serialize)]
 pub(crate) struct OpenedAttachment {
     path: String,
     /// True when the file was revealed in Finder rather than opened, because
     /// opening it would have run it.
     revealed: bool,
+    /// True when the file was dangerous to open and the user said no.
+    declined: bool,
 }
 
 /// Materialise a task attachment on disk and hand it to the platform (§9).
@@ -3220,6 +3255,7 @@ pub(crate) struct OpenedAttachment {
 /// wanted was to look at the file.
 #[tauri::command]
 async fn open_task_attachment(
+    app: AppHandle,
     orb: State<'_, Handle>,
     task: i64,
     attachment: String,
@@ -3229,16 +3265,62 @@ async fn open_task_attachment(
         orb.task_attachment_path(task, attachment)
     })
     .await?;
-    open_on_disk(path)
+    open_on_disk(&app, path).await
+}
+
+/// Whether macOS would run `name` rather than display it (see
+/// [`EXECUTABLE_SUFFIXES`]). Trailing dots and spaces do not count: Finder
+/// hides them and Launch Services looks past them.
+fn runs_rather_than_displays(name: &str) -> bool {
+    let lowered = name.trim_end_matches(['.', ' ']).to_ascii_lowercase();
+    EXECUTABLE_SUFFIXES
+        .iter()
+        .any(|suffix| lowered.ends_with(suffix))
 }
 
 /// Hand a file to the system — or reveal it in Finder when opening it would
-/// run it (see [`EXECUTABLE_SUFFIXES`]).
-pub(crate) fn open_on_disk(path: String) -> Result<OpenedAttachment, OrbError> {
-    let lowered = path.to_ascii_lowercase();
-    let revealed = EXECUTABLE_SUFFIXES
-        .iter()
-        .any(|suffix| lowered.ends_with(suffix));
+/// run it, and ask first when opening it is dangerous for another reason.
+///
+/// The question is asked here, as a native dialog, rather than left to the
+/// page: the page's judgement is advice, and a page that had got script could
+/// skip its own.
+pub(crate) async fn open_on_disk(
+    app: &AppHandle,
+    path: String,
+) -> Result<OpenedAttachment, OrbError> {
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let revealed = runs_rather_than_displays(&name);
+    let risk = if revealed {
+        None
+    } else {
+        orb_core::safety::attachment_risk(&name)
+    };
+    if let Some(risk) = risk {
+        let dialog = app
+            .dialog()
+            .message(format!(
+                "This file {risk}. Open it only if you expected it from this sender."
+            ))
+            .title(format!("Open {name}?"))
+            .kind(MessageDialogKind::Warning)
+            .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+                "Open".to_string(),
+                "Cancel".to_string(),
+            ));
+        let go = tauri::async_runtime::spawn_blocking(move || dialog.blocking_show())
+            .await
+            .unwrap_or(false);
+        if !go {
+            return Ok(OpenedAttachment {
+                path,
+                revealed: false,
+                declined: true,
+            });
+        }
+    }
 
     // The path is a single argument to `open`, never a shell string, so a
     // filename full of metacharacters is a filename and nothing more.
@@ -3253,7 +3335,11 @@ pub(crate) fn open_on_disk(path: String) -> Result<OpenedAttachment, OrbError> {
             message: format!("could not open the attachment: {e}"),
         })?;
 
-    Ok(OpenedAttachment { path, revealed })
+    Ok(OpenedAttachment {
+        path,
+        revealed,
+        declined: false,
+    })
 }
 
 /// Erase a task that was never really made, without going through the trash.
@@ -4724,6 +4810,42 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What macOS would run is revealed rather than opened: programs, scripts,
+    /// installers, archives of them, and the link files that open whatever
+    /// address they hold. Trailing dots and spaces, which Finder hides, do not
+    /// turn one into something else.
+    #[test]
+    fn what_the_system_would_run_is_revealed_not_opened() {
+        for name in [
+            "setup.app",
+            "run.command",
+            "run.tool",
+            "Rechnung.inetloc",
+            "page.webloc",
+            "link.url",
+            "elsewhere.fileloc",
+            "thing.jar",
+            "profile.mobileconfig",
+            "RUN.SH",
+            "run.sh.",
+            "run.command ",
+            "bundle.mpkg",
+            "archive.xip",
+        ] {
+            assert!(runs_rather_than_displays(name), "{name:?}");
+        }
+        for name in [
+            "report.pdf",
+            "notes.txt",
+            "photo.jpg",
+            "invoice.html",
+            "disk.dmg",
+            "",
+        ] {
+            assert!(!runs_rather_than_displays(name), "{name:?}");
+        }
+    }
 
     /// An editor answers to the window that opened it and to no other; an id
     /// no editor has belongs to nobody.
