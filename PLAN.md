@@ -521,9 +521,6 @@ Worth doing, not on the path to daily use.
   in the app's style (`ext_cmdline`, `ext_popupmenu`, `ext_messages`), and
   `ext_multigrid` if floating windows drawn into the one grid look wrong.
 - Address book editing and vCard import.
-- iOS builds to TestFlight from a release tag, as `release.yml` does for the
-  Mac: Xcode Cloud, or a workflow with an App Store Connect key and the
-  distribution profiles.
 - Today in the tasks window grouped into Overdue, Today and Done today, as
   the mockup's Tasks window state draws it.
 - Per-occurrence editing of recurring tasks (out of scope in `todo-spec.md`
