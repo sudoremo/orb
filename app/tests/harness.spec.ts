@@ -950,6 +950,16 @@ test("a link in HTML mail navigates the window, for the shell to open, and an in
   await body.locator("#top").click();
   expect(navigated).toEqual([]);
   expect(page.frames().map((f) => f.url())).toEqual([page.url(), "about:srcdoc#top"]);
+  // A relative address would resolve against the window's own, and
+  // `javascript:` is nothing the shell opens: the text stays, the link goes.
+  // A protocol-relative one is given the web's scheme; an address is kept.
+  for (const id of ["rel", "js"]) {
+    await expect(body.locator(`#${id}`)).toHaveText(/./);
+    expect(await body.locator(`#${id}`).getAttribute("href"), id).toBeNull();
+  }
+  expect(await body.locator("#proto").getAttribute("href")).toBe("https://evil.example/x");
+  expect(await body.locator("#mail").getAttribute("href")).toBe("mailto:help@example.com");
+  expect(await body.locator("#fake").getAttribute("href")).toContain("link-check.orb.invalid");
   // `target="_blank"` in the mail, which the sandbox would block as a popup.
   await body.locator("#news").click();
   await expect.poll(() => navigated).toEqual(["https://example.com/news"]);

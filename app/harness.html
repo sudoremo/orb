@@ -1210,7 +1210,11 @@
                       ? `<p>HTML body of message ${args.id}</p>` +
                         `<p><a id="news" href="https://example.com/news" target="_blank">Read the news</a> ` +
                         `<a id="top" href="#top">Back to the top</a> ` +
-                        `<a id="fake" href="https://evil.example/login">https://bank.example/login</a></p>` +
+                        `<a id="fake" href="https://evil.example/login">https://bank.example/login</a> ` +
+                        `<a id="rel" href="unsubscribe.html">Unsubscribe</a> ` +
+                        `<a id="proto" href="//evil.example/x">Same scheme</a> ` +
+                        `<a id="js" href="javascript:alert(1)">Run</a> ` +
+                        `<a id="mail" href="mailto:help@example.com">Write</a></p>` +
                         `<img id="pixel" src="https://example.com/o.gif" width="1" height="1" alt="">`
                       : null,
                 has_attachments: args.id === 6,

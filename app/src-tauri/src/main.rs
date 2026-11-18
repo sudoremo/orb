@@ -4259,14 +4259,16 @@ fn navigation_guard(app: &AppHandle, label: &str) -> impl Fn(&tauri::Url) -> boo
 /// [`LINK_CHECK_HOST`], into asking first. Any other scheme, `file:` or one
 /// some other application registered, goes nowhere.
 fn stay_in_app(app: &AppHandle, label: &str, url: &tauri::Url) -> bool {
-    let host = url.host_str();
-    match url.scheme() {
-        "http" | "https" if matches!(host, Some("localhost") | Some("tauri.localhost")) => true,
-        "http" | "https" if host == Some(LINK_CHECK_HOST) => {
+    let own = app
+        .get_webview_window(label)
+        .and_then(|window| window.url().ok());
+    match navigation(url, own.as_ref()) {
+        Navigation::Stay => true,
+        Navigation::Ask => {
             let _ = app.emit_to(label, LINK_CHECK_EVENT, url.to_string());
             false
         }
-        "http" | "https" | "mailto" => {
+        Navigation::Open => {
             let target = orb_core::safety::without_tracking_params(url.as_str());
             // Off the navigation decision, which has to answer now.
             std::thread::spawn(move || {
@@ -4274,9 +4276,61 @@ fn stay_in_app(app: &AppHandle, label: &str, url: &tauri::Url) -> bool {
             });
             false
         }
-        "tauri" | "about" => true,
-        _ => false,
+        Navigation::Refuse => false,
     }
+}
+
+/// What a window does with a navigation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Navigation {
+    /// The window's own page, or a frame's: let it happen.
+    Stay,
+    /// A link the reader found suspicious: hand it back and ask.
+    Ask,
+    /// A link out: open it in the browser or the mail app, stay put.
+    Open,
+    /// Nothing a message has any business asking for.
+    Refuse,
+}
+
+/// Where a navigation of a window whose page is `own` goes.
+///
+/// The window's page is the only page it ever shows: a navigation to the same
+/// address stays (a reload, a hash), and so does a frame's `about:srcdoc` or
+/// `about:blank`. Anything else at the app's own origin — another path, which
+/// is where a relative link in a message would go — is refused rather than
+/// loaded, as is `localhost` on any other port, which would show whatever
+/// service listens there inside the window's chrome. A link to a site opens
+/// outside.
+fn navigation(url: &tauri::Url, own: Option<&tauri::Url>) -> Navigation {
+    if url.scheme() == "about" && matches!(url.path(), "srcdoc" | "blank") {
+        return Navigation::Stay;
+    }
+    if own.is_some_and(|own| {
+        own.scheme() == url.scheme()
+            && own.host_str() == url.host_str()
+            && own.port_or_known_default() == url.port_or_known_default()
+            && own.path() == url.path()
+    }) {
+        return Navigation::Stay;
+    }
+    match url.scheme() {
+        "http" | "https" if url.host_str() == Some(LINK_CHECK_HOST) => Navigation::Ask,
+        "http" | "https" if url.host_str().is_some_and(is_this_machine) => Navigation::Refuse,
+        "http" | "https" | "mailto" => Navigation::Open,
+        _ => Navigation::Refuse,
+    }
+}
+
+/// Whether a host names this machine, where no message has anything to show.
+fn is_this_machine(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost")
+        || host.eq_ignore_ascii_case("tauri.localhost")
+        || host
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
 }
 
 /// Build the main window.
@@ -4870,6 +4924,57 @@ mod tests {
         ] {
             assert!(!runs_rather_than_displays(name), "{name:?}");
         }
+    }
+
+    /// A window shows its own page and nothing else: the same address stays,
+    /// a frame's `about:` documents stay, a site opens outside, and anything
+    /// at the app's origin, on this machine or in another scheme is refused.
+    #[test]
+    fn a_window_navigates_only_to_its_own_page_and_sends_the_rest_out() {
+        let url = |s: &str| tauri::Url::parse(s).unwrap();
+        let own = url("tauri://localhost/index.html");
+        let decide = |s: &str| navigation(&url(s), Some(&own));
+        assert_eq!(decide("tauri://localhost/index.html"), Navigation::Stay);
+        assert_eq!(decide("tauri://localhost/index.html#top"), Navigation::Stay);
+        assert_eq!(decide("about:srcdoc"), Navigation::Stay);
+        assert_eq!(decide("about:srcdoc#section"), Navigation::Stay);
+        assert_eq!(decide("about:blank"), Navigation::Stay);
+        assert_eq!(decide("https://example.com/news"), Navigation::Open);
+        assert_eq!(decide("mailto:a@example.com"), Navigation::Open);
+        assert_eq!(
+            decide("https://link-check.orb.invalid/?url=x"),
+            Navigation::Ask
+        );
+        // A relative link in a message, resolved against the app's own page.
+        assert_eq!(
+            decide("tauri://localhost/unsubscribe.html"),
+            Navigation::Refuse
+        );
+        // A protocol-relative link, resolved against the app's own scheme.
+        assert_eq!(decide("tauri://evil.example/x"), Navigation::Refuse);
+        assert_eq!(decide("http://localhost:8888/tree"), Navigation::Refuse);
+        assert_eq!(decide("http://127.0.0.1:9/"), Navigation::Refuse);
+        assert_eq!(decide("http://[::1]:9/"), Navigation::Refuse);
+        assert_eq!(decide("file:///etc/passwd"), Navigation::Refuse);
+        assert_eq!(decide("javascript:alert(1)"), Navigation::Refuse);
+        assert_eq!(decide("vnc://attacker.example/"), Navigation::Refuse);
+
+        // In development the page is served by Vite; the same rule holds.
+        let dev = url("http://localhost:1420/index.html");
+        let decide = |s: &str| navigation(&url(s), Some(&dev));
+        assert_eq!(decide("http://localhost:1420/index.html"), Navigation::Stay);
+        assert_eq!(
+            decide("http://localhost:1420/other.html"),
+            Navigation::Refuse
+        );
+        assert_eq!(decide("http://localhost:8888/"), Navigation::Refuse);
+        assert_eq!(decide("https://example.com/"), Navigation::Open);
+
+        // Without a page to compare with, nothing at the app's origin stays.
+        assert_eq!(
+            navigation(&url("tauri://localhost/index.html"), None),
+            Navigation::Refuse
+        );
     }
 
     /// An editor answers to the window that opened it and to no other; an id

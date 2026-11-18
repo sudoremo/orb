@@ -1293,8 +1293,11 @@ the receiving server could not verify the sender (DMARC failed, or SPF failed
 with no passing DKIM signature), and when replies go to an address outside the
 sender's domain. A link that shows one address and opens another, or whose
 address is a bare IP, hides the site behind a name and an `@`, or is spelled
-with international characters, asks before it opens. Every link opens without
-its tracking parameters (`utm_*`, `fbclid`, `gclid`, `mc_eid` and the like).
+with international characters, asks before it opens. A link with no address
+of its own — a relative one, or a scheme Orb does not open — keeps its text and
+loses its link; the window never leaves its own page for a message. Every
+link opens without its tracking parameters (`utm_*`, `fbclid`, `gclid`,
+`mc_eid` and the like).
 Dangerous [attachments](#attachments) are marked and asked about.
 
 **Replies and forwards.** A reply goes to the sender's `Reply-To` when there

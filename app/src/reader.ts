@@ -588,15 +588,28 @@ export function prepareHtml(
   // is pointed at an address the guard hands back, to ask first; its title
   // shows where it really goes, whatever the message set it to.
   for (const link of doc.querySelectorAll("a[href], area[href]")) {
-    const href = link.getAttribute("href")!.trim();
+    const raw = link.getAttribute("href")!.trim();
     link.removeAttribute("ping");
-    if (href.startsWith("#")) {
+    if (raw.startsWith("#")) {
       // A `srcdoc` document resolves `#section` against this window's
       // address, which would load the app into the frame.
-      link.setAttribute("href", `about:srcdoc${href}`);
+      link.setAttribute("href", `about:srcdoc${raw}`);
       link.removeAttribute("target");
       continue;
     }
+    // `//host/path` takes the scheme of the page it is on, which here is the
+    // app's own; on the web it would be https.
+    const href = raw.startsWith("//") ? `https:${raw}` : raw;
+    if (!opensOutside(href)) {
+      // A relative address would resolve against this window's own, and a
+      // scheme the shell does not open goes nowhere: the text stays, the
+      // link does not.
+      link.removeAttribute("href");
+      link.removeAttribute("target");
+      link.setAttribute("title", "This link leads nowhere Orb opens");
+      continue;
+    }
+    link.setAttribute("href", href);
     link.setAttribute("target", "_top");
     link.setAttribute("title", href);
     const text = link.textContent || link.getAttribute("alt") || "";
@@ -636,6 +649,23 @@ export function prepareHtml(
 
   const doctype = doc.doctype ? "<!DOCTYPE html>" : "";
   return { srcdoc: doctype + doc.documentElement.outerHTML, hasRemote };
+}
+/**
+ * Whether a link in a message is one the shell opens: an absolute `http`,
+ * `https` or `mailto` address. Anything relative resolves against the
+ * window's own address, which is the app; anything else is a scheme the shell
+ * refuses, so the link is better gone than dead.
+ */
+export function opensOutside(href: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(href, "https://relative.invalid");
+  } catch {
+    return false;
+  }
+  if (url.protocol === "mailto:") return true;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  return url.hostname !== "" && url.hostname !== "relative.invalid";
 }
 /**
  * Mark the search's words in a parsed HTML message.
