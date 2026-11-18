@@ -2235,7 +2235,7 @@ so `a`, `t` or `m` act on the thread; `r`, `i` or `Enter` write in it.
 | Leave the room after asking; a direct message is hidden and comes back when either of you writes | | `chat-leave-room` |
 | Open the thread in Rocket.Chat | `gx` | `chat-open-in-browser` |
 | Check the server for messages now | | `chat-sync` |
-| Sign in on the server's own page, or sign out and forget the session | | `chat-sign-in`, `chat-sign-out` |
+| Sign in on the server's own page, or sign out, which ends the session on the server and forgets it here | | `chat-sign-in`, `chat-sign-out` |
 
 On a server with threads turned off, neither reply in a thread nor `R` is
 offered. Rocket.Chat does not let a room's last owner leave it.

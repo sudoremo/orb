@@ -366,6 +366,14 @@ impl RestClient {
             .map_err(|e| ChatError::Server(format!("{path}: unexpected answer: {e}")))
     }
 
+    /// End the session on the server, so the token is no good to anyone who
+    /// still holds a copy of it.
+    pub async fn logout(&self) -> Result<(), ChatError> {
+        self.request::<Value>(Method::POST, "logout", &[], None)
+            .await
+            .map(|_| ())
+    }
+
     /// Who the session belongs to; fails with [`ChatError::SignedOut`] when
     /// the server no longer accepts it.
     pub async fn me(&self) -> Result<Me, ChatError> {

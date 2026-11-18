@@ -10213,7 +10213,8 @@ impl OrbHandle {
     }
 
     pub fn chat_sign_out(&self) -> Result<(), OrbError> {
-        self.chat()?.sign_out();
+        let chat = self.chat()?;
+        self.runtime.block_on(async move { chat.sign_out().await });
         Ok(())
     }
 

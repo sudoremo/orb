@@ -447,9 +447,14 @@ pub async fn chat_sign_in_window(app: AppHandle, orb: State<'_, Handle>) -> Resu
         })?;
     let handover = app.clone();
     let orb = orb.inner().clone();
+    // A private session: the web client keeps the token it is given in the
+    // page's storage, and that storage would otherwise outlive the window on
+    // disk, outside the Keychain. Nothing of the sign-in is kept but what the
+    // core files in the Keychain.
     tauri::WebviewWindowBuilder::new(&app, SIGN_IN_LABEL, tauri::WebviewUrl::External(url))
         .title("Sign In to Chat")
         .inner_size(520.0, 720.0)
+        .incognito(true)
         .initialization_script(sign_in_script(&server))
         .on_navigation(move |url| {
             if url.host_str() != Some(SIGN_IN_HOST) {
@@ -477,6 +482,9 @@ fn take_session(app: AppHandle, orb: Handle, user: String, token: String) {
         match orb.chat_sign_in(user, token) {
             Ok(()) => {
                 if let Some(window) = window {
+                    // The page's copy of the token has served; the Keychain
+                    // holds the one that stays.
+                    let _ = window.eval("localStorage.clear(); sessionStorage.clear();");
                     let _ = window.close();
                 }
             }

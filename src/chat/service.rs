@@ -304,8 +304,26 @@ impl ChatService {
         Ok(())
     }
 
-    /// Forget the session, here and in the Keychain.
-    pub fn sign_out(&self) {
+    /// Forget the session: on the server, which stops accepting the token,
+    /// then here and in the Keychain. A server that cannot be reached is not
+    /// a reason to stay signed in; the token is forgotten here either way.
+    pub async fn sign_out(&self) {
+        let session = self
+            .client
+            .read()
+            .expect("chat client")
+            .as_ref()
+            .map(|client| (client.server().to_string(), client.session().clone()));
+        if let Some((server, session)) = session {
+            match RestClient::new(&server, session) {
+                Ok(client) => {
+                    if let Err(error) = client.logout().await {
+                        crate::logger::warn(&format!("chat: signing out on the server: {error}"));
+                    }
+                }
+                Err(error) => crate::logger::warn(&format!("chat: signing out: {error}")),
+            }
+        }
         let config = self.config();
         if config.sign_in == ChatSignIn::Sso {
             let _ = self.keychain.delete(&keychain_key(&config.server));
