@@ -84,6 +84,8 @@ uniffi = ["dep:uniffi"]
 
 [dev-dependencies]
 tempfile = "3.15"
+# Building a `reqwest::Response` by hand, for the tests of `net`.
+http = "1"
 testcontainers = { version = "0.23", features = ["watchdog"] }
 tokio-test = "0.4"
 

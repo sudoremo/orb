@@ -275,6 +275,15 @@ pub struct RestClient {
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// The most an API answer may be: a room's history page is kilobytes, a
+/// directory of users at most a few megabytes.
+const MAX_ANSWER_BYTES: usize = 64 * 1024 * 1024;
+
+/// The most a file the server keeps may be when fetched: above the upload
+/// limit of any server Orb has met, and still a bound on the memory one
+/// message's attachment can take.
+const MAX_FILE_BYTES: usize = 256 * 1024 * 1024;
+
 impl RestClient {
     pub fn new(server: &str, session: Session) -> Result<Self, ChatError> {
         let http = Client::builder()
@@ -323,10 +332,10 @@ impl RestClient {
         if status == StatusCode::UNAUTHORIZED {
             return Err(ChatError::SignedOut);
         }
-        let text = response
-            .text()
+        let text = crate::net::body_bounded(response, MAX_ANSWER_BYTES)
             .await
-            .map_err(|e| ChatError::Network(e.to_string()))?;
+            .map(|body| String::from_utf8_lossy(&body).into_owned())
+            .map_err(ChatError::Network)?;
         if !status.is_success() {
             let reason = serde_json::from_str::<Value>(&text)
                 .ok()
@@ -823,11 +832,9 @@ impl RestClient {
         if !status.is_success() {
             return Err(ChatError::Server(format!("{path}: {status}")));
         }
-        let bytes = response
-            .bytes()
+        crate::net::body_bounded(response, MAX_FILE_BYTES)
             .await
-            .map_err(|e| ChatError::Network(e.to_string()))?;
-        Ok(bytes.to_vec())
+            .map_err(ChatError::Network)
     }
 
     /// Mark one thread read on the server. The REST API has no endpoint of its

@@ -66,12 +66,6 @@ pub async fn fetch(
     if !status.is_success() {
         return Err(format!("the server answered {status}"));
     }
-    if response
-        .content_length()
-        .is_some_and(|length| length as usize > MAX_FEED_BYTES)
-    {
-        return Err("the feed is larger than 10 MB".to_string());
-    }
     let header = |name: reqwest::header::HeaderName| {
         response
             .headers()
@@ -81,12 +75,11 @@ pub async fn fetch(
     };
     let etag = header(reqwest::header::ETAG);
     let last_modified = header(reqwest::header::LAST_MODIFIED);
-    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-    if bytes.len() > MAX_FEED_BYTES {
-        return Err("the feed is larger than 10 MB".to_string());
-    }
+    let bytes = crate::net::body_bounded(response, MAX_FEED_BYTES)
+        .await
+        .map_err(|why| format!("the feed was not read: {why}"))?;
     Ok(Fetched::Body {
-        bytes: bytes.to_vec(),
+        bytes,
         etag,
         last_modified,
     })

@@ -24,6 +24,7 @@ pub mod logger;
 pub mod message_links;
 pub mod mime;
 pub mod models;
+pub mod net;
 pub mod rules;
 pub mod safety;
 pub mod search;
