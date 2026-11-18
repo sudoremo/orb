@@ -2406,6 +2406,17 @@ fn image_type(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
+/// A server-given id as a directory name under the attachment cache: itself
+/// when it is an identifier, else its SHA-256, so that an id of `..` names a
+/// directory of its own rather than the cache's parent.
+fn cache_key(id: &str) -> String {
+    if crate::tasks::is_wire_id(id) {
+        return id.to_string();
+    }
+    use sha2::Digest as _;
+    format!("{:x}", sha2::Sha256::digest(id.as_bytes()))
+}
+
 /// Write `data` to `path` under the attachment cache, creating the
 /// directories above it.
 fn write_file(path: &std::path::Path, data: &[u8]) -> Result<(), OrbError> {
@@ -3402,7 +3413,7 @@ impl OrbHandle {
         reply_all: bool,
     ) -> Result<crate::draft::DraftTemplate, OrbError> {
         let detail = self.get_message(message_id)?;
-        let account = self.account_for_message(message_id);
+        let account = self.account_for_message(message_id)?;
 
         // The threading headers are not synced, so this may go to the server.
         // A server that cannot be reached is not a reason to refuse the reply:
@@ -3469,7 +3480,7 @@ impl OrbHandle {
     /// The draft a forward starts from, carrying the original's attachments.
     pub fn forward_draft(&self, message_id: i64) -> Result<crate::draft::DraftTemplate, OrbError> {
         let detail = self.get_message(message_id)?;
-        let account = self.account_for_message(message_id);
+        let account = self.account_for_message(message_id)?;
         // A forward without the attachments is a different message than the
         // one the user meant to send, so an extraction failure is the
         // forward's failure.
@@ -3547,7 +3558,7 @@ impl OrbHandle {
     /// still a reply.
     pub fn edit_draft(&self, message_id: i64) -> Result<crate::draft::DraftTemplate, OrbError> {
         let detail = self.get_message(message_id)?;
-        let account = self.account_for_message(message_id);
+        let account = self.account_for_message(message_id)?;
         let saved = self
             .runtime
             .block_on(crate::store::fetch_reply_headers(&self.store, message_id));
@@ -3858,8 +3869,12 @@ impl OrbHandle {
         .unwrap_or_else(|| identities[0].clone())
     }
 
-    /// The account a message belongs to, for its signature and reply settings.
-    fn account_for_message(&self, message_id: i64) -> crate::config::AccountConfig {
+    /// The account a message belongs to, for its signature and reply settings;
+    /// the first account when the message's folder is not known to the config.
+    fn account_for_message(
+        &self,
+        message_id: i64,
+    ) -> Result<crate::config::AccountConfig, OrbError> {
         let config = self.config();
         self.store
             .folder_of_message(message_id)
@@ -3873,7 +3888,9 @@ impl OrbHandle {
                     .cloned()
             })
             .or_else(|| config.accounts.first().cloned())
-            .unwrap_or_else(|| config.accounts[0].clone())
+            .ok_or_else(|| OrbError::ConfigError {
+                message: "no account is configured".to_string(),
+            })
     }
 
     /// Settings the interface needs to honour.
@@ -9955,7 +9972,7 @@ impl OrbHandle {
         let chat = self.chat()?;
         let dir = attachment_cache_root()
             .join("chat")
-            .join(id.replace(['/', '\\'], "_"))
+            .join(cache_key(&id))
             .join(index.to_string());
         // A file once fetched does not change: the server gives a new one a new id.
         if let Some(found) = std::fs::read_dir(&dir)
@@ -9988,7 +10005,7 @@ impl OrbHandle {
         let chat = self.chat()?;
         let cached = attachment_cache_root()
             .join("chat")
-            .join(id.replace(['/', '\\'], "_"))
+            .join(cache_key(&id))
             .join(format!("{index}.preview"));
         let (mime, bytes) = match std::fs::read(&cached) {
             // The type is the first line, the image the rest.
@@ -10367,6 +10384,18 @@ mod tests {
         // A valid reply email (recipient + subject + body + headers) must pass
         // the SMTP-layer validation.
         assert!(email.validate().is_ok());
+    }
+
+    /// A chat message id names a directory under the cache; one the server
+    /// made that is not an identifier is hashed rather than joined.
+    #[test]
+    fn a_chat_id_that_is_not_an_identifier_is_hashed_for_the_cache() {
+        assert_eq!(cache_key("Hk3fAq9ZmW2xR7tLp"), "Hk3fAq9ZmW2xR7tLp");
+        for id in ["..", "../x", "a/b", "a.b", ""] {
+            let key = cache_key(id);
+            assert_eq!(key.len(), 64, "{id:?}");
+            assert!(key.chars().all(|c| c.is_ascii_hexdigit()), "{id:?}");
+        }
     }
 
     #[test]
