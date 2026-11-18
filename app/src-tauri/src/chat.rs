@@ -164,12 +164,15 @@ pub async fn chat_links(
 /// Post files, a path each or a pasted one's bytes, `text` with the first.
 #[tauri::command]
 pub async fn chat_send_files(
+    app: AppHandle,
     orb: State<'_, Handle>,
     rid: String,
     thread: String,
     files: Vec<ChatFileInput>,
     text: String,
 ) -> Result<(), OrbError> {
+    let paths: Vec<String> = files.iter().filter_map(|f| f.path.clone()).collect();
+    crate::ensure_readable(&app, &paths, "upload").await?;
     let orb = orb.inner().clone();
     offload("chat_send_files", move || {
         orb.chat_send_files(rid, thread, files, text)

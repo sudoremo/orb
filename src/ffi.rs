@@ -3217,11 +3217,14 @@ impl OrbHandle {
             .map_err(editor_error)
     }
 
-    /// Open a file in a tab of an editor, beside the draft.
+    /// Open a template in a tab of an editor, beside the draft. Only a file
+    /// of the templates folder: this is how the window lets a template be
+    /// edited, not a way to open files.
     #[cfg(feature = "desktop")]
     pub fn editor_edit_file(&self, id: String, path: String) -> Result<(), OrbError> {
+        let path = self.template_path(&path)?;
         self.runtime
-            .block_on(self.editors.edit_file(&id, &path))
+            .block_on(self.editors.edit_file(&id, &path.to_string_lossy()))
             .map_err(editor_error)
     }
 
@@ -3745,6 +3748,26 @@ impl OrbHandle {
         )
     }
 
+    /// `path` as a file in the templates folder, or an error: the window
+    /// names a template by the path the folder listing gave it, and a path
+    /// anywhere else is not a template, whatever it holds.
+    fn template_path(&self, path: &str) -> Result<std::path::PathBuf, OrbError> {
+        let outside = || OrbError::InvalidInput {
+            message: format!("{path} is not in the templates folder"),
+        };
+        let folder = self
+            .templates_folder()
+            .canonicalize()
+            .map_err(|_| outside())?;
+        let file = std::path::Path::new(path)
+            .canonicalize()
+            .map_err(|_| outside())?;
+        if file.parent() != Some(folder.as_path()) {
+            return Err(outside());
+        }
+        Ok(file)
+    }
+
     /// The mail templates `account` may use, its own first, with what is
     /// known for their placeholders in a message to `to`; and the files in
     /// the folder that could not be read.
@@ -3772,11 +3795,10 @@ impl OrbHandle {
     /// A template, read again from its file, ready to be put into a draft
     /// to `to`: its subject and body with the placeholders marked.
     pub fn use_template(&self, path: String, to: Vec<String>) -> Result<TemplateUse, OrbError> {
+        let path = self.template_path(&path)?;
         let template =
-            crate::templates::load_one(std::path::Path::new(&path)).map_err(|message| {
-                OrbError::InvalidInput {
-                    message: format!("{path}: {message}"),
-                }
+            crate::templates::load_one(&path).map_err(|message| OrbError::InvalidInput {
+                message: format!("{}: {message}", path.display()),
             })?;
         Ok(TemplateUse {
             subject: template.subject.as_deref().map(crate::templates::expand),
@@ -11847,6 +11869,8 @@ mod task_tests {
             addresses: vec!["help@example.com".to_string()],
             ..config::IdentityConfig::default()
         }];
+        // The test handle has no config file to put the templates beside.
+        config.compose.templates_dir = Some(dir.path().join("templates").display().to_string());
         let orb = handle(config.clone());
 
         let db = crate::db::Database::new(&config.db_path).expect("db");
@@ -11949,12 +11973,12 @@ mod task_tests {
     #[test]
     fn a_template_is_read_for_a_draft_and_its_open_placeholders_are_warned_about() {
         let (dir, orb, _) = handle_with_identities();
-        let path = dir.path().join("workshop.yml");
-        std::fs::write(
-            &path,
-            "name: Workshop\nsubject: Am {Datum}\nbody: |\n  Lieber {Vorname}\n  Am {Datum}\n",
-        )
-        .unwrap();
+        let template =
+            "name: Workshop\nsubject: Am {Datum}\nbody: |\n  Lieber {Vorname}\n  Am {Datum}\n";
+        let folder = dir.path().join("templates");
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("workshop.yml");
+        std::fs::write(&path, template).unwrap();
         let used = orb
             .use_template(
                 path.display().to_string(),
@@ -11968,6 +11992,21 @@ mod task_tests {
         );
         assert_eq!(used.body.lines, ["Lieber {Vorname}", "Am {Datum}"]);
         assert!(orb.use_template("/nonexistent.yml".into(), vec![]).is_err());
+        // A template is a file of the templates folder; the same file anywhere
+        // else is not one, however well it reads.
+        let elsewhere = dir.path().join("workshop.yml");
+        std::fs::write(&elsewhere, template).unwrap();
+        assert!(
+            orb.use_template(elsewhere.display().to_string(), vec![])
+                .is_err()
+        );
+        let nested = folder.join("more");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("workshop.yml"), template).unwrap();
+        assert!(
+            orb.use_template(nested.join("workshop.yml").display().to_string(), vec![])
+                .is_err()
+        );
 
         let input = DraftWarningsInput {
             account_name: "Work".into(),

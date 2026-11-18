@@ -1776,7 +1776,9 @@ fetches for every message that has them, so they open offline; a message it
 has not reached yet fetches on demand. Files are written once under
 `~/.orb/attachments/mail/`, and removed again, with the chat files beside
 them, a month after they were last touched; the message still has them. A
-message that declares more than 64 MIME parts
+file Orb reads to send, attach or upload is one you picked in a dialog or
+dropped on a window; asked to read any other, it asks you first, in a dialog
+of the system's. A message that declares more than 64 MIME parts
 is not taken apart at all: it is listed, but shows no text and no
 attachments, since nothing anybody writes has that many and a message built
 to have them is built to crash a mail client.

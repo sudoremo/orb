@@ -4,7 +4,6 @@ import { isTaskView, TaskDetail, TaskStepInfo, describeTasks, TaskTagInfo, TaskS
 import { PROVISIONAL_TITLE } from "./taskdetail";
 import { openPicker } from "./picker";
 import { openPalette } from "./palette";
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Vim } from "./vim";
 import { CHAT_COMMANDS, chatActive, inChatSection } from "./chat";
@@ -12,6 +11,7 @@ import { advance, back, cancelMarkRead, currentFolder, readerHoldsCursor, showCo
 import { COLUMNS, chooseLook, currentLook, zoom } from "./appearance";
 import { runBackfill, setBackfillStopped } from "./backfill";
 import { Cancelled, askFirst, call, describeWrite, reportWrite, setStatus } from "./bridge";
+import { pickFiles } from "./files";
 import { openCommandLine, promptCommand } from "./commandline";
 import { COMMAND_DOCS } from "./commanddocs";
 import { beginStepEdit, selectedSteps, stepsToRemove } from "./stepsui";
@@ -636,12 +636,12 @@ const MAIL_COMMANDS: Record<string, Command> = {
     const includePurged = args.includes("--include-purged");
     let path: string | null = args.filter((a) => a !== "--include-purged").join(" ").trim() || null;
     if (!path) {
-      const picked = await openFileDialog({
-        directory: true,
+      const [picked] = await pickFiles({
+        kind: "folder",
         title: "Import a task snapshot",
         defaultPath: state.tasks.export?.directory ?? undefined,
       });
-      path = typeof picked === "string" ? picked : null;
+      path = picked ?? null;
     }
     if (!path) return;
     const plan = await call<TaskImportPlan>("import_tasks", { path, apply: false, includePurged });
@@ -1550,9 +1550,8 @@ export const TASK_COMMANDS: Record<string, Command> = {
       setStatus("no task selected");
       return;
     }
-    const picked = await openFileDialog({ multiple: true, title: "Attach files" });
-    if (!picked) return;
-    const paths = Array.isArray(picked) ? picked : [picked];
+    const paths = await pickFiles({ kind: "files", title: "Attach files" });
+    if (paths.length === 0) return;
     await attachFilesToTask(task.id, paths);
   },
   /** List Today, Upcoming and Someday under their tags, or not: `on`, `off`, or the other one (§30). */

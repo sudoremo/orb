@@ -15,7 +15,8 @@
 import { escape, parseFrom } from "./format";
 import { svgIcon } from "./icons";
 import { invoke } from "@tauri-apps/api/core";
-import { ask, open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { pickFiles } from "./files";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Draft, draftProblems } from "./draft";
@@ -871,12 +872,12 @@ function renderAttachments(): void {
 
 
 async function pickAttachments(): Promise<void> {
-  const picked = await openFileDialog({ multiple: true, title: "Attach files" });
-  if (!picked) return;
+  const picked = await pickFiles({ kind: "files", title: "Attach files" });
+  if (picked.length === 0) return;
   // The files are read at send time rather than now: a draft saved today and
   // sent tomorrow should carry what the file says tomorrow, and holding the
   // contents in the window would mean holding them in memory until then.
-  for (const path of Array.isArray(picked) ? picked : [picked]) {
+  for (const path of picked) {
     if (!draft.attachments.includes(path)) draft.attachments.push(path);
   }
   renderAttachments();

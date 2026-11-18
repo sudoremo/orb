@@ -1425,10 +1425,12 @@ impl PushListener for PushBridge {
 /// Save a draft to the account's Drafts folder, replacing an earlier save.
 #[tauri::command]
 async fn save_draft(
+    app: AppHandle,
     orb: State<'_, Handle>,
     input: SendMailInput,
     replacing: Option<u32>,
 ) -> Result<Option<u32>, OrbError> {
+    ensure_readable(&app, &input.attachment_paths, "attach").await?;
     let orb = orb.inner().clone();
     offload("save_draft", move || orb.save_draft(input, replacing)).await
 }
@@ -1469,20 +1471,32 @@ struct OutboxDraft {
 }
 
 #[tauri::command]
-async fn edit_outbox(orb: State<'_, Handle>, id: i64) -> Result<OutboxDraft, OrbError> {
+async fn edit_outbox(
+    app: AppHandle,
+    orb: State<'_, Handle>,
+    id: i64,
+) -> Result<OutboxDraft, OrbError> {
     let orb = orb.inner().clone();
-    offload("edit_outbox", move || {
+    let draft = offload("edit_outbox", move || {
         orb.edit_outbox(id)
             .map(|(account, draft)| OutboxDraft { account, draft })
     })
-    .await
+    .await?;
+    grant_paths(&app, &draft.draft.attachments);
+    Ok(draft)
 }
 
 /// Write a message's attachments to disk, so a forward can carry them.
 #[tauri::command]
-async fn detach_attachments(orb: State<'_, Handle>, id: i64) -> Result<Vec<String>, OrbError> {
+async fn detach_attachments(
+    app: AppHandle,
+    orb: State<'_, Handle>,
+    id: i64,
+) -> Result<Vec<String>, OrbError> {
     let orb = orb.inner().clone();
-    offload("detach_attachments", move || orb.detach_attachments(id)).await
+    let paths = offload("detach_attachments", move || orb.detach_attachments(id)).await?;
+    grant_paths(&app, &paths);
+    Ok(paths)
 }
 
 /// The draft a reply starts from, quoted and signed as configured.
@@ -1749,7 +1763,121 @@ where
         })?
 }
 
-/// Refuse an editor call from any window but the one the editor belongs to.
+/// The files the shell knows a person meant: picked in a dialog the shell
+/// opened, dropped on a window, or written by the core to be handed on. A
+/// command that reads a file by path reads one of these, or asks.
+///
+/// The commands are callable from every window with whatever arguments the
+/// page gives them, and a page that had got script into a window could have
+/// named any file on the disk to be sent, attached or uploaded. The page is
+/// no longer where a path comes from.
+#[derive(Default)]
+struct Granted(std::sync::Mutex<std::collections::HashSet<std::path::PathBuf>>);
+
+impl Granted {
+    fn grant<I, P>(&self, paths: I)
+    where
+        I: IntoIterator<Item = P>,
+        P: Into<std::path::PathBuf>,
+    {
+        let mut granted = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        granted.extend(paths.into_iter().map(Into::into));
+    }
+
+    fn holds(&self, path: &str) -> bool {
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains(std::path::Path::new(path))
+    }
+}
+
+/// Note files the shell handed to the page, so the page may hand them back.
+fn grant_paths(app: &AppHandle, paths: &[String]) {
+    if let Some(granted) = app.try_state::<Granted>() {
+        granted.grant(paths.iter().map(std::path::PathBuf::from));
+    }
+}
+
+/// Let a command read `paths`: those a person picked or dropped go through;
+/// for any other, a native dialog asks, since the page cannot answer one.
+async fn ensure_readable(app: &AppHandle, paths: &[String], purpose: &str) -> Result<(), OrbError> {
+    let unknown: Vec<String> = paths
+        .iter()
+        .filter(|path| !app.state::<Granted>().holds(path))
+        .cloned()
+        .collect();
+    if unknown.is_empty() {
+        return Ok(());
+    }
+    let shown: Vec<String> = unknown.iter().take(5).cloned().collect();
+    let more = unknown.len().saturating_sub(shown.len());
+    let mut listed = shown.join("\n");
+    if more > 0 {
+        listed.push_str(&format!("\n… and {more} more"));
+    }
+    let dialog = app
+        .dialog()
+        .message(format!(
+            "Orb was asked to {purpose} {}, which you did not pick in a dialog or drop on the \
+             window:\n\n{listed}",
+            if unknown.len() == 1 {
+                "a file"
+            } else {
+                "files"
+            }
+        ))
+        .title("Read these files?")
+        .kind(MessageDialogKind::Warning)
+        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+            "Allow".to_string(),
+            "Cancel".to_string(),
+        ));
+    let go = tauri::async_runtime::spawn_blocking(move || dialog.blocking_show())
+        .await
+        .unwrap_or(false);
+    if !go {
+        return Err(OrbError::ConfigError {
+            message: "the files were not allowed".to_string(),
+        });
+    }
+    grant_paths(app, &unknown);
+    Ok(())
+}
+
+/// Open a file dialog for the page and note what was picked, so that the
+/// paths the page hands back are ones a person chose. `kind` is `files`,
+/// `file` or `folder`; the paths, or none when the dialog was cancelled.
+#[tauri::command]
+async fn pick_files(
+    app: AppHandle,
+    kind: String,
+    title: String,
+    default_path: Option<String>,
+) -> Result<Vec<String>, OrbError> {
+    let mut dialog = app.dialog().file().set_title(title);
+    if let Some(directory) = default_path.filter(|p| !p.is_empty()) {
+        dialog = dialog.set_directory(directory);
+    }
+    let picked = tauri::async_runtime::spawn_blocking(move || match kind.as_str() {
+        "files" => dialog.blocking_pick_files().unwrap_or_default(),
+        "folder" => dialog.blocking_pick_folder().into_iter().collect(),
+        _ => dialog.blocking_pick_file().into_iter().collect(),
+    })
+    .await
+    .map_err(|e| OrbError::ConfigError {
+        message: format!("the file dialog failed: {e}"),
+    })?;
+    let paths: Vec<String> = picked
+        .into_iter()
+        .filter_map(|picked| picked.into_path().ok())
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
+    grant_paths(&app, &paths);
+    Ok(paths)
+}
+
+/// Refuse an editor call from any window but the one the editor belongs to./// Refuse an editor call from any window but the one the editor belongs to.
 ///
 /// What goes into an editor is run by Neovim, with everything the user's
 /// Neovim can do — `:!` runs a shell. The commands are callable from every
@@ -2652,6 +2780,7 @@ async fn send_mail(
     orb: State<'_, Handle>,
     input: SendMailInput,
 ) -> Result<SendMailResult, OrbError> {
+    ensure_readable(&app, &input.attachment_paths, "send").await?;
     let orb = orb.inner().clone();
     let reply = input.in_reply_to.is_some() || input.forwards.is_some();
     let result = offload("send_mail", move || orb.send_mail(input)).await?;
@@ -3110,6 +3239,7 @@ async fn import_tasks(
     apply: bool,
     include_purged: bool,
 ) -> Result<orb_core::ffi::TaskImportPlan, OrbError> {
+    ensure_readable(&app, std::slice::from_ref(&path), "import tasks from").await?;
     let orb = orb.inner().clone();
     if apply {
         mutate_tasks(app, "import_tasks", move || {
@@ -3132,6 +3262,9 @@ async fn import_things(
     path: Option<String>,
     apply: bool,
 ) -> Result<orb_core::ffi::ThingsImportPlan, OrbError> {
+    if let Some(path) = &path {
+        ensure_readable(&app, std::slice::from_ref(path), "import Things from").await?;
+    }
     let orb = orb.inner().clone();
     if apply {
         mutate_tasks(app, "import_things", move || orb.import_things(path, true)).await
@@ -3704,6 +3837,7 @@ async fn add_task_attachment(
     task: i64,
     path: String,
 ) -> Result<TaskAttachmentInfo, OrbError> {
+    ensure_readable(&app, std::slice::from_ref(&path), "attach").await?;
     let orb = orb.inner().clone();
     mutate_tasks(app, "add_task_attachment", move || {
         orb.add_task_attachment(task, path)
@@ -4576,6 +4710,7 @@ fn main() {
             start_feed_polls(app.handle().clone(), handle.clone());
 
             app.manage(ComposeHandover::default());
+            app.manage(Granted::default());
             Ok(())
         })
         // Menu selections are delivered app-wide, so forward the chosen command
@@ -4584,6 +4719,14 @@ fn main() {
         // reload, its web content dying — must not leave Neovim running or
         // its draft held in the handover until the app quits.
         .on_window_event(|window, event| {
+            // A drop is the person handing files over: the paths the page
+            // hands back are ones the shell saw dropped.
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                if let Some(granted) = window.try_state::<Granted>() {
+                    granted.grant(paths.iter().cloned());
+                }
+                return;
+            }
             if !matches!(event, tauri::WindowEvent::Destroyed) {
                 return;
             }
@@ -4635,6 +4778,7 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            pick_files,
             escalate,
             accounts,
             title_bar,
@@ -4933,6 +5077,18 @@ mod tests {
         ] {
             assert!(!runs_rather_than_displays(name), "{name:?}");
         }
+    }
+
+    /// A file is readable to a command once a person picked or dropped it,
+    /// and by its path alone.
+    #[test]
+    fn a_path_is_granted_as_it_was_picked() {
+        let granted = Granted::default();
+        assert!(!granted.holds("/Users/me/report.pdf"));
+        granted.grant(["/Users/me/report.pdf".to_string()]);
+        assert!(granted.holds("/Users/me/report.pdf"));
+        assert!(!granted.holds("/Users/me/other.pdf"));
+        assert!(!granted.holds("/Users/me/../me/report.pdf"));
     }
 
     /// What the window logs is one line, however it was written.

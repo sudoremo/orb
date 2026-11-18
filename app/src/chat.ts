@@ -10,6 +10,7 @@ import { keepingScroll } from "./scrollkeep";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { askFirst, call, setStatus } from "./bridge";
+import { pickFiles } from "./files";
 import { escape, formatDate, dayHeading, listDate, readerDate } from "./format";
 import { IconName, svgIcon } from "./icons";
 import { eventKey } from "./keys";
@@ -1971,10 +1972,8 @@ export const CHAT_COMMANDS: Record<string, Command> = {
   /** Attach files from disk to the message being written. */
   "chat-attach": async () => {
     if (!chatActive()) return;
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const picked = await open({ multiple: true, title: "Attach Files" });
-    const paths = picked === null ? [] : Array.isArray(picked) ? picked : [picked];
-    await attachToMessage(paths.map(String));
+    const paths = await pickFiles({ kind: "files", title: "Attach Files" });
+    await attachToMessage(paths);
   },
   /** React to the newest message somebody else wrote, from the configured reactions. */
   "chat-react": async () => {

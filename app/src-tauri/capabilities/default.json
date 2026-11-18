@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions the frontend needs. Without a capability the frontend cannot use any core API — which is why window.close() silently did nothing. `allow-destroy` is required by onCloseRequested: its handler closes the window itself unless the event was prevented. `allow-start-dragging` is what makes `data-tauri-drag-region` work; without it the toolbar looks draggable and is not. The window list has to name the compose windows too: a capability is scoped to the windows it lists, so a window left out of it cannot call anything at all — not even to listen for its own editor's output.",
+  "description": "Permissions the frontend needs. Without a capability the frontend cannot use any core API — which is why window.close() silently did nothing. `allow-destroy` is required by onCloseRequested: its handler closes the window itself unless the event was prevented. `allow-start-dragging` is what makes `data-tauri-drag-region` work; without it the toolbar looks draggable and is not. The window list has to name the compose windows too: a capability is scoped to the windows it lists, so a window left out of it cannot call anything at all — not even to listen for its own editor's output. The file dialogs are the shell's (`pick_files`, `save_attachment`), so the page cannot name a path of its own; it keeps `ask` for its confirmations.",
   "windows": ["main", "tasks", "chat", "message-*", "task-*", "compose-*", "console"],
   "permissions": [
     "core:default",
@@ -9,9 +9,7 @@
     "core:window:allow-close",
     "core:window:allow-destroy",
     "core:window:allow-start-dragging",
-    "dialog:allow-open",
     "dialog:allow-ask",
-    "dialog:allow-save",
     "drag:default"
   ]
 }
