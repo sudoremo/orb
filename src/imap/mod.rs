@@ -28,7 +28,7 @@ use chrono::DateTime;
 use secrecy::{ExposeSecret, SecretString};
 use std::time::{Duration, Instant};
 
-use mailparse::parse_mail;
+use crate::mime::parse_mail;
 
 /// IMAP capability names
 const CAPABILITY_CONDSTORE: &str = "CONDSTORE";

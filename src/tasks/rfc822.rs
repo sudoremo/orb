@@ -706,7 +706,7 @@ impl TaskEmailParser {
         account_name: &str,
         imap_uid: Option<u32>,
     ) -> Result<TaskMessage> {
-        let mail = mailparse::parse_mail(email_bytes).map_err(crate::Error::Parse)?;
+        let mail = crate::mime::parse_mail(email_bytes).map_err(crate::Error::Parse)?;
         let kind = check_version_and_kind(&mail.headers)?;
 
         match kind {

@@ -15,7 +15,9 @@
 //! message also attaches the invitation as a named file, as some senders do,
 //! which is then the one reported.
 
-use mailparse::{DispositionType, MailHeaderMap, ParsedMail, parse_mail};
+use mailparse::{DispositionType, MailHeaderMap, ParsedMail};
+
+use crate::mime::parse_mail;
 
 /// Metadata describing a single attachment discovered in a message.
 #[derive(Debug, Clone, PartialEq, Eq)]

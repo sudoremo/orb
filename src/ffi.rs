@@ -2431,12 +2431,23 @@ pub fn init(config_path: String) -> Result<Arc<OrbHandle>, OrbError> {
 
 /// [`init`] on a configuration already read — a test's, whose accounts take
 /// settings a config file cannot give, such as a test server's certificate.
+/// The stack of each runtime worker; see [`init_with`].
+const WORKER_STACK_BYTES: usize = 16 * 1024 * 1024;
+
 #[doc(hidden)]
 pub fn init_with(mut config: Config, config_path: String) -> Result<Arc<OrbHandle>, OrbError> {
-    // Create tokio runtime for async operations
-    let runtime = Runtime::new().map_err(|e| OrbError::ConfigError {
-        message: format!("Failed to create async runtime: {}", e),
-    })?;
+    // The workers parse what servers send with recursive parsers — the IMAP
+    // library's BODYSTRUCTURE grammar descends once per nested MIME part, and
+    // a sender decides how many there are — so they get stacks well beyond
+    // tokio's two megabytes. Stack is reserved, not touched, so the cost is
+    // address space.
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(WORKER_STACK_BYTES)
+        .build()
+        .map_err(|e| OrbError::ConfigError {
+            message: format!("Failed to create async runtime: {}", e),
+        })?;
 
     // The tasks folder is excluded from the mail world by name, and the name the
     // server uses is not necessarily the name the config gives: a server that

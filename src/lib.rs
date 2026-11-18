@@ -21,6 +21,7 @@ pub mod imap;
 pub mod keychain;
 pub mod logger;
 pub mod message_links;
+pub mod mime;
 pub mod models;
 pub mod rules;
 pub mod safety;
