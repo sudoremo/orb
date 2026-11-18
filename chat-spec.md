@@ -86,7 +86,8 @@ elsewhere does not, and neither does the server's unread count, which by
 default counts only mentions in a channel.
 
 A thread waits **since** the first of the messages after the user's last
-one. It is marked as **naming the user** when one of those mentions them,
+one, or after its mark if that is later: a mark answers the thread as a
+message of the user's would. It is marked as **naming the user** when one of those mentions them,
 and as **unread** when the user has not looked at it in Orb since its newest
 message (`chat_seen`).
 
@@ -209,7 +210,7 @@ server's own notification settings are left alone, so the web client and the
 phone go on as before.
 
 - A thread of a muted room **waits muted** when it waits (§5) and none of
-  the messages since the user's last one names the user or calls the room
+  the messages it waits for names the user or calls the room
   (`@here`, `@all`). A thread that waits muted is left out of Waiting, Today,
   the notifications and the Dock badge. Its room's row in the sidebar still
   counts it, in grey, and the room's own list shows it, dimmed.

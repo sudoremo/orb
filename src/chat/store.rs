@@ -799,6 +799,12 @@ fn thread_rows(
          WHERE m.system_type IS NULL AND m.ts >= ?1 AND (?2 IS NULL OR m.rid = ?2)
          ORDER BY m.ts",
     )?;
+    let marks: HashMap<(String, String), i64> = conn
+        .prepare("SELECT rid, thread, at FROM chat_marks WHERE thread <> ?1")?
+        .query_map([MUTE_THREAD], |row| {
+            Ok(((row.get(0)?, row.get(1)?), row.get(2)?))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
     let mut threads: HashMap<(String, String), Acc> = HashMap::new();
     let mut rows = stmt.query(params![since, only])?;
     while let Some(row) = rows.next()? {
@@ -811,7 +817,10 @@ fn thread_rows(
         let mentions_me: bool = row.get(6)?;
         let files: Option<String> = row.get(7)?;
         let mentions_all: bool = row.get(8)?;
-        let acc = threads.entry((rid, thread)).or_insert(Acc {
+        let key = (rid, thread);
+        // A mark answers the thread as the user's own message would.
+        let answered = mine || marks.get(&key).is_some_and(|&at| ts <= at);
+        let acc = threads.entry(key).or_insert(Acc {
             newest_id: String::new(),
             newest_mine: false,
             newest_at: 0,
@@ -824,7 +833,7 @@ fn thread_rows(
         acc.newest_mine = mine;
         acc.newest_at = ts;
         acc.newest_files = files.is_some();
-        if mine {
+        if answered {
             acc.since = None;
             acc.mention = false;
             acc.called = None;
@@ -842,8 +851,9 @@ fn thread_rows(
     let open_tasks = threads_with_open_tasks(conn)?;
     let mut out = Vec::new();
     for ((rid, thread), acc) in threads {
-        let marked = mark(conn, &rid, &thread)?;
-        let answered = marked.as_ref().is_some_and(|(_, at)| *at >= acc.newest_at);
+        let answered = marks
+            .get(&(rid.clone(), thread.clone()))
+            .is_some_and(|&at| at >= acc.newest_at);
         let room = match rooms.get(&rid) {
             Some(room) => room.clone(),
             None => {
@@ -1535,6 +1545,29 @@ mod tests {
             },
         );
         assert!(!waiting(&conn, ME, 0, &|_| true).unwrap()[0].muted);
+    }
+
+    #[test]
+    fn a_thread_marked_done_comes_back_with_only_what_came_after() {
+        let conn = db();
+        room(&conn, "r", "c", "dev");
+        called(&conn, "1", "r", 10, "all");
+        msg(
+            &conn,
+            Msg {
+                mentions_me: true,
+                ..plain("2", "r", "lukas", 20)
+            },
+        );
+        set_mark(&conn, "r", "", MARK_DONE, 20).unwrap();
+        set_mark(&conn, "r", MUTE_THREAD, MARK_MUTE, MUTE_FOREVER).unwrap();
+        msg(&conn, plain("3", "r", "lukas", 30));
+        let rows = waiting(&conn, ME, 0, &|_| true).unwrap();
+        assert_eq!(rows.len(), 1, "somebody wrote again");
+        assert!(rows[0].muted, "the @all was dealt with by the mark");
+        assert_eq!(rows[0].called_since, None);
+        assert!(!rows[0].mention);
+        assert_eq!(rows[0].waiting_since, 30);
     }
 
     #[test]

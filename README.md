@@ -2264,7 +2264,8 @@ A muted room's threads still wait, but stay out of Waiting, Today, the
 notifications and the Dock badge. The room's row in the sidebar counts them
 in grey beside a struck-out bell, the conversation's header says how long the
 mute lasts, and a click on it unmutes. A thread that names you, or calls the
-room with `@here` or `@all`, comes through anyway. When a mute ends, the
+room with `@here` or `@all`, comes through anyway, until you write in it or
+mark it done. When a mute ends, the
 threads come back into Waiting without a notification. Muting and unmuting
 are undone with `u`.
 
