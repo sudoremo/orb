@@ -73,6 +73,7 @@ use super::model::{
     Task, TaskAttachment, TaskDates, TaskEvent, TaskLinkedEmail, TaskLogEntry, TaskReminder,
     TaskTag, format_timestamp, is_wire_id, parse_civil_date,
 };
+use super::recurrence::RecurrenceRule;
 use crate::{Result, logger};
 
 /// Prefix shared by every Orb task header.
@@ -865,7 +866,19 @@ fn parse_task(
     task.completed_at = task_header(headers, H_COMPLETED_AT);
     task.is_completed = task.completed_at.is_some();
     task.deleted_at = task_header(headers, H_DELETED_AT);
-    task.recurrence = task_header(headers, H_RECURRENCE);
+    // Read once here, as the dates are: a rule this build cannot read is
+    // dropped with a line in the log rather than kept to fail on every open,
+    // completion and edit of the task.
+    task.recurrence =
+        task_header(headers, H_RECURRENCE).filter(|rule| match RecurrenceRule::parse(rule) {
+            Ok(_) => true,
+            Err(error) => {
+                logger::warn(&format!(
+                    "task {task_uuid}: dropping an unreadable recurrence rule: {error}"
+                ));
+                false
+            }
+        });
     task.recurrence_from_completion =
         task_header(headers, H_RECURRENCE_FROM).is_some_and(|value| {
             value
@@ -1886,6 +1899,33 @@ mod tests {
         assert_eq!(parsed.task.account_name, "Work");
         assert_eq!(parsed.task.imap_uid, Some(7));
         assert!(!parsed.task.is_dirty);
+    }
+
+    /// A rule the build cannot read is dropped on arrival, as an unreadable
+    /// date is, rather than kept to fail every open of the task.
+    #[test]
+    fn an_unreadable_recurrence_rule_is_dropped_on_arrival() {
+        for rule in ["FREQ=WEEKLY;BYDAY=aéa", "FREQ=NEVER", "x"] {
+            let mail = format!(
+                "X-Orb-Task-Version: 2\r\nX-Orb-Task-Id: task-a\r\nX-Orb-Task-Recurrence: {rule}\r\n\
+                 Subject: s\r\n\r\n"
+            );
+            let TaskMessage::Task(parsed) =
+                TaskEmailParser::parse(mail.as_bytes(), "Work", None).unwrap()
+            else {
+                panic!("a task");
+            };
+            assert!(parsed.task.recurrence.is_none(), "{rule}");
+        }
+        let mail = b"X-Orb-Task-Version: 2\r\nX-Orb-Task-Id: task-a\r\n\
+                     X-Orb-Task-Recurrence: FREQ=WEEKLY;BYDAY=MO\r\nSubject: s\r\n\r\n";
+        let TaskMessage::Task(parsed) = TaskEmailParser::parse(mail, "Work", None).unwrap() else {
+            panic!("a task");
+        };
+        assert_eq!(
+            parsed.task.recurrence.as_deref(),
+            Some("FREQ=WEEKLY;BYDAY=MO")
+        );
     }
 
     #[test]

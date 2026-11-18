@@ -212,8 +212,9 @@ impl FromStr for ByDay {
         };
 
         // The weekday code is always the last two characters; whatever precedes
-        // it is the signed ordinal.
-        if upper.len() < 2 {
+        // it is the signed ordinal. Only ASCII can be one or the other, and
+        // splitting inside a wider character would panic.
+        if upper.len() < 2 || !upper.is_ascii() {
             return Err(invalid());
         }
         let split = upper.len() - 2;
@@ -1190,6 +1191,13 @@ mod tests {
             RecurrenceRule::parse("FREQ=WEEKLY;BYDAY=XX"),
             Err(InvalidValue { .. })
         ));
+        // A wide character where the split falls was a panic, not an error.
+        for byday in ["aéa", "é", "1ÄMO", "ＭＯ"] {
+            assert!(matches!(
+                RecurrenceRule::parse(&format!("FREQ=WEEKLY;BYDAY={byday}")),
+                Err(InvalidValue { .. })
+            ));
+        }
         assert!(matches!(
             RecurrenceRule::parse("FREQ=DAILY;UNTIL=2026-12-31"),
             Err(InvalidValue { .. })
