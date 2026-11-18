@@ -501,9 +501,11 @@ impl Editors {
             .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
             .take(40)
             .collect();
-        let path = std::env::temp_dir().join(format!("orb-draft-{safe}.eml"));
+        let path = crate::files::scratch_dir()
+            .map_err(|e| start(&e))?
+            .join(format!("draft-{safe}.eml"));
         let (text, signature) = split_body(body, signature);
-        std::fs::write(&path, text).map_err(|e| start(&e))?;
+        crate::files::write_private(&path, text.as_bytes()).map_err(|e| start(&e))?;
         let shown = signature.clone();
         let signature = Arc::new(Mutex::new(signature));
 

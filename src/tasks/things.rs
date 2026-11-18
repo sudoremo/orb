@@ -68,7 +68,7 @@ pub struct ThingsData {
 /// Read a Things database — from a copy, taken here with its `-wal` and
 /// `-shm` — for an import into `account`.
 pub fn read(database: &Path, account: &str, today: NaiveDate) -> Result<ThingsData> {
-    let copy = std::env::temp_dir().join(format!("orb-things-{}", uuid::Uuid::new_v4()));
+    let copy = crate::files::scratch_dir()?.join(format!("things-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&copy)?;
     let read = (|| {
         let target = copy.join("main.sqlite");

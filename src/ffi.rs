@@ -1225,6 +1225,18 @@ fn apply_identity(
     Ok(())
 }
 
+/// Remove the attachment files that were Orb's own to hand on — unpacked
+/// into the scratch directory to be forwarded or sent again — and leave the
+/// files the user picked where they are.
+fn remove_handed_on(paths: &[String]) {
+    for path in paths {
+        let path = std::path::Path::new(path);
+        if crate::files::in_scratch_dir(path) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
 /// Read each picked file into an [`EmailAttachment`], inferring its MIME type
 /// from the filename. A file that cannot be read aborts the send with a
 /// `SendError` (so the user learns their attachment is missing rather than
@@ -3004,6 +3016,7 @@ impl OrbHandle {
     }
 
     pub fn shutdown(&self) {
+        crate::files::remove_scratch_dir();
         self.push_shutdown.cancel();
         self.task_uploads
             .nudge
@@ -3270,10 +3283,12 @@ impl OrbHandle {
                 .or(identities.first()),
         };
 
-        let directory = std::env::temp_dir().join(format!("orb-outbox-{id}"));
-        std::fs::create_dir_all(&directory).map_err(|e| OrbError::ConfigError {
-            message: format!("could not prepare the attachments: {e}"),
-        })?;
+        let directory = crate::files::scratch_dir()
+            .map(|scratch| scratch.join(format!("outbox-{id}")))
+            .and_then(|directory| std::fs::create_dir_all(&directory).map(|()| directory))
+            .map_err(|e| OrbError::ConfigError {
+                message: format!("could not prepare the attachments: {e}"),
+            })?;
         let mut taken = std::collections::HashSet::new();
         let mut attachments = Vec::new();
         for attachment in &email.attachments {
@@ -3323,10 +3338,12 @@ impl OrbHandle {
     /// paths written.
     pub fn detach_attachments(&self, message_id: i64) -> Result<Vec<String>, OrbError> {
         let metas = self.list_attachments(message_id)?;
-        let directory = std::env::temp_dir().join(format!("orb-forward-{message_id}"));
-        std::fs::create_dir_all(&directory).map_err(|e| OrbError::ConfigError {
-            message: format!("could not prepare the attachments: {e}"),
-        })?;
+        let directory = crate::files::scratch_dir()
+            .map(|scratch| scratch.join(format!("forward-{message_id}")))
+            .and_then(|directory| std::fs::create_dir_all(&directory).map(|()| directory))
+            .map_err(|e| OrbError::ConfigError {
+                message: format!("could not prepare the attachments: {e}"),
+            })?;
 
         let mut paths = Vec::new();
         let mut taken = std::collections::HashSet::new();
@@ -5904,6 +5921,9 @@ impl OrbHandle {
             .map_err(|e| OrbError::SendError {
                 message: e.to_string(),
             })?;
+        // Sent or queued, the message carries its attachments now; the files
+        // unpacked to be forwarded have served.
+        remove_handed_on(&input.attachment_paths);
 
         // Somebody written to is somebody worth suggesting next time. Done
         // here rather than when a draft is saved: a draft may never go

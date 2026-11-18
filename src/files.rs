@@ -8,7 +8,8 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 /// Create `path` and the directories above it, each one Orb creates with
 /// mode 0700. A directory that already exists is left as it is: it may be
@@ -70,6 +71,41 @@ pub fn open_private_append(path: &Path) -> io::Result<File> {
     private_options().append(true).open(path)
 }
 
+static SCRATCH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Where Orb puts a file it writes only to hand on: a draft on its way to
+/// the editor, a message's attachments unpacked to be forwarded, a copy of
+/// a database being imported. One directory per process under the system's
+/// temporary directory, named at random and readable by the user alone, so
+/// that nobody can plant a file where Orb is about to write and nobody else
+/// can read what it wrote. Removed whole by [`remove_scratch_dir`].
+pub fn scratch_dir() -> io::Result<PathBuf> {
+    if let Some(dir) = SCRATCH.get() {
+        create_private_dir(dir)?;
+        return Ok(dir.clone());
+    }
+    let dir = std::env::temp_dir().join(format!(
+        "orb-{}-{:016x}",
+        std::process::id(),
+        rand::random::<u64>()
+    ));
+    create_private_dir(&dir)?;
+    Ok(SCRATCH.get_or_init(|| dir).clone())
+}
+
+/// Whether `path` lies in the scratch directory, and so is Orb's to remove.
+pub fn in_scratch_dir(path: &Path) -> bool {
+    SCRATCH.get().is_some_and(|dir| path.starts_with(dir))
+}
+
+/// Remove the scratch directory and everything in it; nothing there is
+/// anybody's record of anything.
+pub fn remove_scratch_dir() {
+    if let Some(dir) = SCRATCH.get() {
+        let _ = fs::remove_dir_all(dir);
+    }
+}
+
 fn private_options() -> OpenOptions {
     let mut options = OpenOptions::new();
     options.create(true);
@@ -122,6 +158,19 @@ mod tests {
         fs::set_permissions(&loose, fs::Permissions::from_mode(0o644)).unwrap();
         set_private(&loose).unwrap();
         assert_eq!(mode(&loose), 0o600);
+    }
+
+    /// One per process, private, and what is in it is Orb's to remove.
+    /// Removal itself is not exercised here: the directory is shared by
+    /// every test in the process.
+    #[test]
+    fn the_scratch_directory_is_private_and_its_own() {
+        let dir = scratch_dir().unwrap();
+        assert_eq!(dir, scratch_dir().unwrap());
+        assert_eq!(mode(&dir), 0o700);
+        assert!(dir.starts_with(std::env::temp_dir()));
+        assert!(in_scratch_dir(&dir.join("handed-on")));
+        assert!(!in_scratch_dir(&std::env::temp_dir().join("elsewhere")));
     }
 
     /// A directory that is already there — the user's, or the system's — is
