@@ -1,5 +1,11 @@
 # Orb
 
+[![CI](https://github.com/sudoremo/orb/actions/workflows/ci.yml/badge.svg)](https://github.com/sudoremo/orb/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/sudoremo/orb?include_prereleases&display_name=tag)](https://github.com/sudoremo/orb/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-lightgrey.svg)](#requirements)
+[![Built with Claude](https://vibecoded.fyi/badges/flat/llms/claude.svg)](https://vibecoded.fyi/)
+
 A keyboard-driven mail client for IMAP, with a task tracker and a reading
 list that sync over IMAP too, and a Rocket.Chat client beside them. Orb is a
 [Tauri](https://tauri.app) app on a Rust core (`orb-core`). The keys are
