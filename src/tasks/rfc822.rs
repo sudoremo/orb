@@ -85,6 +85,11 @@ pub const TASK_VERSION: u8 = 2;
 /// its steps. This build reads both; anything else is skipped.
 pub const TASK_VERSION_STEPS: u8 = 3;
 
+/// The highest revision a message may carry. One edit is one bump, so this
+/// is more edits than a task will ever see, and far enough below `i64::MAX`
+/// that bumping past it cannot overflow; it is also exact as a JSON number.
+pub const MAX_REVISION: i64 = 1 << 53;
+
 const H_VERSION: &str = "X-Orb-Task-Version";
 const H_TYPE: &str = "X-Orb-Task-Type";
 const H_ID: &str = "X-Orb-Task-Id";
@@ -756,9 +761,7 @@ impl TaskEmailParser {
         Ok(TaskIdentity {
             kind,
             task_uuid,
-            revision: task_header(&headers, H_REVISION)
-                .and_then(|value| value.parse().ok())
-                .unwrap_or(0),
+            revision: revision_header(&headers),
             attachment_uuid: optional_id(&headers, H_ATTACHMENT_ID)?,
         })
     }
@@ -806,6 +809,17 @@ fn required_id(headers: &[mailparse::MailHeader<'_>]) -> Result<String> {
         .ok_or_else(|| invalid(format!("task message has no {H_ID}: it has no identity")))
 }
 
+/// `X-Orb-Task-Revision`: 0 when missing, unreadable or outside
+/// `0..=MAX_REVISION`. A revision bumps by one per edit, so one beyond the
+/// bound was not counted up to; it would pin the task above every edit made
+/// here and overflow the next bump.
+fn revision_header(headers: &[mailparse::MailHeader<'_>]) -> i64 {
+    task_header(headers, H_REVISION)
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|revision| (0..=MAX_REVISION).contains(revision))
+        .unwrap_or(0)
+}
+
 /// An id header, when present: refused unless it is an identifier
 /// ([`is_wire_id`]), because the ids name directories under the attachment
 /// cache and a message is written by whoever can reach the folder.
@@ -831,8 +845,11 @@ fn parse_task(
     let created_at =
         task_header(headers, H_CREATED).unwrap_or_else(|| format_timestamp(Utc::now()));
     let subject = headers.get_first_value("subject").unwrap_or_default();
+    // A position that is not a number is no position: NaN cannot be stored,
+    // let alone sorted by.
     let position = task_header(headers, H_POSITION)
-        .and_then(|value| value.parse().ok())
+        .and_then(|value| value.parse::<f64>().ok())
+        .filter(|position| position.is_finite())
         .unwrap_or(0.0);
 
     let mut task = Task::bare(
@@ -843,9 +860,7 @@ fn parse_task(
         created_at,
     );
 
-    task.revision = task_header(headers, H_REVISION)
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(0);
+    task.revision = revision_header(headers);
     task.updated_at = task_header(headers, H_UPDATED).unwrap_or_else(|| task.created_at.clone());
     task.completed_at = task_header(headers, H_COMPLETED_AT);
     task.is_completed = task.completed_at.is_some();
@@ -901,9 +916,7 @@ fn parse_task(
 }
 
 fn parse_registry(mail: &ParsedMail<'_>, imap_uid: Option<u32>) -> Result<ParsedTagRegistry> {
-    let revision = task_header(&mail.headers, H_REVISION)
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(0);
+    let revision = revision_header(&mail.headers);
     let body = mail
         .get_body_raw()
         .map_err(|error| invalid(format!("cannot decode the tag registry body: {error}")))?;
@@ -919,9 +932,7 @@ fn parse_registry(mail: &ParsedMail<'_>, imap_uid: Option<u32>) -> Result<Parsed
 }
 
 fn parse_chat_marks(mail: &ParsedMail<'_>, imap_uid: Option<u32>) -> Result<ParsedChatMarks> {
-    let revision = task_header(&mail.headers, H_REVISION)
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(0);
+    let revision = revision_header(&mail.headers);
     let body = mail
         .get_body_raw()
         .map_err(|error| invalid(format!("cannot decode the chat marks: {error}")))?;
@@ -940,9 +951,7 @@ fn parse_today_cleared(mail: &ParsedMail<'_>, imap_uid: Option<u32>) -> Result<P
     struct Wire {
         cleared_at: Option<String>,
     }
-    let revision = task_header(&mail.headers, H_REVISION)
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(0);
+    let revision = revision_header(&mail.headers);
     let body = mail
         .get_body_raw()
         .map_err(|error| invalid(format!("cannot decode the Today cut-off: {error}")))?;
@@ -1753,6 +1762,52 @@ mod tests {
             assert!(parsed.is_err(), "{id:?} was accepted");
             let identity = TaskEmailParser::parse_identity(mail.as_bytes());
             assert!(identity.is_err(), "{id:?} was accepted as an identity");
+        }
+    }
+
+    /// A revision beyond what edits can count up to is no revision: taken as
+    /// written, it would pin the task above every edit made here and overflow
+    /// the next bump.
+    #[test]
+    fn a_revision_beyond_the_bound_reads_as_zero() {
+        for (raw, expected) in [
+            ("7", 7),
+            ("0", 0),
+            ("-1", 0),
+            ("abc", 0),
+            (&i64::MAX.to_string(), 0),
+            (&(MAX_REVISION + 1).to_string(), 0),
+            (&MAX_REVISION.to_string(), MAX_REVISION),
+        ] {
+            let mail = format!(
+                "X-Orb-Task-Version: 2\r\nX-Orb-Task-Id: task-a\r\nX-Orb-Task-Revision: {raw}\r\n\
+                 Subject: s\r\n\r\n"
+            );
+            let identity = TaskEmailParser::parse_identity(mail.as_bytes()).unwrap();
+            assert_eq!(identity.revision, expected, "{raw}");
+            let TaskMessage::Task(parsed) =
+                TaskEmailParser::parse(mail.as_bytes(), "Work", None).unwrap()
+            else {
+                panic!("a task");
+            };
+            assert_eq!(parsed.task.revision, expected, "{raw}");
+        }
+    }
+
+    /// `NaN` parses as a number and cannot be stored as one.
+    #[test]
+    fn a_position_that_is_not_a_finite_number_reads_as_zero() {
+        for raw in ["NaN", "inf", "-inf", "x"] {
+            let mail = format!(
+                "X-Orb-Task-Version: 2\r\nX-Orb-Task-Id: task-a\r\nX-Orb-Task-Position: {raw}\r\n\
+                 Subject: s\r\n\r\n"
+            );
+            let TaskMessage::Task(parsed) =
+                TaskEmailParser::parse(mail.as_bytes(), "Work", None).unwrap()
+            else {
+                panic!("a task");
+            };
+            assert_eq!(parsed.task.position, 0.0, "{raw}");
         }
     }
 

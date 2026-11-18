@@ -1817,7 +1817,7 @@ impl TaskUpdates {
         }
 
         if changed {
-            next.revision += 1;
+            next.revision = next.revision.saturating_add(1);
             next.updated_at = format_timestamp(ctx.now);
             next.is_dirty = true;
             next.log.extend(appended.iter().cloned());
