@@ -10,7 +10,7 @@ import { viewingDrafts } from "./composing";
 import { openItemWindow } from "./itemwindow";
 import { ROW_HEIGHT, applyColumnClasses, applyDensity } from "./appearance";
 import { call, setStatus } from "./bridge";
-import { SPOOF_TITLE, configIcon, dateRoom, escape, icon, listDate, parseFrom, spoofedName, subjectIconsHtml } from "./format";
+import { SPOOF_TITLE, colourStyle, configIcon, dateRoom, escape, icon, listDate, parseFrom, spoofedName, subjectIconsHtml } from "./format";
 import { emptyView, listStandsAlone } from "./empty";
 import { attachFilterBar, filterHasFocus } from "./filter";
 import { svgIcon } from "./icons";
@@ -485,7 +485,7 @@ function applyHighlight(node: RowNode, names: string[]): void {
     .map((i) => configIcon(i.icon, i.color))
     .join("");
   node.labels.innerHTML = look.labels
-    .map((l) => `<span class="chip"${l.color ? ` style="--chip-color:${escape(l.color)}"` : ""}>${escape(l.label)}</span>`)
+    .map((l) => `<span class="chip"${colourStyle("--chip-color", l.color)}>${escape(l.label)}</span>`)
     .join("");
 }
 const darkScheme = window.matchMedia("(prefers-color-scheme: dark)");

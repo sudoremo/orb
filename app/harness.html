@@ -78,6 +78,9 @@
         { id: "tag-home", name: "home", colour: null, position: 2, is_known: true },
       ];
       const TASK_TAGS = { 1: [TAGS[0]] };
+      // ?tagcolour=<css>: the work tag's colour, as the registry would carry it.
+      const tagColour = new URLSearchParams(location.search).get("tagcolour");
+      if (tagColour !== null) TAGS[0].colour = tagColour;
       // ?moretags=1: two tags one of which is the other's initials, and task 2 tagged twice.
       if (new URLSearchParams(location.search).has("moretags")) {
         TAGS.push(

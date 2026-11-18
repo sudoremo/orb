@@ -13,7 +13,7 @@
  * and a button cannot come to mean something its keystroke does not.
  */
 
-import { escape, icon, shortWhen } from "./format";
+import { colourStyle, escape, icon, shortWhen } from "./format";
 import { IconName, svgIcon } from "./icons";
 import { linkify } from "./links";
 import { NotificationPermission } from "./model";
@@ -350,7 +350,7 @@ export function renderTaskDetail(detail: TaskDetail, options: TaskDetailOptions)
   }
   for (const tag of task.tags) {
     props.push(
-      `<span class="p tag" data-k="Tag"${tag.colour ? ` style="--tk-tag:${escape(tag.colour)}"` : ""}>${svgIcon(
+      `<span class="p tag" data-k="Tag"${colourStyle("--tk-tag", tag.colour)}>${svgIcon(
         "tag",
       )}<span class="pv">${renderTag(tag)}</span>${fieldButton(
         "remove-tag",

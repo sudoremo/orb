@@ -2,7 +2,7 @@ import { TaskViewName, TASK_VIEWS } from "./tasklist";
 import { openSelection } from "./actions";
 import { call, setStatus } from "./bridge";
 import { runCommand } from "./commands";
-import { escape, icon, configIcon } from "./format";
+import { colourStyle, escape, icon, configIcon } from "./format";
 import { keysOf } from "./keyhints";
 import { spellKey } from "./keys";
 import { roleIcon, svgIcon } from "./icons";
@@ -1055,7 +1055,7 @@ export function renderFolders(): void {
       .map((b) => {
         const style = state.highlightStyles.get(b.rule);
         const color = style?.color ?? style?.icon_color ?? style?.label_color ?? "var(--accent)";
-        return `<span class="sb-badge hl" style="color:${escape(color)}" title="${escape(b.rule)}: ${b.count} unread">${b.count}</span>`;
+        return `<span class="sb-badge hl"${colourStyle("color", color)} title="${escape(b.rule)}: ${b.count} unread">${b.count}</span>`;
       })
       .join("");
     const counts =
@@ -1399,7 +1399,7 @@ export function highlightMarks(names: string[]): string {
     .map((i) => configIcon(i.icon, i.color))
     .join("");
   const labels = look.labels
-    .map((l) => `<span class="chip"${l.color ? ` style="--chip-color:${escape(l.color)}"` : ""}>${escape(l.label)}</span>`)
+    .map((l) => `<span class="chip"${colourStyle("--chip-color", l.color)}>${escape(l.label)}</span>`)
     .join("");
   return icons + labels;
 }

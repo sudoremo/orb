@@ -98,6 +98,23 @@ export function listDate(iso: string, format: string, room: { width: number; fon
   if (!room) return forms[0]!;
   return forms.find((form) => textWidth(form, room.font) <= room.width) ?? forms[forms.length - 1]!;
 }
+/**
+ * A colour as CSS, or nothing. Tag colours arrive with the tag registry,
+ * which another machine wrote, and highlight colours with the config; put
+ * into a `style` attribute as text, `red;background:url(…)` would be two
+ * declarations, the second a request. Only what the engine reads as one
+ * colour value goes in.
+ */
+export function cssColor(value: string | null | undefined): string | null {
+  const colour = value?.trim();
+  if (!colour) return null;
+  return typeof CSS !== "undefined" && CSS.supports("color", colour) ? colour : null;
+}
+/** A `style` attribute setting `property` to a colour, or nothing. */
+export const colourStyle = (property: string, value: string | null | undefined): string => {
+  const colour = cssColor(value);
+  return colour ? ` style="${property}:${colour}"` : "";
+};
 export const escape = (s: string): string =>
   s.replace(
     /[&<>"]/g,
@@ -121,7 +138,7 @@ const REGULAR = new Set(__FA_REGULAR__);
 /** A configured Font Awesome icon (`fa-gears`), in the font that has it. */
 export const configIcon = (name: string, color: string | null = null, cls = ""): string =>
   `<i class="${BRANDS.has(name) ? "fa-brands" : "fa-solid"} ${escape(name)}${cls ? ` ${cls}` : ""}"${
-    color ? ` style="color:${escape(color)}"` : ""
+    colourStyle("color", color)
   }></i>`;
 const knownIcons = new Map<string, boolean>();
 /**

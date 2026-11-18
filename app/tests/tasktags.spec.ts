@@ -36,6 +36,19 @@ test("Today in columns shows the tags of its tasks", async ({ page }) => {
   await expect(row(page, "Buy groceries").locator(".tk-tagtxt")).toHaveText("#work");
 });
 
+test("a tag's colour reaches its chip only when it is a colour", async ({ page }) => {
+  // The registry is written by another machine; a value that is not a colour
+  // must not become a second declaration in the chip's style.
+  await open(page, "tasks=1&tagcolour=%23ff8800");
+  const chip = row(page, "Buy groceries").locator(".tk-tag, .tk-tagtxt").first();
+  await expect(chip).toHaveAttribute("style", "--tk-tag:#ff8800");
+
+  await open(page, `tasks=1&tagcolour=${encodeURIComponent("red;background:url(https://tracker.example/p)")}`);
+  const spoofed = row(page, "Buy groceries").locator(".tk-tag, .tk-tagtxt").first();
+  await expect(spoofed).toBeVisible();
+  expect(await spoofed.getAttribute("style")).toBeNull();
+});
+
 test("a deadline that is today is red, as one that has passed is; only the passed one is marked", async ({ page }) => {
   // The harness's tasks are dated against this day.
   await page.clock.setFixedTime(new Date("2026-08-07T10:00:00"));

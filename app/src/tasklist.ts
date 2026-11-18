@@ -13,7 +13,7 @@
  * a collision would have styled one with the other's rules.
  */
 import { daysBetween, localToday } from "./dates";
-import { escape } from "./format";
+import { colourStyle, escape } from "./format";
 import { IconName, svgIcon } from "./icons";
 
 export { localToday };
@@ -398,7 +398,7 @@ export function doneForTodayNote(task: TaskSummary, today: string): string {
 
 /** A tag chip. Unknown ids are drawn as their id, marked, and never dropped. */
 export function renderTag(tag: TaskTagInfo): string {
-  const colour = tag.colour ? ` style="--tk-tag:${escape(tag.colour)}"` : "";
+  const colour = colourStyle("--tk-tag", tag.colour);
   const unknown = tag.is_known ? "" : " unknown";
   const title = tag.is_known ? "" : ` title="unresolved tag id — the registry has not synced"`;
   return `<span class="tk-tag${unknown}"${colour}${title}>${escape(tag.name)}</span>`;
@@ -488,7 +488,7 @@ function stepProgress(done: number, total: number): string {
 }
 /** A tag among a row's badges: its name after a `#`, in its colour. */
 function rowTag(tag: TaskTagInfo): string {
-  const colour = tag.colour ? ` style="--tk-tag:${escape(tag.colour)}"` : "";
+  const colour = colourStyle("--tk-tag", tag.colour);
   const unknown = tag.is_known ? "" : " unknown";
   const title = tag.is_known ? "" : ` title="unresolved tag id — the registry has not synced"`;
   return `<span class="tk-tagtxt${unknown}"${colour}${title}>#${escape(tag.name)}</span>`;
@@ -629,7 +629,7 @@ export function groupHeading(group: TaskGroup, extra = ""): string {
   const big = group.big
     ? `<b class="${/^\d{4}-\d{2}-\d{2}$/.test(group.key) ? "" : "mon"}">${escape(group.big)}</b>`
     : `<b class="dic${group.key === "today" ? " sunny" : ""}${group.key === "tag:" ? " untagged" : ""}"${
-        group.colour ? ` style="--tk-tag:${escape(group.colour)}"` : ""
+        colourStyle("--tk-tag", group.colour)
       }>${group.icon ? svgIcon(group.icon) : ""}</b>`;
   const label = group.label ? `<span class="lbl">${escape(group.label)}</span>` : "";
   const toggle = group.key === "done" ? " data-search-completed" : "";
