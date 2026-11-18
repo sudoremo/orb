@@ -50,12 +50,11 @@ impl PasswordStore for Keychain {
 
     fn set(&self, key: &str, password: &SecretString) -> Result<(), String> {
         use secrecy::ExposeSecret;
-        security_framework::passwords::set_generic_password(
-            SERVICE,
-            key,
+        security_framework::passwords::set_generic_password_options(
             password.expose_secret().as_bytes(),
+            item_options(key)?,
         )
-        .map_err(|error| error.message().unwrap_or_else(|| error.to_string()))
+        .map_err(describe)
     }
 
     fn delete(&self, key: &str) -> Result<(), String> {
@@ -65,6 +64,37 @@ impl PasswordStore for Keychain {
             Err(error) => Err(error.message().unwrap_or_else(|| error.to_string())),
         }
     }
+}
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn describe(error: security_framework::base::Error) -> String {
+    error.message().unwrap_or_else(|| error.to_string())
+}
+
+/// The Keychain item a login's password is kept as, on the Mac: the login
+/// Keychain, which has no accessibility classes.
+#[cfg(target_os = "macos")]
+fn item_options(key: &str) -> Result<security_framework::passwords::PasswordOptions, String> {
+    Ok(security_framework::passwords::PasswordOptions::new_generic_password(SERVICE, key))
+}
+
+/// The Keychain item a login's password is kept as, on the phone: readable
+/// after the first unlock rather than only while unlocked, since a background
+/// refresh reads it while the device is locked; and on this device only, out
+/// of backups and other devices' Keychains, since a password that migrates is
+/// one more copy nobody asked for.
+#[cfg(target_os = "ios")]
+fn item_options(key: &str) -> Result<security_framework::passwords::PasswordOptions, String> {
+    use security_framework::access_control::{ProtectionMode, SecAccessControl};
+    let mut options =
+        security_framework::passwords::PasswordOptions::new_generic_password(SERVICE, key);
+    let control = SecAccessControl::create_with_protection(
+        Some(ProtectionMode::AccessibleAfterFirstUnlockThisDeviceOnly),
+        0,
+    )
+    .map_err(describe)?;
+    options.set_access_control(control);
+    Ok(options)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "ios")))]
