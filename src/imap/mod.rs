@@ -1972,6 +1972,7 @@ impl ImapClient {
         content: &[u8],
         flags: Option<&str>,
     ) -> Result<()> {
+        check_mailbox_name(mailbox)?;
         logger::debug(&format!(
             "APPEND to {} ({} bytes, flags={})",
             mailbox,
@@ -2136,6 +2137,22 @@ fn quote_imap_string(value: &str) -> String {
     }
     quoted.push('"');
     quoted
+}
+
+/// Refuse a mailbox name that cannot be put on the wire whole.
+///
+/// The IMAP library quotes the name in every command but APPEND, where it
+/// writes it between quotes as it is: a quote in the name would end the
+/// string early and a line break would start a second command on the
+/// authenticated connection. Nothing Orb's own folders are called has either;
+/// a configured or server-given name that does is an error, not a command.
+fn check_mailbox_name(mailbox: &str) -> Result<()> {
+    if mailbox.is_empty() || mailbox.contains(['"', '\\', '\r', '\n']) {
+        return Err(Error::InvalidInput(format!(
+            "mailbox name {mailbox:?} cannot be sent in an APPEND command"
+        )));
+    }
+    Ok(())
 }
 
 /// What a mailbox says about itself, from STATUS.
@@ -2338,6 +2355,18 @@ fn decode_part(mime_headers: &[u8], body: &[u8]) -> Option<String> {
 mod tests {
     use super::*;
     use std::ops::RangeInclusive;
+
+    /// APPEND is the one command the library does not quote the mailbox name
+    /// for, so a name that would break out of the quotes is refused here.
+    #[test]
+    fn a_mailbox_name_that_cannot_be_quoted_is_refused_for_append() {
+        for name in ["INBOX", "Tasks", "INBOX.Sent Items", "Ärger", "a'b"] {
+            assert!(check_mailbox_name(name).is_ok(), "{name}");
+        }
+        for name in ["", "a\"b", "a\\b", "a\r\nX LOGOUT", "a\nb"] {
+            assert!(check_mailbox_name(name).is_err(), "{name:?}");
+        }
+    }
 
     /// `[Gmail]` and the like are listed alongside the real folders, flagged
     /// `\Noselect`, and a sync that took them for folders failed on each.
