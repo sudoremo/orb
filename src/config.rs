@@ -2128,16 +2128,18 @@ impl AccountConfig {
             Ok(output) => {
                 // Check command exit status
                 if !output.status.success() {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    // What the command printed stays with the command: a
+                    // wrapper that traces itself, or a tool that echoes its
+                    // input on failure, puts the secret on stderr, and this
+                    // error goes to the log and the screen.
                     let exit_code = output
                         .status
                         .code()
                         .map(|c| c.to_string())
                         .unwrap_or_else(|| "unknown".to_string());
                     return Err(ConfigError::Io(std::io::Error::other(format!(
-                        "Password command failed with exit code {}: {}",
-                        exit_code,
-                        stderr.trim()
+                        "Password command failed with exit code {exit_code}; run it by hand to see \
+                         why"
                     ))));
                 }
 
@@ -3083,6 +3085,20 @@ mod tests {
         let result = account.run_password_command("echo secret123");
         assert!(result.is_ok());
         assert_eq!(result.unwrap().expose_secret(), "secret123");
+    }
+
+    /// The error names the exit code and nothing the command printed: a
+    /// tracing wrapper puts the secret on stderr, and the error is logged.
+    #[test]
+    #[cfg(feature = "desktop")]
+    fn a_failing_password_command_keeps_its_output_out_of_the_error() {
+        let account = test_account();
+        let error = account
+            .run_password_command("sh -c 'echo supersecret >&2; exit 3'")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("exit code 3"), "{error}");
+        assert!(!error.contains("supersecret"), "{error}");
     }
 
     #[test]
