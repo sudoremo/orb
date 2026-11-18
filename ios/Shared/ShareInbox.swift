@@ -9,6 +9,8 @@ struct SharedItem: Codable, Sendable {
     /// The names of the files in the item's folder, to attach.
     var files: [String]
     var shared: Date
+    /// How often the app has tried and failed to make the task.
+    var attempts: Int?
 }
 
 enum ShareInbox {
@@ -26,7 +28,14 @@ enum ShareInbox {
         var item = item
         item.files = []
         for file in files {
-            let name = file.lastPathComponent
+            // Two files of one name — two photos called IMG_0001 — must not
+            // make the share fail on the second copy.
+            var name = file.lastPathComponent
+            var next = 2
+            while item.files.contains(name) {
+                name = "\(next)-\(file.lastPathComponent)"
+                next += 1
+            }
             try FileManager.default.copyItem(at: file, to: staging.appendingPathComponent(name))
             item.files.append(name)
         }
@@ -53,5 +62,21 @@ enum ShareInbox {
 
     static func remove(_ folder: URL) {
         try? FileManager.default.removeItem(at: folder)
+    }
+
+    /// How often the app tries an item before giving it up.
+    static let maxAttempts = 3
+
+    /// Note that the app failed to make `item`'s task. The third failure
+    /// removes it: a file the core cannot take would otherwise be read whole
+    /// into memory on every launch for as long as the phone lasts.
+    static func failed(_ item: SharedItem, in folder: URL) {
+        var item = item
+        item.attempts = (item.attempts ?? 0) + 1
+        if item.attempts ?? 0 >= maxAttempts {
+            remove(folder)
+            return
+        }
+        try? JSONEncoder().encode(item).write(to: folder.appendingPathComponent("item.json"), options: .atomic)
     }
 }

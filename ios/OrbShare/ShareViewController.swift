@@ -30,6 +30,20 @@ final class ShareModel {
         self.context = context
     }
 
+    /// The largest file taken: it is read whole into the app's memory when
+    /// the task is made, and uploaded as one message.
+    static let maxFileBytes = 25 * 1024 * 1024
+
+    /// Take a shared file, unless it is too large to carry.
+    private func accept(_ url: URL) {
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        if size > Self.maxFileBytes {
+            problem = "\(url.lastPathComponent) is larger than 25 MB and is left out."
+        } else {
+            files.append(url)
+        }
+    }
+
     /// Read what was shared: text and links into the title and notes, files
     /// as attachments.
     func load() async {
@@ -41,7 +55,7 @@ final class ShareModel {
             if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier),
                let url = try? await provider.loadItem(forTypeIdentifier: UTType.url.identifier) as? URL {
                 if url.isFileURL {
-                    files.append(url)
+                    accept(url)
                 } else {
                     notes = notes.isEmpty ? url.absoluteString : notes + "\n" + url.absoluteString
                     if title.isEmpty { title = url.host() ?? url.absoluteString }
@@ -55,7 +69,7 @@ final class ShareModel {
                 }
             } else if let type = provider.registeredTypeIdentifiers.first,
                       let url = try? await provider.loadFileRepresentation(forTypeIdentifier: type) {
-                files.append(url)
+                accept(url)
             }
         }
     }

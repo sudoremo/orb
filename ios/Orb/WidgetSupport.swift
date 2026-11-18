@@ -59,7 +59,8 @@ enum ShareInboxDrain {
                 ShareInbox.remove(folder)
                 made += 1
             } catch {
-                // Left where it is, for the next run.
+                // Left for the next run, up to a point.
+                ShareInbox.failed(item, in: folder)
             }
         }
         return made
