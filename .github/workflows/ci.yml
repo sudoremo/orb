@@ -195,6 +195,12 @@ jobs:
       - name: Run the iOS checks
         run: scripts/test-ios.sh
 
+      # The committed project is xcodegen's output, which the checks above
+      # regenerated; a diff means project.yml changed without it, or Xcode
+      # rewrote a file that was committed as it was.
+      - name: Check that the committed Xcode project is current
+        run: git diff --exit-code --stat ios/Orb.xcodeproj
+
   # The one check branch protection needs: green only when every job is.
   ci-success:
     name: CI Success
