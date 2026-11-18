@@ -3037,13 +3037,38 @@ fn announce_export(app: &AppHandle, outcome: Result<orb_core::ffi::TaskExportRes
     let _ = app.emit(TASK_EXPORT_EVENT, payload);
 }
 
-/// The code that sets Orb up on an iPhone, password included.
+/// The code that sets Orb up on an iPhone, password included — after a
+/// native dialog has said so. The code is the account's password on the
+/// screen, so making one is a decision a person takes in a dialog the page
+/// cannot answer; `None` when the dialog was cancelled.
 #[tauri::command]
 async fn iphone_setup_code(
+    app: AppHandle,
     orb: State<'_, Handle>,
-) -> Result<orb_core::ffi::IphoneSetupCode, OrbError> {
+) -> Result<Option<orb_core::ffi::IphoneSetupCode>, OrbError> {
+    let dialog = app
+        .dialog()
+        .message(
+            "The code holds the tasks account's password. Anyone who sees or photographs it \
+             can read this account's mail. It works for five minutes, and goes away when Orb \
+             leaves the front.",
+        )
+        .title("Show the code that sets up Orb on an iPhone?")
+        .kind(MessageDialogKind::Warning)
+        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+            "Show the Code".to_string(),
+            "Cancel".to_string(),
+        ));
+    let go = tauri::async_runtime::spawn_blocking(move || dialog.blocking_show())
+        .await
+        .unwrap_or(false);
+    if !go {
+        return Ok(None);
+    }
     let orb = orb.inner().clone();
-    offload("iphone_setup_code", move || orb.iphone_setup_code()).await
+    offload("iphone_setup_code", move || orb.iphone_setup_code())
+        .await
+        .map(Some)
 }
 
 /// Export the tasks now, to the configured directory (todo-spec §20.3).

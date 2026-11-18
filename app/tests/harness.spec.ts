@@ -4207,17 +4207,20 @@ test("the task views are in the sidebar from its first drawing, however slow the
   await expect(page.locator("#folders .sb-section", { hasText: "Tasks" })).toHaveCount(1, { timeout: 500 });
 });
 
-test("Set Up iPhone shows the code with whose password it holds, renews it when it expires, and closes on Escape", async ({ page }) => {
+test("Set Up iPhone shows the code with whose password it holds, replaces an expired one only when asked, and closes on Escape or when the window leaves the front", async ({ page }) => {
   await page.goto("/harness.html?tasks=1");
   await page.locator("#list [data-task]").first().waitFor();
   await settled(page);
   await page.evaluate(() => {
     (window as unknown as { __setupLifetime: number }).__setupLifetime = 2;
   });
-  await page.locator("#list").focus();
-  await page.keyboard.press(":");
-  await page.keyboard.type("set-up-iphone");
-  await page.keyboard.press("Enter");
+  const summon = async () => {
+    await page.locator("#list").focus();
+    await page.keyboard.press(":");
+    await page.keyboard.type("set-up-iphone");
+    await page.keyboard.press("Enter");
+  };
+  await summon();
 
   const dialog = page.locator(".iphone-setup");
   await expect(dialog.locator(".is-code svg")).toHaveAttribute("data-code", "1");
@@ -4225,10 +4228,25 @@ test("Set Up iPhone shows the code with whose password it holds, renews it when 
   await expect(dialog.locator(".is-warning")).toContainText("holds the password");
   await expect(dialog.locator(".is-countdown")).toContainText("This code works for 0:0");
 
-  // Expired, and replaced while the dialog is open.
-  await expect(dialog.locator(".is-code svg")).toHaveAttribute("data-code", "2", { timeout: 5000 });
+  // Expired: gone from the screen, and not replaced until asked for.
+  await expect(dialog.locator(".is-countdown")).toContainText("expired", { timeout: 5000 });
+  await expect(dialog.locator(".is-code svg")).toHaveCount(0);
+  await page.keyboard.press("Enter");
+  await expect(dialog.locator(".is-code svg")).toHaveAttribute("data-code", "2");
 
   await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  // A code nobody is looking at is a password on a screen: the window
+  // leaving the front closes the dialog.
+  await summon();
+  await expect(dialog.locator(".is-code svg")).toHaveAttribute("data-code", "3");
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect(dialog).toHaveCount(0);
+
+  // The shell's dialog answered no: nothing is shown.
+  await page.evaluate(() => ((window as unknown as { __setupDeclined: boolean }).__setupDeclined = true));
+  await summon();
   await expect(dialog).toHaveCount(0);
 });
 

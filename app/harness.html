@@ -657,7 +657,10 @@
             }
 
             // A stand-in code: a test sets __setupLifetime to see it renewed.
+            // The shell asks before it makes a code; `window.__setupDeclined`
+            // is that answer being no.
             case "iphone_setup_code":
+              if (window.__setupDeclined) return null;
               window.__setupCodes = (window.__setupCodes ?? 0) + 1;
               return { svg: `<svg xmlns="http://www.w3.org/2000/svg" data-code="${window.__setupCodes}" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>`,
                        expires: Math.floor(Date.now() / 1000) + (window.__setupLifetime ?? 300),

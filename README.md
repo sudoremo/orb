@@ -2115,8 +2115,11 @@ Neither import can be undone; both ask first.
 Orb for iPhone (`ios/`) opens the same tasks folder and syncs it by the same
 rules. `set-up-iphone` (Tasks ▸ Set Up iPhone…) shows the code it sets itself
 up from: the tasks account, its folder, the date language, the Today settings
-and the account's password. The code is as sensitive as the password; each
-one works for five minutes.
+and the account's password. The code is as sensitive as the password, so a
+system dialog asks before one is drawn; it works for five minutes and is not
+replaced on its own (Enter asks for another), and the window closes it the
+moment Orb leaves the front. The iPhone shows which account and server a
+scanned code points at and asks before logging in.
 
 On the iPhone, *Select* in a list's ⋯ menu picks several tasks; the bar below
 completes, postpones, merges or deletes them, and dragging one of them moves

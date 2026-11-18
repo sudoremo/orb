@@ -46,11 +46,22 @@ pub struct TasksAccountSetup {
 }
 
 /// What a setup code from the Mac carries (IOS_PLAN.md 2.1).
-#[derive(uniffi::Record, Debug, Clone, PartialEq)]
+#[derive(uniffi::Record, Clone, PartialEq)]
 pub struct SetupCode {
     pub setup: TasksAccountSetup,
     pub password: String,
     pub today: TodaySettings,
+}
+
+/// Written out without the password.
+impl std::fmt::Debug for SetupCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SetupCode")
+            .field("setup", &self.setup)
+            .field("password", &"[redacted]")
+            .field("today", &self.today)
+            .finish()
+    }
 }
 
 /// Read a scanned setup code, refusing anything else and a code older than

@@ -15,6 +15,10 @@ struct SetupView: View {
     @State private var problem: String?
     /// A setup whose folder the server does not have yet, waiting for a yes.
     @State private var missingFolder: Pending?
+    /// A scanned code, shown for what it is before anything is tried: a code
+    /// is whatever was put in front of the camera, and it names the server
+    /// every task would go to.
+    @State private var scanned: Pending?
     @State private var scanning = false
     @State private var photo: PhotosPickerItem?
 
@@ -83,6 +87,18 @@ struct SetupView: View {
                 read(item)
             }
             .confirmationDialog(
+                "Set up \(scanned?.setup.imapUsername ?? "") on \(scanned?.setup.imapServer ?? ""), folder “\(scanned?.setup.folder ?? "")”?",
+                isPresented: Binding(get: { scanned != nil }, set: { if !$0 { scanned = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Set Up") {
+                    if let pending = scanned { check(pending) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Orb logs in there with the password the code carries, and every task you make on this iPhone goes to that server.")
+            }
+            .confirmationDialog(
                 "There is no folder “\(missingFolder?.setup.folder ?? "")” on the server yet.",
                 isPresented: Binding(get: { missingFolder != nil }, set: { if !$0 { missingFolder = nil } }),
                 titleVisibility: .visible
@@ -130,11 +146,12 @@ struct SetupView: View {
         check(Pending(setup: setup, password: password, today: nil))
     }
 
-    /// A scanned or photographed code: everything at once, password included.
+    /// A scanned or photographed code: everything at once, password included,
+    /// shown for what it is before it is used.
     func use(code: String) {
         do {
             let code = try readSetupCode(text: code)
-            check(Pending(setup: code.setup, password: code.password, today: code.today))
+            scanned = Pending(setup: code.setup, password: code.password, today: code.today)
         } catch {
             problem = error.message
         }

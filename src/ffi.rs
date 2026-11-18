@@ -811,8 +811,9 @@ pub struct TaskSyncEvent {
     pub problem_changed: bool,
 }
 
-/// The iPhone's setup code, as the window shows it.
-#[derive(Debug, Clone, serde::Serialize)]
+/// The iPhone's setup code, as the window shows it. Not `Debug`: the image
+/// is the password, encoded.
+#[derive(Clone, serde::Serialize)]
 pub struct IphoneSetupCode {
     /// The QR code.
     pub svg: String,

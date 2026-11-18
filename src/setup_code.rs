@@ -21,7 +21,7 @@ const PREFIX: &str = "orb-setup:";
 const VERSION: u32 = 1;
 
 /// What a code carries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SetupPayload {
     pub version: u32,
     pub imap_server: String,
@@ -48,6 +48,22 @@ pub enum SetupCodeError {
     UnknownVersion,
     #[error("This setup code has expired. Show a new one on the Mac.")]
     Expired,
+}
+
+/// Written out without the password, so a payload in a log line or a panic
+/// message gives away the account and not its key.
+impl std::fmt::Debug for SetupPayload {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SetupPayload")
+            .field("version", &self.version)
+            .field("imap_server", &self.imap_server)
+            .field("imap_port", &self.imap_port)
+            .field("imap_username", &self.imap_username)
+            .field("password", &"[redacted]")
+            .field("folder", &self.folder)
+            .field("expires", &self.expires)
+            .finish_non_exhaustive()
+    }
 }
 
 impl SetupPayload {
@@ -128,6 +144,25 @@ pub fn qr_svg(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_payload_written_out_keeps_its_password_to_itself() {
+        let payload = SetupPayload::new(
+            "imap.example.com".into(),
+            993,
+            "user@example.com".into(),
+            "hunter2".into(),
+            "Tasks".into(),
+            "en".into(),
+            true,
+            false,
+            30,
+            1_700_000_000,
+        );
+        let written = format!("{payload:?}");
+        assert!(written.contains("imap.example.com"), "{written}");
+        assert!(!written.contains("hunter2"), "{written}");
+    }
 
     fn payload(now: i64) -> SetupPayload {
         SetupPayload::new(
