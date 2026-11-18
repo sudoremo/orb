@@ -6805,6 +6805,29 @@ button.cm-file:hover {
   font-size: var(--font-sm);
 }
 
+.cv-day {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  margin: calc(10 * var(--u)) 0 calc(2 * var(--u)) var(--text-x);
+  color: var(--fg3);
+  font-size: var(--font-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cv-day::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--frame);
+}
+
+.cv-day:first-child {
+  margin-top: 0;
+}
+
 .cv-new {
   display: flex;
   align-items: center;
@@ -8041,6 +8064,17 @@ button.cm-file:hover {
   font-weight: 400;
   letter-spacing: 0;
   text-transform: lowercase;
+}
+
+:root[data-look="terminal"] .cv-day {
+  font-size: var(--font-sm);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: lowercase;
+}
+
+:root[data-look="terminal"] .cv-day::before {
+  content: "──";
 }
 
 :root[data-look="terminal"] .cv-new::before {

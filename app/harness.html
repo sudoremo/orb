@@ -276,7 +276,7 @@
       const CHAT_MESSAGES = {
         "r-lukas\u0000": [message("m1", "r-lukas", null, "Lukas Meier", 12, 41, "Can you have a quick look at the PR? The sync test is red again.")],
         "r-dev\u0000t-rel": [
-          message("t-rel", "r-dev", null, "Lukas Meier", 9, 12, "Release 0.9 — what is still missing?", { replies: 3 }),
+          message("t-rel", "r-dev", null, "Lukas Meier", 9, 12, "Release 0.9 — what is still missing?", { replies: 3, ts: at(9, 12) - 86_400_000 }),
           message("m2", "r-dev", "t-rel", "Sam Taylor", 11, 2, "README is done, the migration notice is in review."),
           message("m3", "r-dev", "t-rel", "Sara Brunner", 12, 18, "@sam the notarisation step fails on CI, see the log and #4711, not https://ci.example.com/runs/#4712 or `#4713`. Maybe #4714.2.",
             { mentions_me: true, files: [{ name: "ci-notarize.log", size: 18000 }] }),

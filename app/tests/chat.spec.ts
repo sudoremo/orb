@@ -83,6 +83,16 @@ test("Waiting lists one row per thread, and the reader follows the cursor", asyn
   expect(await callsTo(page, "chat_send")).toHaveLength(0);
 });
 
+test("a line above the first message of each day names the day", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-08-07T14:00:00"));
+  await openWaiting(page);
+  await page.keyboard.press("j");
+  await expect(page.locator("#reader .cv-t")).toHaveText("Release 0.9 — what is still missing?");
+  await expect(page.locator("#reader .cv-day")).toHaveText(["Yesterday", "Today"]);
+  await expect(page.locator('#reader .cv-day + [data-chat-message="t-rel"]')).toHaveCount(1);
+  await expect(page.locator('#reader .cv-day + [data-chat-message="m2"]')).toHaveCount(1);
+});
+
 test("the threads beside the cursor are read ahead, and moving onto one shows it at once", async ({ page }) => {
   await openWaiting(page);
   await expect(page.locator("#reader .cv-t")).toHaveText("lukas");

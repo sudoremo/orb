@@ -208,6 +208,21 @@ export function readerDate(iso: string | null, now: Date = new Date()): string {
   return `${formatDate(iso, "%-d %b %Y")}, ${time}`;
 }
 /**
+ * The day a conversation's messages were written on, as the line above them
+ * says it: `Today`, `Yesterday`, `Tuesday 13 October` within the year,
+ * `4 March 2025` before it.
+ */
+export function dayHeading(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((day(now) - day(d)) / 86_400_000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (d.getFullYear() === now.getFullYear()) return formatDate(iso, "%A %-d %B");
+  return formatDate(iso, "%-d %B %Y");
+}
+/**
  * The recipients as one line of names: a name where there is one, else the
  * address, and `me` for an address of the user's own.
  */

@@ -2171,7 +2171,8 @@ Leave Room), which acts on the selection when the clicked thread is in it. A
 key that acts on mail is refused while chat has the cursor.
 
 The reader shows the conversation oldest first and opens at the newest
-message, with a line above what came since you last wrote, each message's
+message, with a line naming the day above each day's first message, a line
+above what came since you last wrote, each message's
 files and reactions, and the composer below. A long thread shows its first
 message and the newest replies; the ones between fold away (*N earlier
 replies*, or `za`). A quoted message shows above the text that quotes it; a

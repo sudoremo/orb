@@ -10,7 +10,7 @@ import { keepingScroll } from "./scrollkeep";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { askFirst, call, setStatus } from "./bridge";
-import { escape, formatDate, listDate, readerDate } from "./format";
+import { escape, formatDate, dayHeading, listDate, readerDate } from "./format";
 import { IconName, svgIcon } from "./icons";
 import { eventKey } from "./keys";
 import { drawEmoji, emojiMatching, withEmoji } from "./emoji";
@@ -1240,7 +1240,13 @@ export function chatReaderMarkup(): string {
         .map((m, i) => {
           if (hidden && i >= hidden[0] && i < hidden[1]) return i === hidden[0] ? fold : "";
           const previous = hidden && i === hidden[1] ? undefined : all[i - 1];
-          return (i === newAt && i > 0 ? `<div class="cv-new"><span class="lbl">New</span></div>` : "") + messageMarkup(m, previous, c.thread !== "");
+          const day = dayHeading(iso(m.ts));
+          const newDay = !previous || dayHeading(iso(previous.ts)) !== day;
+          return (
+            (newDay ? `<div class="cv-day"><span class="lbl">${escape(day)}</span></div>` : "") +
+            (i === newAt && i > 0 ? `<div class="cv-new"><span class="lbl">New</span></div>` : "") +
+            messageMarkup(m, newDay ? undefined : previous, c.thread !== "")
+          );
         })
         .join("");
   }
