@@ -18,7 +18,9 @@ log_file: ~/.local/share/orb/orb.log
 accounts:
     # What the account is called in the sidebar.
   - name: Personal
-    # The IMAP server and port; the connection is always TLS.
+    # The IMAP server and port. The connection is TLS from the start on 993;
+    # imap_encryption: starttls upgrades a plain connection on 143 (see
+    # config.example.yml).
     imap_server: imap.example.com
     imap_port: 993
     imap_username: user@example.com
