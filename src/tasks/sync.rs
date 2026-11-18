@@ -1617,6 +1617,7 @@ impl TaskSyncService {
                         &marks.marks,
                         marks.revision,
                         marks.message_id.as_deref(),
+                        Utc::now().timestamp_millis(),
                     ) {
                         report
                             .errors
@@ -1922,6 +1923,7 @@ impl TaskSyncService {
             &remote.marks,
             remote.revision,
             remote.message_id.as_deref(),
+            Utc::now().timestamp_millis(),
         )?;
         logger::info(&format!(
             "Merged the chat marks with another machine's: {} there",

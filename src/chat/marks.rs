@@ -45,9 +45,30 @@ pub struct SharedMark {
     pub at: i64,
 }
 
+/// How far ahead of now a done or task mark may be dated and still be taken
+/// in: a clock a little fast on another Mac, not a mark pinned past every
+/// message the thread will ever get. A mute is dated by when it ends, and
+/// may end never.
+const MARK_LEAD_MS: i64 = 24 * 60 * 60 * 1000;
+
 impl SharedMark {
     fn key(&self) -> (String, String, String) {
         (self.server.clone(), self.room.clone(), self.thread.clone())
+    }
+
+    /// Whether a mark another Mac sent is one this Mac could have made. The
+    /// message carrying it is written by whoever can reach the tasks folder,
+    /// so a kind the store does not know, a mark naming nothing, or one dated
+    /// into the far future is left out rather than applied.
+    pub fn is_well_formed(&self, now_ms: i64) -> bool {
+        let known = matches!(
+            self.kind.as_str(),
+            store::MARK_DONE | store::MARK_TASK | store::MARK_MUTE
+        );
+        let named = !self.server.is_empty() && !self.room.is_empty();
+        let timely =
+            self.kind == store::MARK_MUTE || self.at <= now_ms.saturating_add(MARK_LEAD_MS);
+        known && named && timely
     }
 }
 
@@ -218,12 +239,18 @@ pub fn take_in(
     remote: &[SharedMark],
     revision: i64,
     message_id: Option<&str>,
+    now_ms: i64,
 ) -> rusqlite::Result<()> {
+    let remote: Vec<SharedMark> = remote
+        .iter()
+        .filter(|mark| mark.is_well_formed(now_ms))
+        .cloned()
+        .collect();
     let tx = conn.unchecked_transaction()?;
     let dirty = state(&tx)?.dirty;
-    let merged = merge(&base(&tx)?, &local(&tx)?, remote);
+    let merged = merge(&base(&tx)?, &local(&tx)?, &remote);
     write(&tx, &merged)?;
-    set_base(&tx, remote)?;
+    set_base(&tx, &remote)?;
     let revision = if dirty {
         state(&tx)?.revision.max(revision) + 1
     } else {
@@ -312,6 +339,35 @@ mod tests {
         conn
     }
 
+    /// The message carrying another Mac's marks is written by whoever can
+    /// reach the tasks folder, so a mark this Mac could not have made is left
+    /// out: an unknown kind, one naming no room, a done mark dated into the
+    /// far future. A mute that never ends is a mark the user makes.
+    #[test]
+    fn a_mark_this_mac_could_not_have_made_is_left_out() {
+        let conn = db();
+        let now = 1_000_000;
+        let marks = [
+            mark("a", "done", 10),
+            mark("b", "boom", 10),
+            SharedMark {
+                room: "".into(),
+                ..mark("c", "done", 10)
+            },
+            mark("d", "done", i64::MAX),
+            mark("e", "task", now + MARK_LEAD_MS + 1),
+            mark("f", "task", now + MARK_LEAD_MS),
+            mark(store::MUTE_THREAD, store::MARK_MUTE, store::MUTE_FOREVER),
+        ];
+        take_in(&conn, &marks, 1, Some("<m@x>"), now).unwrap();
+        let kept: Vec<String> = local(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|m| m.thread)
+            .collect();
+        assert_eq!(kept, ["*", "a", "f"]);
+    }
+
     #[test]
     fn another_macs_marks_come_in_and_ones_own_go_up() {
         let conn = db();
@@ -336,6 +392,7 @@ mod tests {
             &[mark("b", "done", 20), elsewhere.clone()],
             3,
             Some("<m@x>"),
+            1_000,
         )
         .unwrap();
         assert_eq!(
@@ -357,7 +414,14 @@ mod tests {
         assert!(!state(&conn).unwrap().dirty);
 
         // Taken back on the other Mac: gone here too.
-        take_in(&conn, &[mark("b", "done", 20), elsewhere], 5, Some("<o@x>")).unwrap();
+        take_in(
+            &conn,
+            &[mark("b", "done", 20), elsewhere],
+            5,
+            Some("<o@x>"),
+            1_000,
+        )
+        .unwrap();
         assert_eq!(store::mark(&conn, "r", "a").unwrap(), None);
         assert_eq!(state(&conn).unwrap().revision, 5);
     }
@@ -402,7 +466,7 @@ mod tests {
         let threads: Vec<&str> = up.iter().map(|m| m.thread.as_str()).collect();
         assert_eq!(threads, ["new"]);
         uploaded(&conn, 0, "<m@x>", &up).unwrap();
-        take_in(&conn, &up, 1, Some("<m@x>")).unwrap();
+        take_in(&conn, &up, 1, Some("<m@x>"), 1_000).unwrap();
         assert!(store::mark(&conn, "r", "old").unwrap().is_some());
     }
 }
