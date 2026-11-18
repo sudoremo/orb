@@ -45,7 +45,7 @@ use super::model::{
     TaskUpdates, TaskView, civil_day_unix, format_timestamp, merge_logs,
 };
 use crate::Result;
-use crate::db::Database;
+use crate::db::{Database, like_escape};
 
 /// The gap a fresh position leaves to its neighbour.
 ///
@@ -411,22 +411,6 @@ fn parse_search(input: &str) -> SearchTerms {
     }
     flush(&mut token, &mut terms);
     terms
-}
-
-/// Escape a user's search text for `LIKE ... ESCAPE '\'`.
-///
-/// Without this a `%` typed into the search box matches everything and a `_`
-/// matches any character, which reads as a broken filter rather than as a
-/// feature nobody asked for.
-fn like_escape(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for character in value.chars() {
-        if matches!(character, '\\' | '%' | '_') {
-            escaped.push('\\');
-        }
-        escaped.push(character);
-    }
-    escaped
 }
 
 // ---------------------------------------------------------------------------

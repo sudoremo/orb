@@ -3063,45 +3063,56 @@ impl Database {
     /// §6.3.5), under either hierarchy delimiter. A stale row already under
     /// the new name — a folder the server no longer has — gives way.
     pub fn rename_folder(&mut self, account_name: &str, from: &str, to: &str) -> Result<()> {
+        // `?2` is the old name as it is, `?4` the same escaped for LIKE: a
+        // folder called `Work_2024` must not take `WorkX2024` along.
+        let escaped = crate::db::like_escape(from);
+        let inside = |column: &str| {
+            format!(
+                "({column} = ?2 OR {column} LIKE ?4 || '.%' ESCAPE '\\' \
+                 OR {column} LIKE ?4 || '/%' ESCAPE '\\')"
+            )
+        };
+        let renamed = |column: &str| format!("?3 || substr({column}, length(?2) + 1)");
         self.transaction(|tx| {
-            // `name = from`, or `from` followed by a delimiter: the folder and
-            // everything inside it, spelled with the new prefix.
-            let renamed = "?3 || substr(name, length(?2) + 1)";
-            let inside = "(name = ?2 OR name LIKE ?2 || '.%' OR name LIKE ?2 || '/%')";
             tx.execute(
                 &format!(
                     "DELETE FROM folders WHERE account_name = ?1
-                     AND name IN (SELECT {renamed} FROM folders
-                                  WHERE account_name = ?1 AND {inside})"
+                     AND name IN (SELECT {} FROM folders
+                                  WHERE account_name = ?1 AND {})",
+                    renamed("name"),
+                    inside("name")
                 ),
-                params![account_name, from, to],
+                params![account_name, from, to, escaped],
             )?;
             tx.execute(
-                &format!("UPDATE folders SET name = {renamed} WHERE account_name = ?1 AND {inside}"),
-                params![account_name, from, to],
+                &format!(
+                    "UPDATE folders SET name = {} WHERE account_name = ?1 AND {}",
+                    renamed("name"),
+                    inside("name")
+                ),
+                params![account_name, from, to, escaped],
             )?;
-            for (table, account_column) in [
-                ("pending_actions", "account"),
-                ("filter_log", "account"),
-                ("server_folders", "account_name"),
+            for (table, account_column, column) in [
+                ("pending_actions", "account", "folder"),
+                ("filter_log", "account", "folder"),
+                ("server_folders", "account_name", "name"),
             ] {
                 tx.execute(
                     &format!(
-                        "UPDATE {table} SET {column} = {renamed}
-                         WHERE {account_column} = ?1 AND {inside}",
-                        column = if table == "server_folders" { "name" } else { "folder" }
-                    )
-                    .replace("substr(name,", if table == "server_folders" { "substr(name," } else { "substr(folder," })
-                    .replace("(name = ?2 OR name LIKE ?2 || '.%' OR name LIKE ?2 || '/%')",
-                        if table == "server_folders" { inside } else { "(folder = ?2 OR folder LIKE ?2 || '.%' OR folder LIKE ?2 || '/%')" }),
-                    params![account_name, from, to],
+                        "UPDATE {table} SET {column} = {} WHERE {account_column} = ?1 AND {}",
+                        renamed(column),
+                        inside(column)
+                    ),
+                    params![account_name, from, to, escaped],
                 )?;
             }
             tx.execute(
-                "UPDATE pending_actions SET target_folder = ?3 || substr(target_folder, length(?2) + 1)
-                 WHERE account = ?1 AND (target_folder = ?2 OR target_folder LIKE ?2 || '.%'
-                                         OR target_folder LIKE ?2 || '/%')",
-                params![account_name, from, to],
+                &format!(
+                    "UPDATE pending_actions SET target_folder = {} WHERE account = ?1 AND {}",
+                    renamed("target_folder"),
+                    inside("target_folder")
+                ),
+                params![account_name, from, to, escaped],
             )?;
             Ok(())
         })
@@ -8279,6 +8290,30 @@ mod tests {
             .collect();
         names.sort();
         assert_eq!(names, vec!["Jobs", "Jobs.Reports", "Jobs/Old", "Workshop"]);
+    }
+
+    /// `_` and `%` in a folder's name are letters of the name, not wildcards:
+    /// renaming `Wor_` must not take `Work` along.
+    #[test]
+    fn a_rename_takes_a_wildcard_in_the_name_literally() {
+        let mut db = Database::new(":memory:").expect("db");
+        db.init_schema().expect("schema");
+        for name in ["Wor_", "Wor_.Sub", "Work", "Work.Reports", "Wo%", "Wo%.Sub"] {
+            db.get_or_create_folder("A", name).expect("folder");
+        }
+        db.rename_folder("A", "Wor_", "X").expect("rename");
+        db.rename_folder("A", "Wo%", "Y").expect("rename");
+        let mut names: Vec<String> = db
+            .get_folders_by_account("A")
+            .unwrap()
+            .into_iter()
+            .map(|f| f.name)
+            .collect();
+        names.sort();
+        assert_eq!(
+            names,
+            vec!["Work", "Work.Reports", "X", "X.Sub", "Y", "Y.Sub"]
+        );
     }
 
     /// A database a newer build wrote is refused, named with both versions,
