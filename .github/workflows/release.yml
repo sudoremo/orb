@@ -105,17 +105,33 @@ jobs:
           fi
 
       - name: Build the bundle
-        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: app
+        run: pnpm tauri build --target universal-apple-darwin
+
+      # Tauri notarizes and staples the app; the disk image around it is only
+      # signed, and Gatekeeper judges the download by the image. So the image
+      # is notarized and stapled as well, with the same key.
+      - name: Notarize the disk image
+        if: env.HAS_CERTIFICATE == 'true' && env.APPLE_API_KEY_PATH != ''
+        run: |
+          dmg=$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          xcrun notarytool submit "$dmg" --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait
+          xcrun stapler staple "$dmg"
+          spctl -a -vv -t install "$dmg"
+
+      - name: Keep the disk image
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          projectPath: app
-          tauriScript: pnpm tauri
-          args: --target universal-apple-darwin
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: ${{ github.ref_type == 'tag' && format('Orb {0}', github.ref_name) || '' }}
-          releaseDraft: true
-          generateReleaseNotes: true
-          # No updater plugin in the app, so no latest.json.
-          uploadUpdaterJson: false
-          uploadWorkflowArtifacts: true
+          name: Orb-macOS
+          path: target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+      - name: Draft the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --generate-notes \
+            --title "Orb $GITHUB_REF_NAME" \
+            target/universal-apple-darwin/release/bundle/dmg/*.dmg
