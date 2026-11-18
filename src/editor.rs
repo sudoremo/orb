@@ -466,6 +466,15 @@ async fn attach(
 }
 
 impl Editors {
+    /// The window an editor belongs to, if there is such an editor.
+    pub fn owner(&self, id: &str) -> Option<String> {
+        self.sessions
+            .lock()
+            .unwrap()
+            .get(id)
+            .map(|session| session.owner.clone())
+    }
+
     fn session(&self, id: &str) -> Result<Arc<Session>, EditorError> {
         self.sessions
             .lock()

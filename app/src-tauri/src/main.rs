@@ -1723,6 +1723,28 @@ where
         })?
 }
 
+/// Refuse an editor call from any window but the one the editor belongs to.
+///
+/// What goes into an editor is run by Neovim, with everything the user's
+/// Neovim can do — `:!` runs a shell. The commands are callable from every
+/// window of the app, so without this a page that had got script into one
+/// window could type into the editor of another. The owner is the window
+/// that opened the editor, taken from the window itself rather than from an
+/// argument.
+fn editor_of_window(orb: &Handle, id: &str, window: &tauri::WebviewWindow) -> Result<(), OrbError> {
+    if editor_belongs(orb.editor_owner(id).as_deref(), window.label()) {
+        Ok(())
+    } else {
+        Err(OrbError::ConfigError {
+            message: format!("editor {id} is not this window's"),
+        })
+    }
+}
+
+fn editor_belongs(owner: Option<&str>, label: &str) -> bool {
+    owner == Some(label)
+}
+
 /// Start Neovim on a draft's body, with the identity's signature shown
 /// below it; what it draws arrives on `events`.
 #[tauri::command]
@@ -1750,22 +1772,36 @@ async fn editor_open(
 
 /// Keys for Neovim, in its notation.
 #[tauri::command]
-async fn editor_input(orb: State<'_, Handle>, id: String, keys: String) -> Result<(), OrbError> {
+async fn editor_input(
+    orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
+    id: String,
+    keys: String,
+) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_input(id, keys)).await
 }
 
 /// Text pasted into Neovim.
 #[tauri::command]
-async fn editor_paste(orb: State<'_, Handle>, id: String, text: String) -> Result<(), OrbError> {
+async fn editor_paste(
+    orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
+    id: String,
+    text: String,
+) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_paste(id, text)).await
 }
 
 /// A mouse event on Neovim's grid.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn editor_mouse(
     orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
     id: String,
     button: String,
     action: String,
@@ -1773,13 +1809,20 @@ async fn editor_mouse(
     row: u32,
     col: u32,
 ) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_mouse(id, button, action, modifier, row, col)).await
 }
 
 /// The editor gained or lost the keyboard.
 #[tauri::command]
-async fn editor_focus(orb: State<'_, Handle>, id: String, gained: bool) -> Result<(), OrbError> {
+async fn editor_focus(
+    orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
+    id: String,
+    gained: bool,
+) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_focus(id, gained)).await
 }
@@ -1788,17 +1831,24 @@ async fn editor_focus(orb: State<'_, Handle>, id: String, gained: bool) -> Resul
 #[tauri::command]
 async fn editor_resize(
     orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
     id: String,
     cols: u32,
     rows: u32,
 ) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_resize(id, cols, rows)).await
 }
 
 /// The draft as it stands in Neovim, written or not.
 #[tauri::command]
-async fn editor_buffer(orb: State<'_, Handle>, id: String) -> Result<String, OrbError> {
+async fn editor_buffer(
+    orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
+    id: String,
+) -> Result<String, OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_buffer(id)).await
 }
@@ -1807,10 +1857,12 @@ async fn editor_buffer(orb: State<'_, Handle>, id: String) -> Result<String, Orb
 #[tauri::command]
 async fn editor_set_buffer(
     orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
     id: String,
     body: String,
     signature: Option<String>,
 ) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     offload("editor_set_buffer", move || {
         orb.editor_set_buffer(id, body, signature)
@@ -1822,9 +1874,11 @@ async fn editor_set_buffer(
 #[tauri::command]
 async fn editor_insert_template(
     orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
     id: String,
     text: orb_core::templates::Expanded,
 ) -> Result<bool, OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_insert_template(id, text)).await
 }
@@ -1833,10 +1887,12 @@ async fn editor_insert_template(
 #[tauri::command]
 async fn editor_fill_placeholder(
     orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
     id: String,
     name: String,
     value: String,
 ) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_fill_placeholder(id, name, value)).await
 }
@@ -1845,9 +1901,11 @@ async fn editor_fill_placeholder(
 #[tauri::command]
 async fn editor_goto_placeholder(
     orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
     id: String,
     name: String,
 ) -> Result<bool, OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_goto_placeholder(id, name)).await
 }
@@ -1856,16 +1914,23 @@ async fn editor_goto_placeholder(
 #[tauri::command]
 async fn editor_edit_file(
     orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
     id: String,
     path: String,
 ) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_edit_file(id, path)).await
 }
 
 /// Stop Neovim and remove its file.
 #[tauri::command]
-async fn editor_close(orb: State<'_, Handle>, id: String) -> Result<(), OrbError> {
+async fn editor_close(
+    orb: State<'_, Handle>,
+    window: tauri::WebviewWindow,
+    id: String,
+) -> Result<(), OrbError> {
+    editor_of_window(&orb, &id, &window)?;
     let orb = orb.inner().clone();
     editor_call(move || orb.editor_close(id)).await
 }
@@ -4659,6 +4724,16 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An editor answers to the window that opened it and to no other; an id
+    /// no editor has belongs to nobody.
+    #[test]
+    fn an_editor_belongs_to_its_window_alone() {
+        assert!(editor_belongs(Some("compose-3"), "compose-3"));
+        assert!(!editor_belongs(Some("compose-3"), "main"));
+        assert!(!editor_belongs(Some("compose-3"), "compose-4"));
+        assert!(!editor_belongs(None, "main"));
+    }
 
     /// The exact strings `sortOrder()` in `src/main.ts` puts on the wire.
     ///

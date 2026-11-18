@@ -3232,6 +3232,14 @@ impl OrbHandle {
             .map_err(editor_error)
     }
 
+    /// The window an editor belongs to, for a shell that lets only that
+    /// window reach it: what is typed into an editor is run by Neovim, with
+    /// everything the user's Neovim can do.
+    #[cfg(feature = "desktop")]
+    pub fn editor_owner(&self, id: &str) -> Option<String> {
+        self.editors.owner(id)
+    }
+
     /// Stop the editors of a window that went away.
     #[cfg(feature = "desktop")]
     pub fn editor_close_owned_by(&self, owner: String) {
