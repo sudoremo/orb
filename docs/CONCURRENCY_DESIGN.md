@@ -269,6 +269,19 @@ while this one's rules still run announces nothing of this one's mail, and
 two Orbs on one database announce a message once: in the process whose sync
 stored it.
 
+### Focus
+
+The running focus is one row of `focus_state` (mode, start, end), so every
+Orb on the database sees it and it outlives a restart. What a focus holds
+back is kept in memory by the process whose sync or chat stream brought it
+(`OrbHandle::focus_held`): that process announces it when the focus ends or
+its interval comes round, which it finds out by asking every 15 s
+(`OrbHandle::focus_tick`). An Orb that ends the focus deletes the row; the
+others see the row gone at their next tick and announce what they held. The
+delete by the clock names the session's start, so a focus started meanwhile
+by another Orb is left running. What a process held when it quit is not
+announced.
+
 ### Feeds
 
 Every Orb polls the reading list's feeds (`Store::poll_feeds`, every minute

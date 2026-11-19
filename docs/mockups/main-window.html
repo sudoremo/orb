@@ -1397,7 +1397,7 @@ const AV = { 'Lukas Meier': ['LM', '#5b7bd5'], 'Sara Brunner': ['SB', '#c0558a']
 /* The states of the page controls, by the area of the app they show. */
 const GROUPS = [
   ['Today', [['today', 'Stacked'], ['today-reading', '+ Reading'], ['today-chat', '+ Chat'], ['today-mixed', 'Mixed'], ['today-mixed-chat', 'Mixed: chat'], ['filter', 'Filter'], ['empty', 'Empty']]],
-  ['Mail', [['inbox', 'Inbox'], ['reading', 'Reading'], ['threads', 'Threads'], ['conversation', 'Conversation'], ['suspect', 'Suspect mail'], ['outbox', 'Outbox'], ['max', 'Maximized'], ['command', 'Command'], ['palette', 'Palette'], ['item', 'Message window'], ['compose', 'Compose'], ['compose-drag', 'Compose: drag']]],
+  ['Mail', [['inbox', 'Inbox'], ['reading', 'Reading'], ['threads', 'Threads'], ['conversation', 'Conversation'], ['suspect', 'Suspect mail'], ['outbox', 'Outbox'], ['max', 'Maximized'], ['command', 'Command'], ['palette', 'Palette'], ['focus', 'Focus'], ['item', 'Message window'], ['compose', 'Compose'], ['compose-drag', 'Compose: drag']]],
   ['Search', [['search-typing', 'Field'], ['search', 'Results'], ['search-tasks', 'Tasks'], ['search-scope', 'Scope']]],
   ['Tasks', [['task', 'Task'], ['upcoming', 'Upcoming'], ['by-tag', 'By tag'], ['due-first', 'Due first'], ['tasks', 'Tasks window'], ['tasks-narrow', 'Narrow'], ['merge', 'Merge'], ['iphone-setup', 'Set up iPhone']]],
   ['Chat', [['chat', 'Waiting'], ['chat-reply', 'Reply'], ['chat-room', 'Room'], ['chat-window', 'Window'], ['chat-signin', 'Sign-in']]],
@@ -1415,7 +1415,7 @@ const S = { look: 'hybrid', s: 'inbox', t: 'dark', by: 'date', desc: true, threa
   if (['dark', 'light'].includes(t)) S.t = t;
 })();
 /* The overlay states draw the field over the state it was opened from. */
-const BASE = { palette: 'inbox', 'search-typing': 'today', 'search-scope': 'inbox', 'iphone-setup': 'today', merge: 'today' };
+const BASE = { palette: 'inbox', focus: 'inbox', 'search-typing': 'today', 'search-scope': 'inbox', 'iphone-setup': 'today', merge: 'today' };
 const tpl = () => S.s.startsWith('tpl-');
 const cur = () => BASE[S.s] || S.s;
 const threaded = () => S.s === 'threads' || S.s === 'conversation' || (S.threads && ['inbox', 'command'].includes(S.s));
@@ -1972,12 +1972,13 @@ STATUS['today-reading'] = ['TODAY', `<kbd>Tab</kbd> ${lbl('mail → tasks → re
 STATUS.reading = ['MAIL', `Moved 1 message to Reading Archive <kbd>⌘Z</kbd>`, '1/4', true];
 STATUS.max = ['MAIL', `<kbd>q</kbd> ${lbl('put the reader away')} · <kbd>zm</kbd> ${lbl('all panes')}`, '1/236', false];
 STATUS['iphone-setup'] = STATUS.today;
+STATUS.focus = ['MAIL', 'Focus (deep) until 12:00', '1/249', true];
 STATUS.merge = ['TASKS', `2 ${lbl('tasks selected')}`, '1/4', false];
 
 function status() {
   const live = S.s === 'chat-signin' ? '<span class="warn">chat signed out</span>' : '<span class="dot"></span>chat live';
   const sync = S.s === 'chat-window' ? `<span class="seg2">${live}</span>`
-    : `<span class="wkg">▶ Review Q4 roadmap</span><span class="seg2">${S.s.startsWith('chat') ? live : '<span class="dot"></span>synced 12:38'}</span>`;
+    : `${S.s === 'focus' ? '<span class="wkg">Focus until 12:00</span>' : ''}<span class="wkg">▶ Review Q4 roadmap</span><span class="seg2">${S.s.startsWith('chat') ? live : '<span class="dot"></span>synced 12:38'}</span>`;
   if (S.s === 'command') {
     return `<span class="mode">CMD</span><span class="cmd">:move<span class="caret"></span></span><span class="st-sp"></span>
       <span><kbd>Tab</kbd> ${lbl('complete')} · <kbd>↩</kbd> ${lbl('run')} · <kbd>esc</kbd> ${lbl('cancel')}</span>`;
@@ -2091,7 +2092,7 @@ function mainWin() {
       <div class="tb">${toolbar()}</div>
       <div class="panes ${one ? 'one' : 'v'}"${S.s === 'search' ? ' style="--list-h:60%"' : ['search-tasks', 'upcoming', 'by-tag', 'due-first'].includes(S.s) ? ' style="--list-h:74%"' : chat() ? ' style="--list-h:30%"' : mixed() ? ' style="--list-h:56%"' : ''}><div class="list${split() || mixed() ? ' cols' : ''}${chat() ? ' chat' : ''}${mixed() ? ' mixed' : ''}">${list()}</div>${one ? '' : `<div class="reader${chat() || ['today-chat', 'today-mixed-chat'].includes(S.s) ? ' chat' : ''}">${reader()}</div>`}</div>
       <div class="st">${status()}</div>${S.s === 'command' ? completions() : ''}${S.hints ? keyHints() : ''}
-    </div>${S.s.startsWith('search') && BASE[S.s] ? `<div class="ov">${searchField()}</div>` : ''}${S.s === 'iphone-setup' ? `<div class="ov is-ov">${iphoneSetup()}</div>` : ''}${S.s === 'merge' ? `<div class="ov is-ov">${mergeDialog()}</div>` : ''}${S.s === 'palette' ? `<div class="ov">${palette()}</div>` : ''}${S.people ? peoplePicker() : ''}${S.help ? helpOverlay() : ''}`;
+    </div>${S.s.startsWith('search') && BASE[S.s] ? `<div class="ov">${searchField()}</div>` : ''}${S.s === 'iphone-setup' ? `<div class="ov is-ov">${iphoneSetup()}</div>` : ''}${S.s === 'merge' ? `<div class="ov is-ov">${mergeDialog()}</div>` : ''}${S.s === 'palette' ? `<div class="ov">${palette()}</div>` : ''}${S.s === 'focus' ? `<div class="ov">${focusPicker()}</div>` : ''}${S.people ? peoplePicker() : ''}${S.help ? helpOverlay() : ''}`;
 }
 
 function tasksWin() {
@@ -2307,6 +2308,7 @@ function templateWin() {
 }
 
 const STATE_NOTES = {
+  focus: 'zf (focus-mode, Mailbox ▸ Focus…) starts a focus: Orb goes on syncing, but holds back the notifications and what the mode says of the Dock badge and the chat, until the time picked. The picker offers 30 minutes, 1 hour, 2 hours, noon and the end of the workday while they are still ahead, and until you end it; it takes 45m, 3h or 16:30 typed, and the other modes of the config are one more step. While a focus runs the right end of the status line says until when; a click there, or zf again, opens the picker with End focus first. Mail that matches a highlight rule with breaks_focus is announced all the same. What was held is announced when the focus ends, or every interval of a mode that has one.',
   palette: 'The command palette, ⇧⌘K (Go ▸ Command Palette…): every command by a few letters of its title, with its group and its key. One box with prefixes, as in VS Code: ⌘K or gf opens it on the places the sidebar can open, > the commands, # the tags, @ people from the address book, / mail and tasks found by the search. A command that cannot act on what the cursor is on stays listed, greyed out, and Enter on it says why. With nothing typed the commands used last come first. A command that needs a word — a folder name, a tag — asks for it in the same box.',
   merge: 'Merge Tasks (context menu ▸ Merge…, Tasks ▸ Merge Tasks…, or :merge-tasks) on two or more selected tasks. Keep says which task stays — the first selected unless another is picked, which then proposes its own title and notes. The title is the kept one\'s, the notes are all of them (the others\' titles included, so nothing is lost), the dates the earliest of each; any can be changed. Steps, tags, reminders, linked messages and files come along without asking; the other tasks go to the Trash, and ⌘Z takes the whole merge back. ⌘↩ merges, Esc cancels. On the iPhone the selection bar has Merge, which opens the same form as a sheet.',
   'iphone-setup': 'Set Up iPhone (Tasks ▸ Set Up iPhone…, or :set-up-iphone): the code Orb on the iPhone scans to set itself up — the tasks account, its folder, the date language and the Today settings, and the password, which the Mac obtains as any login does, through the password command. The code is as sensitive as the password and says so; a system dialog asks before one is drawn, it works for five minutes — the iPhone refuses it after that — and is replaced only on Enter, which asks again. Escape, a click outside or the window leaving the front closes it.',
@@ -2385,6 +2387,24 @@ function palette() {
     ${row('Reading <b>Arch</b>ive', 'Acting on mail', '')}
     ${row('<b>Arch</b>ived Tasks', 'Tasks', '')}
     <div class="f">Archive: it is in the archive already · ⌘K places · &gt; commands · # tags · @ people · / mail and tasks</div>
+  </div>`;
+}
+
+/* zf while a focus runs: ending it first, the spans, the named times still ahead, the other modes. */
+function focusPicker() {
+  const row = (t, g, cls = '') => `<div class="cp-row ${cls}"><span class="t">${t}</span><span class="g">${g}</span></div>`;
+  return `<div class="is-panel cp-panel">
+    <div class="cp-sec" style="padding-top:8px">Focus · deep — mail held · badge for exceptions · chat held</div>
+    <div class="cp-in"><span class="caret"></span></div>
+    ${row('End focus', 'deep until 12:00', 'on')}
+    ${row('For 30 minutes', '')}
+    ${row('For 1 hour', '')}
+    ${row('For 2 hours', '')}
+    ${row('Until noon', '')}
+    ${row('Until the end of the workday', '17:30')}
+    ${row('Until I end it', '')}
+    ${row('In batched mode…', 'mail every 30m · badge off · chat for mentions')}
+    <div class="f">for 45m, 3h, until 16:30</div>
   </div>`;
 }
 

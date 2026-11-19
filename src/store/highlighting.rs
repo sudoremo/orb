@@ -141,6 +141,48 @@ impl Store {
             .unwrap_or_default())
     }
 
+    /// Which of the messages `ids` match a highlight rule with `breaks_focus`:
+    /// the mail a focus announces all the same.
+    pub fn focus_breakers(&self, ids: &[i64]) -> Result<HashSet<i64>> {
+        let set = self.config().highlights.breaking_focus();
+        let mut breakers = HashSet::new();
+        if set.is_empty() {
+            return Ok(breakers);
+        }
+        for &id in ids {
+            if !self.rules_matching_message(&set, id)?.is_empty() {
+                breakers.insert(id);
+            }
+        }
+        Ok(breakers)
+    }
+
+    /// The unread mail in the inboxes that matches a rule with
+    /// `breaks_focus`: what the Dock badge counts during a focus that shows
+    /// the exceptions only.
+    pub fn focus_breaker_count(&self) -> Result<u32> {
+        let config = self.config();
+        let set = config.highlights.breaking_focus();
+        if set.is_empty() {
+            return Ok(0);
+        }
+        let db = self.reader()?;
+        let mut count = 0;
+        for account in &config.accounts {
+            for folder in db.get_folders_by_account(&account.name)? {
+                let Some(folder_id) = folder.id else { continue };
+                if !folder.name.eq_ignore_ascii_case("INBOX") {
+                    continue;
+                }
+                let unread = db.unread_message_list(folder_id)?;
+                count += self
+                    .rules_matching(&set, &account.name, &folder.name, &unread)?
+                    .len() as u32;
+            }
+        }
+        Ok(count)
+    }
+
     /// How many messages of a folder each rule matches, in rule order, for
     /// `:highlights`. Walks the whole folder, so it is a diagnostic, not a
     /// thing to call per render.
@@ -436,6 +478,73 @@ mod column_tests {
         assert_eq!(matched.get(&ids[0]), Some(&vec!["Lists".to_string()]));
         assert_eq!(matched.get(&ids[1]), Some(&vec!["Spam".to_string()]));
         assert_eq!(matched.get(&ids[2]), None);
+    }
+
+    /// Only a rule with `breaks_focus` lets mail through a focus, and only
+    /// the inboxes' unread mail is counted for the badge.
+    #[test]
+    fn mail_breaks_a_focus_by_a_rule_that_says_so() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("db.sqlite").to_str().unwrap().to_string();
+        let config: crate::Config = serde_saphyr::from_str(&format!(
+            "db_path: {db_path}\naccounts:\n  - name: A\n    imap_server: x\n    imap_port: 993\n    \
+             imap_username: u\n    from: a@x\nhighlights:\n  - name: Urgent\n    \
+             when: {{ header: {{ X-Severity: '1' }} }}\n    breaks_focus: true\n  - name: Lists\n    \
+             when: {{ list_id: '*' }}\n    style: {{ dim: true }}\n"
+        ))
+        .expect("config");
+        let store = Store::new(config).expect("store");
+        let mut db = store.writer().expect("writer");
+        let urgent_headers = || {
+            Some(ThreadHeaders {
+                extra: vec![("x-severity".to_string(), "1".to_string())],
+                ..ThreadHeaders::default()
+            })
+        };
+        let inbox = db.get_or_create_folder("A", "INBOX").expect("folder");
+        let other = db.get_or_create_folder("A", "Projects").expect("folder");
+        let mut urgent = Message::new(inbox, 1);
+        urgent.headers = urgent_headers();
+        let mut listed = Message::new(inbox, 2);
+        listed.headers = Some(ThreadHeaders {
+            list_id: Some("News <news.example.com>".into()),
+            ..ThreadHeaders::default()
+        });
+        let plain = Message::new(inbox, 3);
+        let mut read = Message::new(inbox, 4);
+        read.headers = urgent_headers();
+        read.flags = vec!["\\Seen".to_string()];
+        let mut elsewhere = Message::new(other, 1);
+        elsewhere.headers = urgent_headers();
+        let ids: Vec<i64> = [&urgent, &listed, &plain, &read, &elsewhere]
+            .iter()
+            .map(|m| db.insert_message(m).expect("insert"))
+            .collect();
+
+        let breakers = store.focus_breakers(&ids).expect("breakers");
+        assert_eq!(
+            breakers,
+            std::collections::HashSet::from([ids[0], ids[3], ids[4]])
+        );
+        assert_eq!(store.focus_breaker_count().expect("count"), 1);
+    }
+
+    /// Without a rule that breaks a focus, nothing does.
+    #[test]
+    fn no_mail_breaks_a_focus_without_such_a_rule() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("db.sqlite").to_str().unwrap().to_string();
+        let config: crate::Config = serde_saphyr::from_str(&format!(
+            "db_path: {db_path}\naccounts:\n  - name: A\n    imap_server: x\n    imap_port: 993\n    \
+             imap_username: u\n    from: a@x\nhighlights:\n  - name: All\n    style: {{ dim: true }}\n"
+        ))
+        .expect("config");
+        let store = Store::new(config).expect("store");
+        let mut db = store.writer().expect("writer");
+        let inbox = db.get_or_create_folder("A", "INBOX").expect("folder");
+        let id = db.insert_message(&Message::new(inbox, 1)).expect("insert");
+        assert!(store.focus_breakers(&[id]).expect("breakers").is_empty());
+        assert_eq!(store.focus_breaker_count().expect("count"), 0);
     }
 
     /// A header the sync did not record, because no rule named it yet, is

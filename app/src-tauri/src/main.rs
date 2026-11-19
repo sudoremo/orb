@@ -159,8 +159,14 @@ impl ConfigListener for ConfigBridge {
 const ACCOUNT_STATUS_EVENT: &str = "account-status";
 
 /// Put the unread counts `dock_badges` asks for on the Dock — the inboxes'
-/// when it asks for none — or take them off at zero.
+/// when it asks for none — or take them off at zero. During a focus, what
+/// its mode leaves of them.
 pub(crate) fn update_badge(app: &AppHandle, orb: &Handle) {
+    // A focus that changes the badge shows one count, or none.
+    if let Some(count) = orb.focus_badge() {
+        dock::show(app, dock::Badges::Native(count));
+        return;
+    }
     let badges = match orb.dock_badges() {
         Ok(Some(counts)) => dock::Badges::Drawn(counts),
         Ok(None) => dock::Badges::Native(
@@ -185,11 +191,83 @@ fn update_badge_later(app: &AppHandle, orb: &Handle) {
 /// notifications and the account's standing. `new_mail` is what the sync
 /// itself reports, after its filter rules ran: a message a rule filed away is
 /// not in it, and a sync announces only the mail it brought, so two syncs
-/// ending close together never announce the same message.
+/// ending close together never announce the same message. A focus holds
+/// back what its mode says, and announces it later.
 fn after_sync(app: &AppHandle, orb: &Handle, new_mail: &[orb_core::ffi::NewMailItem]) {
     update_badge(app, orb);
-    notifications::notify_new_mail(new_mail);
+    notifications::notify_new_mail(&orb.focus_admit_mail(new_mail.to_vec()));
     let _ = app.emit(ACCOUNT_STATUS_EVENT, ());
+}
+
+/// A focus began, changed or ended; the status line re-reads it.
+const FOCUS_CHANGED_EVENT: &str = "focus-changed";
+
+/// How often the focus is asked whether its time or its interval is up.
+/// Against the wall clock each time, so a sleep neither delays the end nor
+/// has to be noticed.
+const FOCUS_TICK: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Announce what a focus held back, as it would have been announced, and
+/// when the focus is over put the badge back and say so.
+fn release_focus(app: &AppHandle, orb: &Handle, release: &orb_core::ffi::FocusRelease) {
+    notifications::notify_new_mail(&release.mail);
+    notifications::notify_chat(&release.chat);
+    if release.ended {
+        update_badge(app, orb);
+        let _ = app.emit(FOCUS_CHANGED_EVENT, ());
+    }
+}
+
+/// Follow the focus for as long as the app runs.
+fn watch_focus(app: &AppHandle, orb: &Handle) {
+    let (app, orb) = (app.clone(), orb.clone());
+    let spawned = std::thread::Builder::new()
+        .name("orb-focus".into())
+        .spawn(move || loop {
+            std::thread::sleep(FOCUS_TICK);
+            match orb.focus_tick() {
+                Ok(Some(release)) => release_focus(&app, &orb, &release),
+                Ok(None) => {}
+                Err(error) => orb_core::logger::warn(&format!("focus: the tick failed: {error}")),
+            }
+        });
+    if let Err(error) = spawned {
+        orb_core::logger::warn(&format!("focus: nothing follows it: {error}"));
+    }
+}
+
+/// Where focus stands, and the modes one can start in.
+#[tauri::command]
+async fn focus_status(orb: State<'_, Handle>) -> Result<orb_core::focus::FocusStatus, OrbError> {
+    let orb = orb.inner().clone();
+    offload("focus_status", move || orb.focus_status()).await
+}
+
+/// Start a focus in `mode`, or the default one, until `ends` (ms) or until
+/// it is stopped.
+#[tauri::command]
+async fn focus_start(
+    app: AppHandle,
+    orb: State<'_, Handle>,
+    mode: Option<String>,
+    ends: Option<i64>,
+) -> Result<orb_core::focus::FocusStatus, OrbError> {
+    let orb = orb.inner().clone();
+    let after = orb.clone();
+    let result = offload("focus_start", move || orb.focus_start(mode, ends)).await;
+    update_badge_later(&app, &after);
+    let _ = app.emit(FOCUS_CHANGED_EVENT, ());
+    result
+}
+
+/// End the focus and announce what it held.
+#[tauri::command]
+async fn focus_stop(app: AppHandle, orb: State<'_, Handle>) -> Result<(), OrbError> {
+    let orb = orb.inner().clone();
+    let after = orb.clone();
+    let release = offload("focus_stop", move || orb.focus_stop()).await?;
+    tauri::async_runtime::spawn_blocking(move || release_focus(&app, &after, &release));
+    Ok(())
 }
 
 /// What a sync command's answer says arrived, or nothing when it failed.
@@ -2384,6 +2462,9 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::
         .item(&plain("account-status", "Account Status")?)
         .item(&plain("feed-status", "Feed Status")?)
         .separator()
+        .item(&plain("focus-mode", "Focus…")?)
+        .item(&plain("focus-mode off", "End Focus")?)
+        .separator()
         .item(&plain("outbox", "Outbox")?)
         .item(&plain("retry-outbox", "Send Everything in the Outbox")?)
         .separator()
@@ -4336,6 +4417,9 @@ const GLOBAL_MENU_COMMANDS: &[&str] = &[
     "zoom-out",
     "zoom-reset",
     "toggle-look",
+    // Ending a focus asks nothing; starting one opens a picker, which
+    // belongs to the window in front.
+    "focus-mode off",
     "open-tasks-window",
     "open-chat-window",
     "set-up-iphone",
@@ -4706,6 +4790,7 @@ fn main() {
             // that woke Orb from not running is otherwise delivered to nobody.
             // Everything slow it needs to do it moves to a thread of its own.
             notifications::install(app.handle(), &handle);
+            watch_focus(app.handle(), &handle);
             start_task_export(app.handle().clone(), handle.clone());
             start_feed_polls(app.handle().clone(), handle.clone());
 
@@ -4786,6 +4871,9 @@ fn main() {
             config_warnings,
             notification_permission,
             open_notification_settings,
+            focus_status,
+            focus_start,
+            focus_stop,
             pending_password_prompts,
             answer_password,
             ui_settings,

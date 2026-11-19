@@ -531,6 +531,8 @@ Worth doing, not on the path to daily use.
 - Subscribing to and unsubscribing from feeds in the window, and OPML import
   and export, instead of editing the config.
 - Chat in search (`/` with a Chat kind beside Mail and Tasks).
+- A focus that also keeps new mail out of the lists until it ends, and a
+  schedule that starts one by itself (weekday mornings, say).
 - End-to-end encrypted Rocket.Chat rooms, and replying from a notification.
 - Mail templates made from Orb: Save as template from the compose window and
   New template in the picker, as the mockup's Templates states draw them.

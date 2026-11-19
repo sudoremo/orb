@@ -8658,6 +8658,7 @@ mod tests {
             appearance: Default::default(),
             dock_badges: Vec::new(),
             navigation: Default::default(),
+            focus: Default::default(),
             warnings: Vec::new(),
         };
 
@@ -8819,6 +8820,7 @@ mod tests {
             appearance: Default::default(),
             dock_badges: Vec::new(),
             navigation: Default::default(),
+            focus: Default::default(),
             warnings: Vec::new(),
         };
         Store::new(config).unwrap()

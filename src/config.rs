@@ -112,6 +112,9 @@ pub struct Config {
     /// Where Ctrl+H/J/K/L go once Orb has nothing left to move to that way.
     #[serde(default)]
     pub navigation: NavigationConfig,
+    /// The modes a focus can run in, and when the workday ends.
+    #[serde(default)]
+    pub focus: crate::focus::FocusConfig,
     /// What the config asked for that cannot be given, found while reading
     /// it; shown at launch beside the other warnings.
     #[serde(skip)]
@@ -3291,6 +3294,47 @@ accounts:
             .expect("the command is kept");
         assert!(!command.starts_with('~'), "{command}");
         assert!(command.ends_with("/bin/navigate"), "{command}");
+    }
+
+    /// The `focus` section as the manual writes it, and a config without one.
+    #[test]
+    fn focus_is_read_as_the_manual_writes_it() {
+        use crate::focus::{FocusBadge, FocusChat, FocusConfig, FocusNotify};
+        assert_eq!(config_with("").focus, FocusConfig::default());
+
+        let config = config_with(
+            "focus:
+  workday_ends: \"17:30\"
+  default: batched
+  modes:
+    deep:
+      notify: off
+      badge: exceptions
+      chat: off
+    batched:
+      notify: 30m
+      badge: off
+      chat: mentions
+highlights:
+  - name: Urgent
+    when: { subject: \"URGENT*\" }
+    breaks_focus: true
+",
+        );
+        assert_eq!(
+            config.focus,
+            FocusConfig {
+                workday_ends: Some("17:30".to_string()),
+                default: "batched".to_string(),
+                ..FocusConfig::default()
+            }
+        );
+        let batched = config.focus.mode("batched").expect("the mode");
+        assert_eq!(batched.notify, FocusNotify::Every(1800));
+        assert_eq!(batched.badge, FocusBadge::Off);
+        assert_eq!(batched.chat, FocusChat::Mentions);
+        assert!(config.highlights.rules[0].breaks_focus);
+        assert!(config.highlights.warnings.is_empty());
     }
 
     #[test]

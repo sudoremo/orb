@@ -42,6 +42,16 @@ export interface TaskExportStatus {
   problem: string | null;
 }
 
+/** Where focus stands: the focus that runs, and the modes one can run in. */
+export interface FocusStatus {
+  /** Times in ms; `ends_at` is null for a focus the user ends. */
+  session: { mode: string; started_at: number; ends_at: number | null } | null;
+  modes: { name: string; detail: string }[];
+  default_mode: string;
+  /** `17:30`, what `workday` stands for as a span. */
+  workday_ends: string | null;
+}
+
 /** Whether every task change is on the server (todo-spec §23). */
 export interface TaskSyncStatus {
   /** Changes made here that the server does not have yet. */
@@ -240,6 +250,8 @@ export const state = {
   unconfirmed: new Set<number>(),
   detail: null as MessageDetail | null,
   focus: "folders" as Pane,
+  /** The focus mode's standing (`focusmode.ts`), which is not the pane with the keyboard. */
+  focusMode: null as FocusStatus | null,
   /**
    * The list fills the window, and the folders and the reader are drawers
    * over it: the folders while they have the keyboard, the reader once it

@@ -150,6 +150,10 @@ void listen("chat-changed", () => {
     void refreshChat().catch(() => {});
   }, 80);
 });
+// A focus began, changed or ended, here or in another window.
+void listen("focus-changed", () => {
+  void import("./focusmode").then((focus) => focus.refreshFocus()).catch(() => {});
+});
 // Signed in or out, the stream up or down.
 /** A chat notification was clicked: the thread it announced, in this window. */
 void listen<[string, string]>("chat-notification-opened", (event) => {

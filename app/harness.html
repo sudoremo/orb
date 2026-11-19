@@ -314,6 +314,17 @@
       const CHAT_DONE = new Map();
       // The muted rooms, by id: when the mute ends, or null for one the user ends.
       const CHAT_MUTED = new Map();
+      // The focus that runs, and the modes of a config that names none.
+      const FOCUS = { session: null };
+      const focusStatus = () => ({
+        session: FOCUS.session && (FOCUS.session.ends_at === null || FOCUS.session.ends_at > Date.now()) ? FOCUS.session : null,
+        modes: [
+          { name: "deep", detail: "mail held · badge for exceptions · chat held" },
+          { name: "batched", detail: "mail every 30m · badge off · chat for mentions" },
+        ],
+        default_mode: "deep",
+        workday_ends: new URLSearchParams(location.search).get("workday"),
+      });
       const applyMutes = () => {
         for (const r of CHAT_ROOMS) {
           const ends = CHAT_MUTED.get(r.rid);
@@ -972,6 +983,15 @@
 
             case "notification_permission":
               return mock.notifications ?? "granted";
+
+            case "focus_status":
+              return focusStatus();
+            case "focus_start":
+              FOCUS.session = { mode: args.mode ?? "deep", started_at: Date.now(), ends_at: args.ends ?? null };
+              return focusStatus();
+            case "focus_stop":
+              FOCUS.session = null;
+              return null;
 
             // Every style option, over a few rules, so the rendering of each
             // can be looked at: the first rows of the folder show them all.

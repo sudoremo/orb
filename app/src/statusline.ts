@@ -4,6 +4,7 @@ import { cursorPosition, timelineKind, timelineTotal } from "./mixed";
 import { readingActive } from "./list";
 import { call } from "./bridge";
 import { escape } from "./format";
+import { focusMarkup } from "./focusmode";
 import { inTaskSection, renderFolders } from "./sidebar";
 import { state, TaskSyncStatus } from "./state";
 import { openTaskById } from "./taskview";
@@ -156,6 +157,7 @@ export function renderSteady(): void {
           working.length === 1 ? working[0]!.title : `${working.length} tasks`,
         )}</button>`
       : "") +
+    focusMarkup() +
     outboxWarning() +
     exportWarning() +
     taskSyncWarning() +
@@ -170,6 +172,10 @@ export function renderSteady(): void {
 document.getElementById("status-steady")?.addEventListener("click", (e) => {
   if ((e.target as HTMLElement).closest("[data-chat-sign-in]")) {
     void call("chat_sign_in_window").catch(() => {});
+    return;
+  }
+  if ((e.target as HTMLElement).closest("[data-focus-mode]")) {
+    void import("./focusmode").then((focus) => focus.focusMode([])).catch(() => {});
     return;
   }
   if ((e.target as HTMLElement).closest("[data-outbox-open]")) {

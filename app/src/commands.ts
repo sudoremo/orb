@@ -557,6 +557,8 @@ const MAIL_COMMANDS: Record<string, Command> = {
   },
   /** The log as it is written and the recent jobs, in a tab of their own. */
   console: () => call("open_console"),
+  /** Start a focus, change the one that runs, or end it with `off`. */
+  "focus-mode": async (args) => (await import("./focusmode")).focusMode(args),
   /** Show the message on screen as HTML, plain text or its source. */
   view: (args) => {
     const mode = args[0];

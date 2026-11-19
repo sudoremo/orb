@@ -226,3 +226,16 @@ phone go on as before.
   either side ended is gone. A mute that has ended does not travel, however
   recently it was set; one that has not travels however long ago it was.
 - Muting and unmuting are undone as a mark is.
+
+## 14. Focus
+
+A focus (README, "Focus") decides which of the threads that start waiting
+(§10) are announced as they do: all of them when its mode says `chat: on`,
+those that name the user for `mentions`, none for `off`.
+
+- A thread held back is announced when the focus ends, or when the mode's
+  interval comes round, if it still waits and its room is not muted (§13).
+- Waiting, Today and the sidebar's counts are as without a focus.
+- With `badge: exceptions` the Dock counts, of Waiting, the threads the mode
+  would announce, when `chat.badge` counts chat at all.
+- A focus is local: nothing of it reaches the server or another Mac.

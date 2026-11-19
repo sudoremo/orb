@@ -164,6 +164,8 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   // A chat room quiet for a while, and the list of those that are.
   zq: "chat-mute-room",
   zQ: "chat-muted-rooms",
+  // A while without notifications: how long, and in which mode.
+  zf: "focus-mode",
   // The focused pane over the whole window, as tmux zooms one: `zm`.
   zm: "toggle-maximize",
   // The folders put away, the other panes taking their width.

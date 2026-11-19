@@ -71,6 +71,19 @@ impl HighlightSet {
             .collect()
     }
 
+    /// The rules mail gets through a focus by, and nothing else of the set.
+    pub fn breaking_focus(&self) -> HighlightSet {
+        HighlightSet {
+            rules: self
+                .rules
+                .iter()
+                .filter(|rule| rule.breaks_focus)
+                .cloned()
+                .collect(),
+            warnings: Vec::new(),
+        }
+    }
+
     /// Every `body` text some rule looks for, lower-cased: what the store has
     /// to ask the database about before the rules can be evaluated.
     pub fn body_needles(&self) -> Vec<String> {
@@ -163,6 +176,7 @@ impl RawRemoteImageRule {
             accounts: self.accounts,
             when,
             style: Style::default(),
+            breaks_focus: false,
         })
     }
 }
@@ -177,6 +191,8 @@ struct RawHighlight {
     when: RawHighlightConditions,
     #[serde(default)]
     style: RawStyle,
+    #[serde(default)]
+    breaks_focus: bool,
 }
 
 impl RawHighlight {
@@ -186,11 +202,22 @@ impl RawHighlight {
         }
         let when = self.when.compile()?;
         let style = self.style.compile(label, warnings)?;
+        let breaks_focus = self.breaks_focus && !when.is_empty();
+        if style == Style::default() && !breaks_focus {
+            return Err("`style` changes nothing".to_string());
+        }
+        if self.breaks_focus && !breaks_focus {
+            warnings.push(format!(
+                "{label}: `breaks_focus` without a `when` would let every message through; \
+                 it is left out"
+            ));
+        }
         Ok(HighlightRule {
             name: self.name,
             accounts: self.accounts,
             when,
             style,
+            breaks_focus,
         })
     }
 }
@@ -203,6 +230,9 @@ pub struct HighlightRule {
     pub accounts: Vec<String>,
     pub when: HighlightConditions,
     pub style: Style,
+    /// Whether mail the rule matches is announced during a focus
+    /// ([`crate::focus`]).
+    pub breaks_focus: bool,
 }
 
 /// A rule's `when`: the filter conditions, and the ones only a rendering can
@@ -474,9 +504,6 @@ impl RawStyle {
             dim: self.dim,
             sidebar_badge: self.sidebar_badge,
         };
-        if style == Style::default() {
-            return Err("`style` changes nothing".to_string());
-        }
         Ok(style)
     }
 }
@@ -684,6 +711,29 @@ impl Color {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_rule_can_say_that_its_mail_breaks_a_focus() {
+        let set = set(
+            "- name: Urgent\n  when: { subject: '[EXT]*' }\n  breaks_focus: true\n\
+             - name: Lists\n  when: { list_id: '*' }\n\
+             - name: All\n  style: { dim: true }\n  breaks_focus: true\n",
+        );
+        // A rule may break a focus and draw nothing; one that does neither is no rule.
+        let names = |set: &HighlightSet| -> Vec<String> {
+            set.rules.iter().map(|rule| rule.name.clone()).collect()
+        };
+        assert_eq!(names(&set), ["Urgent", "All"], "{:?}", set.warnings);
+        assert_eq!(names(&set.breaking_focus()), ["Urgent"]);
+        // Letting every message through would be no focus at all.
+        assert!(
+            set.warnings
+                .iter()
+                .any(|w| w.contains("highlight 'All'") && w.contains("breaks_focus")),
+            "{:?}",
+            set.warnings
+        );
+    }
 
     fn set(yaml: &str) -> HighlightSet {
         serde_saphyr::from_str(yaml).expect("the highlights parse")

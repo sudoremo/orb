@@ -49,7 +49,7 @@ impl ChatListener for ChatBridge {
                     Ok((threads, next)) => {
                         // Only the call that moves the watermark announces.
                         if watermark.0.fetch_max(next, Ordering::Relaxed) < next {
-                            crate::notifications::notify_chat(&threads);
+                            crate::notifications::notify_chat(&orb.focus_admit_chat(threads));
                         }
                     }
                     Err(error) => {

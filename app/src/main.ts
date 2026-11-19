@@ -256,6 +256,7 @@ async function boot(): Promise<void> {
   // configured", and treating every failure as absence would hide the feature
   // from somebody who has it and hit a bad sync.
   state.tasks.available = await call<boolean>("tasks_configured").catch(() => false);
+  void import("./focusmode").then((focus) => focus.refreshFocus()).catch(() => {});
   if (WINDOW === "tasks") {
     await bootTasksWindow();
     return;

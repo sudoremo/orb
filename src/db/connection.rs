@@ -23,7 +23,7 @@ pub struct ReconcileReport {
 /// Unchanged by the vector index: it adds no column to any table, is created
 /// idempotently beside the full-text index, and holds only data derived from
 /// `messages`. There is nothing for a migration to do.
-const SCHEMA_VERSION: i32 = 37;
+const SCHEMA_VERSION: i32 = 38;
 
 /// Make `vec0` available to every connection opened from here on.
 ///
@@ -500,6 +500,17 @@ pub(crate) const CHAT_MENTIONS_ALL_SCHEMA: &str =
     "ALTER TABLE chat_messages ADD COLUMN mentions_all INTEGER NOT NULL DEFAULT 0;";
 
 /// How long the list's snippet of a message may be, in characters.
+/// Schema v38: the running focus (`crate::focus`), of which there is at most
+/// one. `ends_at` is NULL for a focus the user ends.
+const FOCUS_SCHEMA: &str = "
+            CREATE TABLE IF NOT EXISTS focus_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                mode TEXT NOT NULL,
+                started_at INTEGER NOT NULL,
+                ends_at INTEGER
+            );
+";
+
 pub const SNIPPET_CHARS: usize = 200;
 
 /// A message's text as one line for the list: quoted lines and the
@@ -2128,6 +2139,16 @@ impl Database {
                 tx.execute_batch(CHAT_MENTIONS_ALL_SCHEMA)?;
             }
             tx.execute_batch("PRAGMA user_version = 37;")?;
+            tx.commit()?;
+        }
+
+        if from_version < 38 {
+            let tx = rusqlite::Transaction::new_unchecked(
+                &self.conn,
+                rusqlite::TransactionBehavior::Immediate,
+            )?;
+            tx.execute_batch(FOCUS_SCHEMA)?;
+            tx.execute_batch("PRAGMA user_version = 38;")?;
             tx.commit()?;
         }
 
@@ -4807,6 +4828,45 @@ impl Database {
         Ok(found)
     }
 
+    /// The focus that was started and not ended, whether or not its time is up.
+    pub fn focus_session(&self) -> Result<Option<crate::focus::FocusSession>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT mode, started_at, ends_at FROM focus_state WHERE id = 1",
+                [],
+                |row| {
+                    Ok(crate::focus::FocusSession {
+                        mode: row.get(0)?,
+                        started_at: row.get(1)?,
+                        ends_at: row.get(2)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    /// Start `session`, in place of the one running.
+    pub fn set_focus_session(&self, session: &crate::focus::FocusSession) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO focus_state (id, mode, started_at, ends_at) VALUES (1, ?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET mode = excluded.mode,
+                 started_at = excluded.started_at, ends_at = excluded.ends_at",
+            params![session.mode, session.started_at, session.ends_at],
+        )?;
+        Ok(())
+    }
+
+    /// End the focus that started at `started_at`, or whichever runs. One
+    /// started since, by another Orb on this database, is left running.
+    pub fn clear_focus_session(&self, started_at: Option<i64>) -> Result<()> {
+        self.conn.execute(
+            "DELETE FROM focus_state WHERE id = 1 AND (?1 IS NULL OR started_at = ?1)",
+            params![started_at],
+        )?;
+        Ok(())
+    }
+
     /// Unread mail across every account's INBOX, for the Dock badge.
     pub fn inbox_unread_count(&self) -> Result<u32> {
         // The inboxes first, so the count runs on the folder index rather
@@ -6325,6 +6385,36 @@ mod tests {
             "Wrong date in: {}",
             normalized
         );
+    }
+
+    /// There is one focus at a time, and ending one that another Orb has
+    /// since replaced leaves the newer one running.
+    #[test]
+    fn a_focus_session_is_kept_replaced_and_ended() {
+        let db = Database::new(":memory:").expect("db");
+        db.init_schema().expect("schema");
+        assert_eq!(db.focus_session().unwrap(), None);
+
+        let first = crate::focus::FocusSession {
+            mode: "deep".to_string(),
+            started_at: 1_000,
+            ends_at: Some(9_000),
+        };
+        db.set_focus_session(&first).unwrap();
+        assert_eq!(db.focus_session().unwrap(), Some(first.clone()));
+
+        let second = crate::focus::FocusSession {
+            mode: "batched".to_string(),
+            started_at: 2_000,
+            ends_at: None,
+        };
+        db.set_focus_session(&second).unwrap();
+        assert_eq!(db.focus_session().unwrap(), Some(second.clone()));
+
+        db.clear_focus_session(Some(first.started_at)).unwrap();
+        assert_eq!(db.focus_session().unwrap(), Some(second));
+        db.clear_focus_session(None).unwrap();
+        assert_eq!(db.focus_session().unwrap(), None);
     }
 
     /// Re-running a migration step whose `ADD COLUMN` already took effect must not

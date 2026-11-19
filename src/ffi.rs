@@ -642,6 +642,17 @@ impl From<crate::db::NewMessage> for NewMailItem {
     }
 }
 
+/// What a focus held back and now lets go: announced as it would have been.
+#[derive(Debug, Clone, Default)]
+pub struct FocusRelease {
+    /// The held mail that is still unread.
+    pub mail: Vec<NewMailItem>,
+    /// The held chat threads that still wait.
+    pub chat: Vec<crate::chat::WaitingThread>,
+    /// Whether the focus is over, rather than its mode's interval come round.
+    pub ended: bool,
+}
+
 /// Scope restriction for staged (pending) actions.
 ///
 /// Mirrors [`crate::store::PendingScope`] for the FFI boundary. `All` covers the
@@ -2295,6 +2306,8 @@ pub struct OrbHandle {
     task_uploads: TaskUploads,
     /// The chat service, once [`OrbHandle::start_chat`] has started it.
     chat: std::sync::RwLock<Option<Arc<crate::chat::ChatService>>>,
+    /// What this process has not announced because a focus runs.
+    focus_held: std::sync::Mutex<crate::focus::FocusHeld>,
     /// The sender checks made this session, by message: a message's headers
     /// do not change, and without the source stored each check is a trip to
     /// the server.
@@ -2543,6 +2556,7 @@ pub fn init_with(mut config: Config, config_path: String) -> Result<Arc<OrbHandl
         last_export: std::sync::Mutex::new(None),
         task_uploads: TaskUploads::default(),
         chat: std::sync::RwLock::new(None),
+        focus_held: Default::default(),
         sender_checks: Default::default(),
     }))
 }
@@ -2849,6 +2863,7 @@ impl OrbHandle {
         let mut warnings = self.store.special_folder_warnings()?;
         warnings.extend(self.store.filter_warnings()?);
         warnings.extend(self.config().highlights.warnings.iter().cloned());
+        warnings.extend(self.config().focus.warnings.iter().cloned());
         warnings.extend(self.config().load_remote_images.0.warnings.iter().cloned());
         warnings.extend(self.config().warnings.iter().cloned());
         if let Some(export) = self.config().tasks.as_ref().and_then(|t| t.export.as_ref()) {
@@ -5492,6 +5507,276 @@ impl OrbHandle {
         }
         let waiting = self.chat().ok()?.waiting().ok()?;
         Some(waiting.iter().filter(|w| !w.muted).count() as u32)
+    }
+
+    /// Where focus stands: the focus that runs, and the modes one can run in.
+    pub fn focus_status(&self) -> Result<crate::focus::FocusStatus, OrbError> {
+        let session = self
+            .focus_running(Utc::now().timestamp_millis())?
+            .map(|(session, _)| session);
+        Ok(crate::focus::FocusStatus::new(
+            &self.config().focus,
+            session,
+        ))
+    }
+
+    /// The focus that runs at `now_ms`, with its mode. One whose time is up
+    /// does not, nor one whose mode the config no longer has.
+    fn focus_running(
+        &self,
+        now_ms: i64,
+    ) -> Result<Option<(crate::focus::FocusSession, crate::focus::FocusMode)>, OrbError> {
+        let Some(session) = self.store.reader()?.focus_session()? else {
+            return Ok(None);
+        };
+        if session.is_over(now_ms) {
+            return Ok(None);
+        }
+        let mode = self.config().focus.mode(&session.mode).cloned();
+        Ok(mode.map(|mode| (session, mode)))
+    }
+
+    fn focus_held(&self) -> std::sync::MutexGuard<'_, crate::focus::FocusHeld> {
+        self.focus_held.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Start a focus in `mode` (the default mode when `None`) until
+    /// `ends_at` (ms), or until it is stopped (`None`). A focus that runs
+    /// already goes on in the new mode and to the new end, with what it holds.
+    pub fn focus_start(
+        &self,
+        mode: Option<String>,
+        ends_at: Option<i64>,
+    ) -> Result<crate::focus::FocusStatus, OrbError> {
+        self.focus_start_at(mode, ends_at, Utc::now().timestamp_millis())
+    }
+
+    fn focus_start_at(
+        &self,
+        mode: Option<String>,
+        ends_at: Option<i64>,
+        now_ms: i64,
+    ) -> Result<crate::focus::FocusStatus, OrbError> {
+        let config = self.config();
+        let name = mode.unwrap_or_else(|| config.focus.default.clone());
+        if config.focus.mode(&name).is_none() {
+            let known: Vec<&str> = config.focus.modes.iter().map(|m| m.name.as_str()).collect();
+            return Err(OrbError::InvalidInput {
+                message: format!("there is no focus mode '{name}': {}", known.join(", ")),
+            });
+        }
+        if ends_at.is_some_and(|ends| ends <= now_ms) {
+            return Err(OrbError::InvalidInput {
+                message: "a focus cannot end in the past".to_string(),
+            });
+        }
+        let running = self.focus_running(now_ms)?.is_some();
+        let session = crate::focus::FocusSession {
+            mode: name,
+            started_at: now_ms,
+            ends_at,
+        };
+        self.store.writer()?.set_focus_session(&session)?;
+        // What is held stays held: by the focus that runs, or by one whose
+        // time was up a moment ago and whose mail has not gone out yet.
+        let mut held = self.focus_held();
+        held.session_started_at = session.started_at;
+        if !running {
+            held.last_release_ms = now_ms;
+        }
+        drop(held);
+        crate::logger::info(&format!(
+            "focus: {} until {}",
+            session.mode,
+            session
+                .ends_at
+                .map_or_else(|| "stopped".to_string(), |ends| ends.to_string())
+        ));
+        Ok(crate::focus::FocusStatus::new(&config.focus, Some(session)))
+    }
+
+    /// End the focus, and hand over what it held to be announced.
+    pub fn focus_stop(&self) -> Result<FocusRelease, OrbError> {
+        self.store.writer()?.clear_focus_session(None)?;
+        let now_ms = Utc::now().timestamp_millis();
+        let (mail, chat) = {
+            let mut held = self.focus_held();
+            held.session_started_at = 0;
+            held.take(now_ms)
+        };
+        crate::logger::info("focus: ended");
+        Ok(self.focus_release(&mail, &chat, true))
+    }
+
+    /// What the clock asks of the focus: `None` most of the time, what was
+    /// held when the mode's interval has come round, and the same with
+    /// `ended` once when the focus is over. To be asked every few seconds.
+    pub fn focus_tick(&self) -> Result<Option<FocusRelease>, OrbError> {
+        self.focus_tick_at(Utc::now().timestamp_millis())
+    }
+
+    fn focus_tick_at(&self, now_ms: i64) -> Result<Option<FocusRelease>, OrbError> {
+        use crate::focus::FocusDue;
+        let Some(session) = self.store.reader()?.focus_session()? else {
+            // Ended from another Orb on this database: what this one held goes out.
+            let mut held = self.focus_held();
+            if held.session_started_at == 0 {
+                return Ok(None);
+            }
+            held.session_started_at = 0;
+            let (mail, chat) = held.take(now_ms);
+            drop(held);
+            return Ok(Some(self.focus_release(&mail, &chat, true)));
+        };
+        let config = self.config();
+        let mut held = self.focus_held();
+        held.follow(&session, now_ms);
+        let due = crate::focus::due(
+            &session,
+            config.focus.mode(&session.mode),
+            held.last_release_ms,
+            now_ms,
+        );
+        if due == FocusDue::Nothing {
+            return Ok(None);
+        }
+        let ended = due == FocusDue::End;
+        if ended {
+            held.session_started_at = 0;
+        }
+        let (mail, chat) = held.take(now_ms);
+        drop(held);
+        if ended {
+            self.store
+                .writer()?
+                .clear_focus_session(Some(session.started_at))?;
+            crate::logger::info("focus: over");
+        }
+        Ok(Some(self.focus_release(&mail, &chat, ended)))
+    }
+
+    /// The held mail that is still unread and the held threads that still
+    /// wait: what was read or answered meanwhile needs no announcing.
+    fn focus_release(&self, mail: &[i64], chat: &[(String, String)], ended: bool) -> FocusRelease {
+        let mail = self
+            .store
+            .reader()
+            .and_then(|db| db.unread_messages_among(mail))
+            .unwrap_or_else(|error| {
+                crate::logger::warn(&format!("focus: the held mail could not be read: {error}"));
+                Vec::new()
+            })
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        let chat = if chat.is_empty() {
+            Vec::new()
+        } else {
+            self.chat()
+                .ok()
+                .and_then(|service| service.waiting().ok())
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|w| {
+                    !w.muted
+                        && chat
+                            .iter()
+                            .any(|(rid, thread)| *rid == w.rid && *thread == w.thread)
+                })
+                .collect()
+        };
+        FocusRelease { mail, chat, ended }
+    }
+
+    /// Of the mail a sync brought, what is announced now. During a focus
+    /// that holds notifications, that is the mail a highlight rule with
+    /// `breaks_focus` matches; the rest is held until the focus lets it go.
+    pub fn focus_admit_mail(&self, items: Vec<NewMailItem>) -> Vec<NewMailItem> {
+        let now_ms = Utc::now().timestamp_millis();
+        let (session, mode) = match self.focus_running(now_ms) {
+            Ok(Some(running)) => running,
+            Ok(None) => return items,
+            Err(error) => {
+                crate::logger::warn(&format!("focus: its state could not be read: {error}"));
+                return items;
+            }
+        };
+        if mode.notify == crate::focus::FocusNotify::On || items.is_empty() {
+            return items;
+        }
+        let ids: Vec<i64> = items.iter().map(|item| item.id).collect();
+        let breakers = match self.store.focus_breakers(&ids) {
+            Ok(breakers) => breakers,
+            // Announcing too much is the lesser failure than announcing nothing.
+            Err(error) => {
+                crate::logger::warn(&format!("focus: the rules could not be asked: {error}"));
+                return items;
+            }
+        };
+        let (admitted, kept): (Vec<_>, Vec<_>) = items
+            .into_iter()
+            .partition(|item| breakers.contains(&item.id));
+        let mut held = self.focus_held();
+        held.follow(&session, now_ms);
+        held.mail.extend(kept.iter().map(|item| item.id));
+        admitted
+    }
+
+    /// Of the chat threads that started waiting, what is announced now; the
+    /// rest is held until the focus lets it go.
+    pub fn focus_admit_chat(
+        &self,
+        threads: Vec<crate::chat::WaitingThread>,
+    ) -> Vec<crate::chat::WaitingThread> {
+        let now_ms = Utc::now().timestamp_millis();
+        let (session, mode) = match self.focus_running(now_ms) {
+            Ok(Some(running)) => running,
+            Ok(None) => return threads,
+            Err(error) => {
+                crate::logger::warn(&format!("focus: its state could not be read: {error}"));
+                return threads;
+            }
+        };
+        let (admitted, kept): (Vec<_>, Vec<_>) = threads
+            .into_iter()
+            .partition(|thread| mode.admits_chat(thread.mention));
+        if !kept.is_empty() {
+            let mut held = self.focus_held();
+            held.follow(&session, now_ms);
+            held.chat
+                .extend(kept.into_iter().map(|thread| (thread.rid, thread.thread)));
+        }
+        admitted
+    }
+
+    /// The one count the Dock shows while a focus changes the badge: nothing
+    /// for a mode with `badge: off`, and for one with `badge: exceptions` the
+    /// unread mail in the inboxes that breaks the focus, with the chat
+    /// threads that do when `chat.badge` counts chat. `None` when no focus
+    /// runs or its mode leaves the badge alone.
+    pub fn focus_badge(&self) -> Option<u32> {
+        let (_, mode) = self
+            .focus_running(Utc::now().timestamp_millis())
+            .ok()
+            .flatten()?;
+        match mode.badge {
+            crate::focus::FocusBadge::On => None,
+            crate::focus::FocusBadge::Off => Some(0),
+            crate::focus::FocusBadge::Exceptions => {
+                let mail = self.store.focus_breaker_count().unwrap_or(0);
+                let counts_chat = self.config().chat.as_ref().is_some_and(|chat| chat.badge);
+                let chat = counts_chat
+                    .then(|| self.chat().ok()?.waiting().ok())
+                    .flatten()
+                    .map_or(0, |waiting| {
+                        waiting
+                            .iter()
+                            .filter(|w| !w.muted && mode.admits_chat(w.mention))
+                            .count() as u32
+                    });
+                Some(mail + chat)
+            }
+        }
     }
 
     /// Whether `navigation.escalate_command` is set.
@@ -10346,6 +10631,7 @@ mod tests {
             appearance: Default::default(),
             dock_badges: Vec::new(),
             navigation: Default::default(),
+            focus: Default::default(),
             warnings: Vec::new(),
         }
     }
@@ -11150,6 +11436,7 @@ mod task_tests {
             last_export: std::sync::Mutex::new(None),
             task_uploads: TaskUploads::default(),
             chat: std::sync::RwLock::new(None),
+            focus_held: Default::default(),
             sender_checks: Default::default(),
         })
     }
@@ -11383,6 +11670,11 @@ mod task_tests {
     fn handle_with_mail() -> (tempfile::TempDir, Arc<OrbHandle>, Vec<i64>) {
         let dir = tempfile::tempdir().expect("tempdir");
         let config = task_config(&dir);
+        let (orb, ids) = handle_with_mail_for(config);
+        (dir, orb, ids)
+    }
+
+    fn handle_with_mail_for(config: Config) -> (Arc<OrbHandle>, Vec<i64>) {
         let orb = handle(config.clone());
 
         let db = crate::db::Database::new(&config.db_path).expect("db");
@@ -11427,7 +11719,187 @@ mod task_tests {
             );
         }
 
-        (dir, orb, ids)
+        (orb, ids)
+    }
+
+    /// A handle with two unread messages, the first of which breaks a focus.
+    fn handle_for_focus() -> (tempfile::TempDir, Arc<OrbHandle>, Vec<NewMailItem>) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut config = task_config(&dir);
+        config.highlights = serde_saphyr::from_str(
+            "- name: Urgent\n  when: { subject: '[EXT]*' }\n  breaks_focus: true\n",
+        )
+        .expect("highlights");
+        let (orb, ids) = handle_with_mail_for(config);
+        let new_mail = orb
+            .store
+            .reader()
+            .expect("reader")
+            .unread_messages_among(&ids)
+            .expect("mail")
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        (dir, orb, new_mail)
+    }
+
+    fn subjects(items: &[NewMailItem]) -> Vec<&str> {
+        items.iter().filter_map(|m| m.subject.as_deref()).collect()
+    }
+
+    /// Without a focus everything a sync brought is announced.
+    #[test]
+    fn without_a_focus_all_new_mail_is_announced() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        assert_eq!(orb.focus_status().unwrap().session, None);
+        assert_eq!(orb.focus_admit_mail(new_mail).len(), 2);
+        assert_eq!(orb.focus_badge(), None);
+        assert!(orb.focus_tick().unwrap().is_none());
+    }
+
+    /// A focus holds new mail but for what a rule lets through, counts only
+    /// that on the Dock, and announces the rest when it is stopped.
+    #[test]
+    fn a_focus_holds_mail_but_for_what_breaks_it_and_releases_it_at_the_end() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        let status = orb.focus_start(None, None).unwrap();
+        assert_eq!(
+            status.session.as_ref().map(|s| s.mode.as_str()),
+            Some("deep")
+        );
+        assert_eq!(orb.focus_status().unwrap().session, status.session);
+
+        let admitted = orb.focus_admit_mail(new_mail);
+        assert_eq!(subjects(&admitted), ["[EXT] Budget review"]);
+        assert_eq!(orb.focus_badge(), Some(1));
+        // A focus the user ends has nothing due by the clock.
+        assert!(orb.focus_tick().unwrap().is_none());
+
+        let release = orb.focus_stop().unwrap();
+        assert!(release.ended);
+        assert_eq!(subjects(&release.mail), ["Lunch?"]);
+        assert_eq!(orb.focus_status().unwrap().session, None);
+        assert_eq!(orb.focus_badge(), None);
+        // Released once, and the tick after the end has nothing to add.
+        assert!(orb.focus_tick().unwrap().is_none());
+    }
+
+    /// What was read while it was held is not announced afterwards.
+    #[test]
+    fn held_mail_that_was_read_meanwhile_is_not_released() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        orb.focus_start(None, None).unwrap();
+        let held_id = new_mail[1].id;
+        orb.focus_admit_mail(new_mail);
+        orb.store
+            .writer()
+            .unwrap()
+            .conn
+            .execute(
+                "UPDATE messages SET flags = '[\"\\\\Seen\"]' WHERE id = ?1",
+                [held_id],
+            )
+            .unwrap();
+        assert!(orb.focus_stop().unwrap().mail.is_empty());
+    }
+
+    /// A focus with an end is over at that time: the session is gone, what
+    /// was held goes out once, and mail arriving afterwards is announced.
+    #[test]
+    fn a_focus_ends_by_the_clock_and_releases_once() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        let now = Utc::now().timestamp_millis();
+        orb.focus_start_at(None, Some(now + 60_000), now).unwrap();
+        orb.focus_admit_mail(new_mail.clone());
+        assert!(orb.focus_tick_at(now + 59_000).unwrap().is_none());
+
+        let release = orb.focus_tick_at(now + 60_000).unwrap().expect("the end");
+        assert!(release.ended);
+        assert_eq!(subjects(&release.mail), ["Lunch?"]);
+        assert_eq!(orb.store.reader().unwrap().focus_session().unwrap(), None);
+        assert!(orb.focus_tick_at(now + 61_000).unwrap().is_none());
+        assert_eq!(orb.focus_admit_mail(new_mail).len(), 2);
+    }
+
+    /// A mode with an interval lets go of what it holds each time the
+    /// interval comes round, and goes on holding.
+    #[test]
+    fn a_batched_focus_releases_at_its_interval_and_goes_on() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        let now = Utc::now().timestamp_millis();
+        let half_hour = 30 * 60 * 1000;
+        orb.focus_start_at(Some("batched".to_string()), None, now)
+            .unwrap();
+        assert_eq!(orb.focus_badge(), Some(0));
+        orb.focus_admit_mail(new_mail.clone());
+        assert!(orb.focus_tick_at(now + half_hour - 1).unwrap().is_none());
+
+        let release = orb
+            .focus_tick_at(now + half_hour)
+            .unwrap()
+            .expect("a batch");
+        assert!(!release.ended);
+        assert_eq!(subjects(&release.mail), ["Lunch?"]);
+        assert!(orb.focus_status().unwrap().session.is_some());
+        // The next interval counts from this release, and has nothing yet.
+        assert!(orb.focus_tick_at(now + half_hour + 1).unwrap().is_none());
+        let again = orb
+            .focus_tick_at(now + 2 * half_hour)
+            .unwrap()
+            .expect("a batch");
+        assert!(again.mail.is_empty());
+    }
+
+    /// Changing the mode or the end of a running focus keeps what it holds.
+    #[test]
+    fn a_focus_started_again_keeps_what_it_holds() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        orb.focus_start(None, None).unwrap();
+        orb.focus_admit_mail(new_mail);
+        orb.focus_start(Some("batched".to_string()), None).unwrap();
+        assert_eq!(subjects(&orb.focus_stop().unwrap().mail), ["Lunch?"]);
+    }
+
+    /// A focus started in the moment after another ran out, before its mail
+    /// went out, takes that mail over instead of losing it.
+    #[test]
+    fn a_focus_started_right_after_one_ran_out_keeps_its_mail() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        let now = Utc::now().timestamp_millis();
+        orb.focus_start_at(None, Some(now + 600_000), now).unwrap();
+        orb.focus_admit_mail(new_mail);
+        // Its time is up, and no tick has seen that yet.
+        orb.focus_start_at(None, None, now + 600_001).unwrap();
+        assert_eq!(subjects(&orb.focus_stop().unwrap().mail), ["Lunch?"]);
+    }
+
+    /// A focus ended by another Orb on the database lets go here too.
+    #[test]
+    fn a_focus_ended_elsewhere_releases_what_this_orb_held() {
+        let (_dir, orb, new_mail) = handle_for_focus();
+        orb.focus_start(None, None).unwrap();
+        orb.focus_admit_mail(new_mail);
+        orb.store
+            .writer()
+            .unwrap()
+            .clear_focus_session(None)
+            .unwrap();
+        let release = orb.focus_tick().unwrap().expect("the end");
+        assert!(release.ended);
+        assert_eq!(subjects(&release.mail), ["Lunch?"]);
+        assert!(orb.focus_tick().unwrap().is_none());
+    }
+
+    /// A mode the config does not have and an end in the past are refused,
+    /// and leave no focus behind.
+    #[test]
+    fn a_focus_that_cannot_be_is_refused() {
+        let (_dir, orb, _) = handle_for_focus();
+        let unknown = orb.focus_start(Some("nowhere".to_string()), None);
+        assert!(matches!(unknown, Err(OrbError::InvalidInput { .. })));
+        let past = orb.focus_start(None, Some(1));
+        assert!(matches!(past, Err(OrbError::InvalidInput { .. })));
+        assert_eq!(orb.focus_status().unwrap().session, None);
     }
 
     /// The row of a collapsed thread stands for every member: read only

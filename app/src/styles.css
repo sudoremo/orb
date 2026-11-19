@@ -4586,6 +4586,20 @@ body.compose {
   text-decoration: underline;
 }
 
+#status-steady .focus-mode {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  white-space: nowrap;
+  cursor: default;
+}
+
+#status-steady .focus-mode:hover {
+  text-decoration: underline;
+}
+
 .sb-working::before {
   content: "▶";
   color: var(--accent);

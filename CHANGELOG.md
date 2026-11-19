@@ -52,5 +52,9 @@ The first release.
   command palette, the menu bar and the context menus. Counts, sequences and
   chains work, and `?` shows every key in force.
 - Two looks, Hybrid and Terminal.
+- A focus (`zf`) holds back the notifications and the Dock badge for a while,
+  in modes the config defines; mail a highlight rule marks with
+  `breaks_focus` still gets through, and what was held is announced
+  afterwards.
 - An iPhone app for the tasks that shares the IMAP folder, with widgets, a
   share extension and reminders as notifications.

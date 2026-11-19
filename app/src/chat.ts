@@ -150,7 +150,11 @@ export function roomName(room: ChatRoom): string {
 export function muteSpan(room: ChatRoom, now = new Date()): string {
   if (!room.muted) return "";
   if (room.muted_until == null) return "until you unmute it";
-  const ends = new Date(room.muted_until);
+  return untilText(room.muted_until, now);
+}
+/** A moment ahead (ms) as a span says it: `until 17:00`, `until Fri 09:00`, `until tomorrow`. */
+export function untilText(until: number, now = new Date()): string {
+  const ends = new Date(until);
   const iso = ends.toISOString();
   const sameDay = ends.toDateString() === now.toDateString();
   const midnight = ends.getHours() === 0 && ends.getMinutes() === 0;

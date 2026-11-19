@@ -406,6 +406,21 @@ dock_badges:
     folder: INBOX
     color: "#0a84ff"
 
+# The modes a focus can run in (see Focus). Without `modes` there are two:
+# `deep` and `batched`, as written here. The first is the default, or the one
+# `default` names.
+focus:
+  workday_ends: "17:30"     # what `workday` means as a span; none by default
+  modes:
+    deep:
+      notify: off           # hold new mail until the focus ends
+      badge: exceptions     # the Dock counts only what breaks the focus
+      chat: off             # hold chat threads too
+    batched:
+      notify: 30m           # announce what was held every 30 minutes
+      badge: off            # nothing on the Dock
+      chat: mentions        # a thread that names you is announced at once
+
 # Where Ctrl-h/j/k/l go once Orb has nothing to move to that way: run with
 # left, right, up or down. A path, not a shell line; ~ is expanded.
 navigation:
@@ -547,6 +562,7 @@ highlights:
     style:
       color: "#e6b422"                # sender and subject
       icon: fa-crown                  # a Font Awesome icon the app bundles
+    breaks_focus: true                # announced during a focus all the same
 
   - name: Invoices
     when:
@@ -585,6 +601,11 @@ messages beside each folder in the rule's colour. A colour is `#rgb`,
 text is adjusted until it reads, and the status line says so at launch. An
 icon is a Font Awesome name, with or without `fa-`; an unknown name is a
 warning.
+
+**Focus.** `breaks_focus: true` on a rule lets the mail it matches through a
+[focus](#focus): it is announced as it arrives, and counted on the Dock by a
+mode with `badge: exceptions`. Such a rule needs a `when` and may leave the
+`style` out.
 
 Where several rules match, the first sets colour and background, and every
 rule contributes its icon and label, in order, up to three of each. On the
@@ -1039,6 +1060,7 @@ there.
 | `zs` | Put the folders away, or bring them back | `toggle-sidebar` |
 | `gr` / `gn` | Open a chat room by name / start a chat with people picked | `chat-open-room`, `chat-new-message` |
 | `zq` / `zQ` | Mute the chat room under the cursor for a while / list the muted rooms | `chat-mute-room`, `chat-muted-rooms` |
+| `zf` | Start a [focus](#focus), change the one that runs, or end it | `focus-mode` |
 | `⌘+` / `⌘-` / `⌘0` | Larger / smaller text, and back | `zoom-in`, `zoom-out`, `zoom-reset` |
 
 `q` never quits; `⌘Q` and `quit` do.
@@ -1262,6 +1284,7 @@ Every menu item runs the command named, as a key bound to it would.
 | | Message ▸ Edit Draft, Read Later, Move to…, Copy to…, Move or Copy to Another Account…, Not Junk, Stage for Deletion, Stage a Move…, Unstage, the attachment items, New Task from Message, Tasks for Message | `edit-draft`, `read-later`, `move-immediate`, `copy-immediate`, `move-across`, `copy-across`, `not-spam`, `mark-delete`, `mark-move`, `unmark`, `open-attachment`, `save-attachment`, `quick-look`, `create-task-from-message`, `open-tasks-for-message` |
 | `⇧⌘N` | Mailbox ▸ Get New Mail | `sync` |
 | `⇧⌘E` | Mailbox ▸ Apply Staged Actions in Folder | `expunge` |
+| | Mailbox ▸ Focus… / End Focus | `focus-mode`, `focus-mode off` |
 | | Mailbox ▸ Get New Feed Items, Account Status, Feed Status, Outbox, Send Everything in the Outbox, the folder items, Review Staged Actions, Apply All, Discard in Folder, Discard All | `poll-feeds`, `account-status`, `feed-status`, `outbox`, `retry-outbox`, `create-folder`, `rename-folder`, `delete-folder`, `subscribe-folder`, `unsubscribe-folder`, `review-pending`, `expunge-all`, `discard-pending`, `discard-pending all` |
 | | Tasks ▸ … | `open-tasks-window`, `create-task`, `edit-task`, `complete-task`, `uncomplete-task`, `clear-completed`, `merge-tasks`, `set-due-date`, `postpone-task`, `set-recurrence`, `add-reminder`, `attach-file`, `delete-task`, `restore-task`, `empty-task-trash`, `sync-tasks`, `export-tasks`, `import-tasks`, `import-things`, `set-up-iphone` |
 | `⌘1` – `⌘3` | Window ▸ First / Second / Third Tab | Switch the window's tab |
@@ -1878,6 +1901,45 @@ only System Settings › Notifications › Orb can switch it back on;
 `notification-settings` opens that page, and a task's Reminders field says so
 while it is off. Under `start.sh --dev` there is no bundle to post them, so
 nothing is announced and the log says so.
+
+### Focus
+
+A focus is a while in which Orb goes on syncing but keeps to itself what it
+would announce. `zf` (`focus-mode`, Mailbox ▸ Focus…) asks for how long: 30
+minutes, 1 hour, 2 hours, until noon, until the end of the workday
+(`focus.workday_ends`), or until you end it. Noon and the workday's end are
+offered while they are still ahead. The picker also takes `45m`, `3h` or
+`16:30` typed. While a focus runs, the right end of the status line says
+until when; a click there, or `zf` again, changes it, and offers End focus
+first. From the command line: `focus-mode [mode] [span]`, with the spans
+`90m`, `2h`, `17:00`, `noon`, `workday`, `today` (until midnight) and
+`forever`, and `focus-mode off` (Mailbox ▸ End Focus).
+
+What a focus holds back is its mode's to say (`focus.modes`, see
+[Global settings](#global-settings)):
+
+| Key | Values | Meaning |
+|-----|--------|---------|
+| `notify` | `off`, `on`, or an interval such as `30m` | New mail is held until the focus ends, announced as always, or held and announced together every interval |
+| `badge` | `off`, `exceptions`, `on` | The Dock shows nothing, only a count of what breaks the focus, or what it always shows |
+| `chat` | `off`, `mentions`, `on` | Chat threads are held, announced only when they name you, or announced as always |
+
+A key left out holds: `notify: off`, `badge: exceptions`, `chat: off`. A
+focus starts in the first mode, or the one `focus.default` names; the picker
+lists the others, and `focus-mode batched 1h` names one.
+
+Mail that matches a [highlight rule](#highlight-rules) with
+`breaks_focus: true` is announced at once in every mode. With
+`badge: exceptions` the Dock counts the unread mail in the inboxes that
+matches such a rule, and with `chat.badge` the chat threads the mode would
+announce. Task reminders, a message the server refused and a failed task
+export are always announced.
+
+What was held is announced when the focus ends or the mode's interval comes
+round, as it would have been: per account, and without the mail read and the
+threads answered meanwhile. What was held when Orb quit is not announced
+after the next launch. A focus outlives a restart. Chat rooms keep their own
+[mutes](#muting-a-room).
 
 ## Tasks
 
