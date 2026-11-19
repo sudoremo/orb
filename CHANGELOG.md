@@ -54,7 +54,7 @@ The first release.
 - Two looks, Hybrid and Terminal.
 - A focus (`zf`) holds back the notifications and the Dock badge for a while,
   in modes the config defines; mail a highlight rule marks with
-  `breaks_focus` and chat rooms marked the same way still get through, and
-  what was held is announced afterwards.
+  `breaks_focus`, and chat rooms and people marked the same way, still get
+  through, and what was held is announced afterwards.
 - An iPhone app for the tasks that shares the IMAP folder, with widgets, a
   share extension and reminders as notifications.

@@ -5722,15 +5722,13 @@ impl OrbHandle {
         admitted
     }
 
-    /// Whether the config lets the room's threads through a focus
-    /// (`chat.rooms.<name>.breaks_focus`).
-    fn chat_room_breaks_focus(&self, room: &crate::chat::ChatRoom) -> bool {
-        let config = self.config();
-        config
+    /// Whether the config lets the thread through a focus whatever its mode
+    /// ([`config::ChatConfig::breaks_focus`]).
+    fn chat_breaks_focus(&self, thread: &crate::chat::WaitingThread) -> bool {
+        self.config()
             .chat
             .as_ref()
-            .zip(room.name.as_deref())
-            .is_some_and(|(chat, name)| chat.room(name).breaks_focus)
+            .is_some_and(|chat| chat.breaks_focus(thread))
     }
 
     /// Of the chat threads that started waiting, what is announced now; the
@@ -5748,9 +5746,9 @@ impl OrbHandle {
                 return threads;
             }
         };
-        let (admitted, kept): (Vec<_>, Vec<_>) = threads.into_iter().partition(|thread| {
-            mode.admits_chat(thread.mention, self.chat_room_breaks_focus(&thread.room))
-        });
+        let (admitted, kept): (Vec<_>, Vec<_>) = threads
+            .into_iter()
+            .partition(|thread| mode.admits_chat(thread.mention, self.chat_breaks_focus(thread)));
         if !kept.is_empty() {
             let mut held = self.focus_held();
             held.follow(&session, now_ms);
@@ -5783,11 +5781,7 @@ impl OrbHandle {
                         waiting
                             .iter()
                             .filter(|w| {
-                                !w.muted
-                                    && mode.admits_chat(
-                                        w.mention,
-                                        self.chat_room_breaks_focus(&w.room),
-                                    )
+                                !w.muted && mode.admits_chat(w.mention, self.chat_breaks_focus(w))
                             })
                             .count() as u32
                     });
@@ -11891,7 +11885,8 @@ mod task_tests {
     }
 
     /// A thread waiting in a room, as far as a focus looks at it.
-    fn waiting_in(kind: &str, name: &str, mention: bool) -> crate::chat::WaitingThread {
+    fn waiting_in(kind: &str, name: &str, mentioned_by: &[&str]) -> crate::chat::WaitingThread {
+        let mention = !mentioned_by.is_empty();
         serde_json::from_value(serde_json::json!({
             "rid": format!("r-{name}"), "thread": "", "title": null, "replies": 0,
             "room": {
@@ -11899,41 +11894,56 @@ mod task_tests {
                 "label": name, "unread": 1, "mentions": 0,
             },
             "author": "Anna", "preview": "Hello", "newest_at": 2, "waiting_since": 1,
-            "mention": mention, "unread": true, "files": false, "task": false,
+            "mention": mention, "mentioned_by": mentioned_by, "unread": true, "files": false, "task": false,
             "waits": true, "mine_last": false,
         }))
         .expect("a waiting thread")
     }
 
     /// A deep focus holds every chat thread but those of a room the config
-    /// lets through, whether or not they name the user.
+    /// lets through, a direct message with a person it lets through, and a
+    /// thread in which that person names the user.
     #[test]
-    fn a_room_that_breaks_focus_is_announced_in_every_mode() {
+    fn rooms_and_people_that_break_focus_are_announced_in_every_mode() {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut config = task_config(&dir);
         config.chat = Some(
             serde_saphyr::from_str(
-                "server: https://chat.example.com\nrooms:\n  anna: { breaks_focus: true }\n",
+                "server: https://chat.example.com\nrooms:\n  incidents: { breaks_focus: true }\n\
+                 people:\n  anna: { breaks_focus: true }\n",
             )
             .expect("chat config"),
         );
         let orb = handle(config);
         let threads = || {
             vec![
-                waiting_in("d", "anna", false),
-                waiting_in("d", "ben", false),
-                waiting_in("c", "general", true),
+                waiting_in("c", "incidents", &[]),
+                waiting_in("d", "anna", &[]),
+                waiting_in("d", "ben", &[]),
+                // Anna writes here without naming the user: held.
+                waiting_in("c", "general", &[]),
+                waiting_in("c", "design", &["ben"]),
+                waiting_in("c", "release", &["ben", "anna"]),
+                // A group message is not hers alone, and a channel named as she is, is not her.
+                waiting_in("d", "anna,ben", &[]),
+                waiting_in("c", "anna", &[]),
             ]
         };
         let rooms = |admitted: Vec<crate::chat::WaitingThread>| -> Vec<String> {
             admitted.into_iter().map(|t| t.room.label).collect()
         };
-        assert_eq!(rooms(orb.focus_admit_chat(threads())).len(), 3);
+        assert_eq!(rooms(orb.focus_admit_chat(threads())).len(), 8);
 
         orb.focus_start(Some("deep".to_string()), None).unwrap();
-        assert_eq!(rooms(orb.focus_admit_chat(threads())), ["anna"]);
+        assert_eq!(
+            rooms(orb.focus_admit_chat(threads())),
+            ["incidents", "anna", "release"]
+        );
         orb.focus_start(Some("batched".to_string()), None).unwrap();
-        assert_eq!(rooms(orb.focus_admit_chat(threads())), ["anna", "general"]);
+        assert_eq!(
+            rooms(orb.focus_admit_chat(threads())),
+            ["incidents", "anna", "design", "release"]
+        );
     }
 
     /// A focus ended by another Orb on the database lets go here too.

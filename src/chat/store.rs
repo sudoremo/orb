@@ -643,6 +643,9 @@ pub struct WaitingThread {
     pub waiting_since: i64,
     /// Whether a message since then names the user.
     pub mention: bool,
+    /// The usernames of those whose messages since then name the user.
+    #[serde(default)]
+    pub mentioned_by: Vec<String>,
     /// Whether the room is muted and no message since then names the user
     /// or calls the room: the thread waits, but only its room shows it.
     #[serde(default)]
@@ -789,12 +792,13 @@ fn thread_rows(
         newest_at: i64,
         since: Option<i64>,
         mention: bool,
+        mentioned_by: Vec<String>,
         called: Option<i64>,
         newest_files: bool,
     }
     let mut stmt = conn.prepare(
         "SELECT m.id, m.rid, m.tmid, m.tcount, m.author_id, m.ts, m.mentions_me, m.files,
-            m.mentions_all
+            m.mentions_all, m.author_username
          FROM chat_messages m JOIN chat_rooms r ON r.rid = m.rid AND r.subscribed = 1
          WHERE m.system_type IS NULL AND m.ts >= ?1 AND (?2 IS NULL OR m.rid = ?2)
          ORDER BY m.ts",
@@ -817,6 +821,7 @@ fn thread_rows(
         let mentions_me: bool = row.get(6)?;
         let files: Option<String> = row.get(7)?;
         let mentions_all: bool = row.get(8)?;
+        let author: Option<String> = row.get(9)?;
         let key = (rid, thread);
         // A mark answers the thread as the user's own message would.
         let answered = mine || marks.get(&key).is_some_and(|&at| ts <= at);
@@ -826,6 +831,7 @@ fn thread_rows(
             newest_at: 0,
             since: None,
             mention: false,
+            mentioned_by: Vec::new(),
             called: None,
             newest_files: false,
         });
@@ -836,10 +842,14 @@ fn thread_rows(
         if answered {
             acc.since = None;
             acc.mention = false;
+            acc.mentioned_by.clear();
             acc.called = None;
         } else {
             acc.since.get_or_insert(ts);
             acc.mention |= mentions_me;
+            if let Some(author) = author.filter(|a| mentions_me && !acc.mentioned_by.contains(a)) {
+                acc.mentioned_by.push(author);
+            }
             if mentions_me || mentions_all {
                 acc.called.get_or_insert(ts);
             }
@@ -894,6 +904,7 @@ fn thread_rows(
             newest_at: acc.newest_at,
             waiting_since: acc.since.unwrap_or(acc.newest_at),
             mention: acc.mention,
+            mentioned_by: acc.mentioned_by,
             muted: room.muted && acc.called.is_none(),
             called_since: acc.called,
             unread: waits && seen_at.is_none_or(|at| at < acc.newest_at),
@@ -1627,6 +1638,26 @@ mod tests {
             },
         );
         assert!(waiting(&conn, ME, 0, &|_| true).unwrap()[0].mention);
+    }
+
+    /// Who named the user since the thread started waiting, each once, and
+    /// nobody whose mention the user has answered.
+    #[test]
+    fn those_who_named_me_since_my_last_message_are_listed() {
+        let conn = db();
+        room(&conn, "r", "c", "dev");
+        let naming = |id, author, ts| Msg {
+            mentions_me: true,
+            ..plain(id, "r", author, ts)
+        };
+        msg(&conn, naming("1", "lukas", 10));
+        msg(&conn, plain("2", "r", ME, 20));
+        msg(&conn, plain("3", "r", "lukas", 30));
+        msg(&conn, naming("4", "sara", 40));
+        msg(&conn, naming("5", "sara", 50));
+        msg(&conn, naming("6", "anna", 60));
+        let rows = waiting(&conn, ME, 0, &|_| true).unwrap();
+        assert_eq!(rows[0].mentioned_by, ["sara", "anna"]);
     }
 
     #[test]

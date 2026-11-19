@@ -762,7 +762,9 @@ chat:
   rooms:                             # per room, by its name in the server's addresses
     general: { waiting: false }      # never in Waiting; still read and counted
     support: { notify: false }       # waits, without a notification
-    anna: { breaks_focus: true }     # announced during a focus; a direct message goes by the person's username
+    incidents: { breaks_focus: true } # every thread of the room is announced during a focus
+  people:                            # per person, by username
+    anna: { breaks_focus: true }     # gets through a focus: a direct message, and a message that names you in any room
   reactions: [":+1:", ":heart:", ":joy:", ":tada:", ":eyes:"]   # offered on a message, in this order
   links:                             # text in a message that becomes a link
     - { pattern: '#(\d+)', url: 'https://tracker.example.com/issues/$1' }
@@ -1933,9 +1935,11 @@ Mail that matches a [highlight rule](#highlight-rules) with
 `breaks_focus: true` is announced at once in every mode. With
 `badge: exceptions` the Dock counts the unread mail in the inboxes that
 matches such a rule, and with `chat.badge` the chat threads the mode would
-announce. A chat room with `breaks_focus: true` under `chat.rooms` is
-announced in every mode as well: a direct message by the other person's
-username, a channel by its name (see [Configuring chat](#configuring-chat)).
+announce. In chat, `breaks_focus: true` lets a room or a person through in
+every mode (see [Configuring chat](#configuring-chat)): under `chat.rooms`,
+every thread of the room; under `chat.people`, the person's direct messages
+and, in any room, a thread in which they name you. What they write elsewhere
+without naming you is held like the rest.
 Task reminders, a message the server refused and a failed task export are
 always announced.
 

@@ -84,6 +84,7 @@ fn orb_in(server: &RocketChat, user: &TestUser, dir: tempfile::TempDir) -> Orb {
         token_command: Some(format!("echo {} {}", user.id, user.token)),
         waiting_days: 14,
         rooms: HashMap::new(),
+        people: HashMap::new(),
         reactions: vec![":+1:".into()],
         links: Vec::new(),
         badge: false,

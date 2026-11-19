@@ -437,6 +437,9 @@ pub struct ChatConfig {
     /// address (`general`, not `#general`).
     #[serde(default)]
     pub rooms: HashMap<String, ChatRoomConfig>,
+    /// Settings per person, by username.
+    #[serde(default)]
+    pub people: HashMap<String, ChatPersonConfig>,
     /// The reactions offered on a message, as Rocket.Chat's shortcodes, in
     /// the order offered.
     #[serde(default = "default_chat_reactions")]
@@ -500,6 +503,17 @@ pub struct ChatRoomConfig {
     pub breaks_focus: bool,
 }
 
+/// What one person's messages do in Orb.
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ChatPersonConfig {
+    /// Whether the person gets through a focus, whatever its mode says of
+    /// chat: with a direct message, and in any room with a message that
+    /// names the user (default false).
+    #[serde(default)]
+    pub breaks_focus: bool,
+}
+
 impl Default for ChatRoomConfig {
     fn default() -> Self {
         Self {
@@ -519,6 +533,20 @@ impl ChatConfig {
     /// does not mention.
     pub fn room(&self, name: &str) -> ChatRoomConfig {
         self.rooms.get(name).copied().unwrap_or_default()
+    }
+
+    /// Whether a waiting thread is announced during a focus whatever its
+    /// mode: one in a room with `breaks_focus`, a direct message with a
+    /// person with `breaks_focus`, or one in which such a person names the
+    /// user.
+    pub fn breaks_focus(&self, thread: &crate::chat::WaitingThread) -> bool {
+        let room = thread.room.name.as_deref();
+        if room.is_some_and(|name| self.room(name).breaks_focus) {
+            return true;
+        }
+        let breaks = |username: &str| self.people.get(username).is_some_and(|p| p.breaks_focus);
+        (thread.room.kind == "d" && room.is_some_and(breaks))
+            || thread.mentioned_by.iter().any(|username| breaks(username))
     }
 
     /// The user id and token `token_command` prints.
