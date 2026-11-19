@@ -762,6 +762,7 @@ chat:
   rooms:                             # per room, by its name in the server's addresses
     general: { waiting: false }      # never in Waiting; still read and counted
     support: { notify: false }       # waits, without a notification
+    anna: { breaks_focus: true }     # announced during a focus; a direct message goes by the person's username
   reactions: [":+1:", ":heart:", ":joy:", ":tada:", ":eyes:"]   # offered on a message, in this order
   links:                             # text in a message that becomes a link
     - { pattern: '#(\d+)', url: 'https://tracker.example.com/issues/$1' }
@@ -1932,8 +1933,11 @@ Mail that matches a [highlight rule](#highlight-rules) with
 `breaks_focus: true` is announced at once in every mode. With
 `badge: exceptions` the Dock counts the unread mail in the inboxes that
 matches such a rule, and with `chat.badge` the chat threads the mode would
-announce. Task reminders, a message the server refused and a failed task
-export are always announced.
+announce. A chat room with `breaks_focus: true` under `chat.rooms` is
+announced in every mode as well: a direct message by the other person's
+username, a channel by its name (see [Configuring chat](#configuring-chat)).
+Task reminders, a message the server refused and a failed task export are
+always announced.
 
 What was held is announced when the focus ends or the mode's interval comes
 round, as it would have been: per account, and without the mail read and the

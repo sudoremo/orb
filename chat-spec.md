@@ -231,7 +231,8 @@ phone go on as before.
 
 A focus (README, "Focus") decides which of the threads that start waiting
 (§10) are announced as they do: all of them when its mode says `chat: on`,
-those that name the user for `mentions`, none for `off`.
+those that name the user for `mentions`, none for `off`. The threads of a
+room with `rooms.<name>.breaks_focus` are announced in every mode.
 
 - A thread held back is announced when the focus ends, or when the mode's
   interval comes round, if it still waits and its room is not muted (§13).

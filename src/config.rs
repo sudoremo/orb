@@ -494,6 +494,10 @@ pub struct ChatRoomConfig {
     /// Whether a thread starting to wait in the room notifies (default true).
     #[serde(default = "default_true")]
     pub notify: bool,
+    /// Whether the room's threads are announced during a focus, whatever its
+    /// mode says of chat (default false).
+    #[serde(default)]
+    pub breaks_focus: bool,
 }
 
 impl Default for ChatRoomConfig {
@@ -501,6 +505,7 @@ impl Default for ChatRoomConfig {
         Self {
             waiting: true,
             notify: true,
+            breaks_focus: false,
         }
     }
 }

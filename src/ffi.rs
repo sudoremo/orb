@@ -5722,6 +5722,17 @@ impl OrbHandle {
         admitted
     }
 
+    /// Whether the config lets the room's threads through a focus
+    /// (`chat.rooms.<name>.breaks_focus`).
+    fn chat_room_breaks_focus(&self, room: &crate::chat::ChatRoom) -> bool {
+        let config = self.config();
+        config
+            .chat
+            .as_ref()
+            .zip(room.name.as_deref())
+            .is_some_and(|(chat, name)| chat.room(name).breaks_focus)
+    }
+
     /// Of the chat threads that started waiting, what is announced now; the
     /// rest is held until the focus lets it go.
     pub fn focus_admit_chat(
@@ -5737,9 +5748,9 @@ impl OrbHandle {
                 return threads;
             }
         };
-        let (admitted, kept): (Vec<_>, Vec<_>) = threads
-            .into_iter()
-            .partition(|thread| mode.admits_chat(thread.mention));
+        let (admitted, kept): (Vec<_>, Vec<_>) = threads.into_iter().partition(|thread| {
+            mode.admits_chat(thread.mention, self.chat_room_breaks_focus(&thread.room))
+        });
         if !kept.is_empty() {
             let mut held = self.focus_held();
             held.follow(&session, now_ms);
@@ -5771,7 +5782,13 @@ impl OrbHandle {
                     .map_or(0, |waiting| {
                         waiting
                             .iter()
-                            .filter(|w| !w.muted && mode.admits_chat(w.mention))
+                            .filter(|w| {
+                                !w.muted
+                                    && mode.admits_chat(
+                                        w.mention,
+                                        self.chat_room_breaks_focus(&w.room),
+                                    )
+                            })
                             .count() as u32
                     });
                 Some(mail + chat)
@@ -11871,6 +11888,52 @@ mod task_tests {
         // Its time is up, and no tick has seen that yet.
         orb.focus_start_at(None, None, now + 600_001).unwrap();
         assert_eq!(subjects(&orb.focus_stop().unwrap().mail), ["Lunch?"]);
+    }
+
+    /// A thread waiting in a room, as far as a focus looks at it.
+    fn waiting_in(kind: &str, name: &str, mention: bool) -> crate::chat::WaitingThread {
+        serde_json::from_value(serde_json::json!({
+            "rid": format!("r-{name}"), "thread": "", "title": null, "replies": 0,
+            "room": {
+                "rid": format!("r-{name}"), "kind": kind, "name": name, "fname": null,
+                "label": name, "unread": 1, "mentions": 0,
+            },
+            "author": "Anna", "preview": "Hello", "newest_at": 2, "waiting_since": 1,
+            "mention": mention, "unread": true, "files": false, "task": false,
+            "waits": true, "mine_last": false,
+        }))
+        .expect("a waiting thread")
+    }
+
+    /// A deep focus holds every chat thread but those of a room the config
+    /// lets through, whether or not they name the user.
+    #[test]
+    fn a_room_that_breaks_focus_is_announced_in_every_mode() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut config = task_config(&dir);
+        config.chat = Some(
+            serde_saphyr::from_str(
+                "server: https://chat.example.com\nrooms:\n  anna: { breaks_focus: true }\n",
+            )
+            .expect("chat config"),
+        );
+        let orb = handle(config);
+        let threads = || {
+            vec![
+                waiting_in("d", "anna", false),
+                waiting_in("d", "ben", false),
+                waiting_in("c", "general", true),
+            ]
+        };
+        let rooms = |admitted: Vec<crate::chat::WaitingThread>| -> Vec<String> {
+            admitted.into_iter().map(|t| t.room.label).collect()
+        };
+        assert_eq!(rooms(orb.focus_admit_chat(threads())).len(), 3);
+
+        orb.focus_start(Some("deep".to_string()), None).unwrap();
+        assert_eq!(rooms(orb.focus_admit_chat(threads())), ["anna"]);
+        orb.focus_start(Some("batched".to_string()), None).unwrap();
+        assert_eq!(rooms(orb.focus_admit_chat(threads())), ["anna", "general"]);
     }
 
     /// A focus ended by another Orb on the database lets go here too.

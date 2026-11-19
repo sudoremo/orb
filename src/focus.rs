@@ -77,13 +77,16 @@ impl FocusMode {
         format!("{notify} · {badge} · {chat}")
     }
 
-    /// Whether a chat thread is announced as it starts waiting.
-    pub fn admits_chat(&self, mention: bool) -> bool {
-        match self.chat {
-            FocusChat::On => true,
-            FocusChat::Mentions => mention,
-            FocusChat::Off => false,
-        }
+    /// Whether a chat thread is announced as it starts waiting: always in a
+    /// room the config lets through (`chat.rooms.<name>.breaks_focus`), and
+    /// otherwise as the mode says.
+    pub fn admits_chat(&self, mention: bool, room_breaks_focus: bool) -> bool {
+        room_breaks_focus
+            || match self.chat {
+                FocusChat::On => true,
+                FocusChat::Mentions => mention,
+                FocusChat::Off => false,
+            }
     }
 }
 
@@ -609,10 +612,12 @@ mod tests {
             chat,
             ..builtin_modes().remove(0)
         };
-        assert!(mode(FocusChat::On).admits_chat(false));
-        assert!(mode(FocusChat::Mentions).admits_chat(true));
-        assert!(!mode(FocusChat::Mentions).admits_chat(false));
-        assert!(!mode(FocusChat::Off).admits_chat(true));
+        assert!(mode(FocusChat::On).admits_chat(false, false));
+        assert!(mode(FocusChat::Mentions).admits_chat(true, false));
+        assert!(!mode(FocusChat::Mentions).admits_chat(false, false));
+        assert!(!mode(FocusChat::Off).admits_chat(true, false));
+        // A room the config lets through is announced in every mode.
+        assert!(mode(FocusChat::Off).admits_chat(false, true));
     }
 
     #[test]
