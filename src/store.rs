@@ -4008,12 +4008,11 @@ impl Store {
                 .acquire(&account.name, "body backfill")
                 .await?;
 
-            // Writes go through the write lock, like every other body write.
-            let guard = self.write_lock.lock().await;
             let db = self.reader()?;
             let report = match fetch_bodies_for_folder(
                 &mut client,
                 &db,
+                &self.write_lock,
                 folder_name,
                 &pending,
                 BODY_BATCH_SIZE,
@@ -4040,6 +4039,7 @@ impl Store {
                     fetch_bodies_for_folder(
                         &mut client,
                         &db,
+                        &self.write_lock,
                         folder_name,
                         &pending,
                         BODY_BATCH_SIZE,
@@ -4048,7 +4048,6 @@ impl Store {
                 }
                 Err(error) => return Err(error),
             };
-            drop(guard);
 
             self.connection_pool.release(&account.name, client).await;
 

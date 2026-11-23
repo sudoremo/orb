@@ -253,6 +253,53 @@ async fn a_flag_set_while_offline_is_kept_locally_and_reaches_the_server_later()
     println!("{}", trace::report());
 }
 
+/// A write the user makes while the body backfill waits on a server that has
+/// stopped answering is made at once: the backfill holds the write lock for
+/// what it stores, never for what it fetches.
+#[tokio::test]
+#[ignore = "requires Docker"]
+async fn a_write_is_made_at_once_while_the_body_backfill_waits_on_the_server() {
+    let setup = setup(200).await;
+    let store = store(&setup.config);
+    let (first, _) = bounded_sync(&store, "INBOX").await;
+    assert_eq!(first.messages_added, 200, "{:?}", first.errors);
+    let folders = vec!["INBOX".to_string()];
+    while store
+        .fetch_pending_shapes("Test", &folders, 500)
+        .await
+        .expect("shapes")
+        > 0
+    {}
+    let (pending, _) = store.body_backfill_progress().expect("progress");
+    assert!(pending > 0, "the backfill needs bodies left to fetch");
+
+    setup.proxy.freeze_all().await;
+    // On this task rather than a spawned one: the pass is not `Send`.
+    let backfill = store.fetch_pending_bodies("Test", &folders, 500, None);
+    tokio::pin!(backfill);
+    tokio::select! {
+        ended = &mut backfill => panic!("the backfill should be waiting on the frozen connection: {ended:?}"),
+        _ = tokio::time::sleep(Duration::from_secs(2)) => {}
+    }
+
+    let started = Instant::now();
+    let write = timeout(
+        Duration::from_secs(5),
+        store.queue_read_status("Test", "INBOX", &[1], true),
+    );
+    let changed = tokio::select! {
+        ended = &mut backfill => panic!("the backfill should be waiting on the frozen connection: {ended:?}"),
+        written = write => written
+            .expect("marking read must not wait for the backfill's fetch")
+            .expect("marking read"),
+    };
+    println!(
+        "mark-read beside a stalled backfill: {:?}",
+        started.elapsed()
+    );
+    assert_eq!(changed, vec![1]);
+}
+
 #[tokio::test]
 #[ignore = "requires Docker"]
 async fn a_no_from_select_ends_at_once_with_a_visible_error() {

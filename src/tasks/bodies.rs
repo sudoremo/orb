@@ -76,9 +76,13 @@ pub fn batches(uids: &[u32], size: usize) -> Vec<Vec<u32>> {
 /// are counted as missing rather than retried forever; they are left pending and
 /// a later pass will try again, which is the right behaviour for a transient
 /// server error and harmless for a genuinely bodyless message.
+///
+/// `write_lock` is held for storing each batch and never while the server is
+/// asked: a write the user makes must not wait for the network.
 pub async fn fetch_bodies_for_folder(
     client: &mut ImapClient,
     db: &Database,
+    write_lock: &tokio::sync::Mutex<()>,
     folder: &str,
     pending: &[PendingBody],
     batch_size: usize,
@@ -96,6 +100,7 @@ pub async fn fetch_bodies_for_folder(
         for chunk in batches(&uids, batch_size) {
             let fetched = client.fetch_parts(&chunk, part).await?;
 
+            let _guard = write_lock.lock().await;
             for uid in &chunk {
                 let Some(&message_id) = by_uid.get(uid) else {
                     continue;
