@@ -1002,6 +1002,27 @@ test("the reader follows the thread clicked, after the one it showed left Waitin
   await page.evaluate(() => localStorage.clear());
 });
 
+test("the thread clicked shows what was written in it while the cursor was on mail", async ({ page }) => {
+  await openMixed(page);
+  for (let i = 0; i < 4; i++) await page.keyboard.press("j");
+  await expect(page.locator("#reader")).toContainText("Can you have a quick look at the PR?");
+
+  // The cursor goes to a mail, and the thread it left gets another message.
+  await page.locator("#list .rows .row:not(.chat-row):not(.reading-row)").first().click();
+  await expect(page.locator("#reader .cv-t")).toHaveCount(0);
+  await page.evaluate(async () => {
+    await (window as any).__TAURI_INTERNALS__.invoke("chat_receive", { rid: "r-lukas", thread: "", text: "Never mind, it is green again." });
+    (window as any).__emit("chat-changed", null);
+  });
+  const row = page.locator("#list .rows .row.chat-row", { hasText: "Never mind, it is green again." });
+  await expect(row).toBeVisible();
+
+  // The reader shows the message the row shows, not the thread as it was read.
+  await row.click();
+  await expect(page.locator("#reader .cv-msgs")).toContainText("Never mind, it is green again.");
+  await page.evaluate(() => localStorage.clear());
+});
+
 test("the filter narrows every kind in Today, and is:chat keeps the threads alone", async ({ page }) => {
   await openMixed(page);
   const filter = async (text: string) => {

@@ -493,7 +493,8 @@
             case "chat_conversation": {
               const key = `${args.rid}\u0000${args.thread}`;
               const row = CHAT_ROWS.find((r) => `${r.rid}\u0000${r.thread}` === key);
-              const messages = CHAT_MESSAGES[key] ?? [];
+              // A copy, as the core answers: what arrives later is not in it.
+              const messages = [...(CHAT_MESSAGES[key] ?? [])];
               const theRoom = row?.room ?? CHAT_ROOMS.find((r) => r.rid === args.rid);
               return theRoom && {
                 rid: args.rid, thread: args.thread, room: theRoom, title: row?.title ?? null, messages,
@@ -616,6 +617,14 @@
               const key = `${args.rid}\u0000${args.thread}`;
               (CHAT_MESSAGES[key] ??= []).push(message(`sent-${Date.now()}`, args.rid, args.thread || null, "Sam Taylor", 13, 0, args.text));
               CHAT_DONE.set(key, true);
+              return null;
+            }
+            // Not a command of the app: somebody else writes, as a test asks.
+            case "chat_receive": {
+              const key = `${args.rid}\u0000${args.thread}`;
+              const row = CHAT_ROWS.find((r) => `${r.rid}\u0000${r.thread}` === key);
+              (CHAT_MESSAGES[key] ??= []).push(message(`received-${Date.now()}`, args.rid, args.thread || null, row?.author ?? "Lukas Meier", 13, 30, args.text));
+              if (row) Object.assign(row, { preview: args.text, newest_at: at(13, 30), unread: true });
               return null;
             }
             case "chat_mark_seen": {

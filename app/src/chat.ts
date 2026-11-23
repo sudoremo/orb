@@ -555,7 +555,12 @@ export async function refreshChat(): Promise<void> {
     if (todayMixed()) await (await import("./mixed")).placeTimeline();
     paintChatSection();
   }
-  if (!chatActive()) return;
+  if (!chatActive()) {
+    // Nobody is looking at the thread the reader last held, and it may be
+    // what just changed: coming back to it reads it again.
+    state.chat.conversation = null;
+    return;
+  }
   if (inChatView()) renderList();
   await followChatCursor();
 }
