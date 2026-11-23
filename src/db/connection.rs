@@ -887,6 +887,18 @@ const UNREAD_MESSAGE_LIST: &str = "
     WHERE folder_id = ?1 AND (flags IS NULL OR flags NOT LIKE '%Seen%')
     ORDER BY date_unix DESC";
 
+/// [`UNREAD_MESSAGE_LIST`] without the messages that have no header stored
+/// beyond the envelope: none the sync recorded, and no source.
+const UNREAD_MESSAGE_LIST_WITH_HEADERS: &str = "
+    SELECT id, folder_id, uid, message_id, subject, from_addr, to_addr, cc_addr,
+           date, size, flags, modseq
+    FROM messages INDEXED BY idx_messages_folder_flags
+    WHERE folder_id = ?1 AND (flags IS NULL OR flags NOT LIKE '%Seen%')
+      AND (list_id IS NOT NULL OR extra_headers IS NOT NULL
+           OR EXISTS (SELECT 1 FROM message_bodies b
+                      WHERE b.message_id = messages.id AND length(b.rfc822) > 0))
+    ORDER BY date_unix DESC";
+
 pub struct Database {
     pub(crate) conn: Connection,
 }
@@ -4062,7 +4074,18 @@ impl Database {
     /// Every unread message of a folder, newest first: what the sidebar's
     /// highlight badges count over, since only unread mail is counted.
     pub fn unread_message_list(&self, folder_id: i64) -> Result<Vec<MessageListItem>> {
-        let mut stmt = self.conn.prepare(UNREAD_MESSAGE_LIST)?;
+        self.unread_messages(UNREAD_MESSAGE_LIST, folder_id)
+    }
+
+    /// The unread messages of a folder that have a header stored beyond the
+    /// envelope, newest first: the only ones a rule that asks for a header
+    /// can match, and on a folder of unread mail a fraction of it.
+    pub fn unread_message_list_with_headers(&self, folder_id: i64) -> Result<Vec<MessageListItem>> {
+        self.unread_messages(UNREAD_MESSAGE_LIST_WITH_HEADERS, folder_id)
+    }
+
+    fn unread_messages(&self, sql: &str, folder_id: i64) -> Result<Vec<MessageListItem>> {
+        let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt.query_map(params![folder_id], |row| {
             let flags_str = row.get::<_, Option<String>>(10)?.unwrap_or_default();
             let flags: Vec<String> = serde_json::from_str(&flags_str).unwrap_or_else(|_| {

@@ -230,37 +230,37 @@ impl Store {
     }
 
     /// For every rule with `sidebar_badge`, how many unread messages of each
-    /// folder it matches. Only the unread mail is looked at, which keeps this
-    /// affordable on every redraw of the sidebar.
+    /// folder it matches. Only those rules are evaluated, over the unread
+    /// mail, and where they all ask for a header, over the unread mail that
+    /// has one stored: this runs on every redraw of the sidebar.
     pub fn highlight_badges(&self) -> Result<Vec<HighlightBadge>> {
-        let config = self.config();
-        if !config
-            .highlights
-            .rules
-            .iter()
-            .any(|rule| rule.style.sidebar_badge)
-        {
+        let set = self.config().highlights.badged();
+        if set.is_empty() {
             return Ok(Vec::new());
         }
+        let config = self.config();
         let db = self.reader()?;
         let mut badges = Vec::new();
         for account in &config.accounts {
-            let badged: Vec<&str> = config
-                .highlights
+            let badged: Vec<&str> = set
                 .for_account(&account.name)
                 .into_iter()
-                .filter(|rule| rule.style.sidebar_badge)
                 .map(|rule| rule.name.as_str())
                 .collect();
             if badged.is_empty() {
                 continue;
             }
+            let headers_only = set.all_require_a_header(&account.name);
             for folder in db.get_folders_by_account(&account.name)? {
                 let Some(folder_id) = folder.id else { continue };
-                let unread = db.unread_message_list(folder_id)?;
+                let unread = if headers_only {
+                    db.unread_message_list_with_headers(folder_id)?
+                } else {
+                    db.unread_message_list(folder_id)?
+                };
                 let mut counts: HashMap<&str, u32> = HashMap::new();
                 for names in self
-                    .highlights_for(&account.name, &folder.name, &unread)?
+                    .rules_matching(&set, &account.name, &folder.name, &unread)?
                     .values()
                 {
                     for name in names {
@@ -527,6 +527,92 @@ mod column_tests {
             std::collections::HashSet::from([ids[0], ids[3], ids[4]])
         );
         assert_eq!(store.focus_breaker_count().expect("count"), 1);
+    }
+
+    /// The sidebar counts the unread mail of the rules with `sidebar_badge`,
+    /// whether the header was recorded by the sync or is in a stored source,
+    /// and no other rule.
+    #[test]
+    fn badges_count_the_unread_mail_of_the_badged_rules() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("db.sqlite").to_str().unwrap().to_string();
+        let config: crate::Config = serde_saphyr::from_str(&format!(
+            "db_path: {db_path}\naccounts:\n  - name: A\n    imap_server: x\n    imap_port: 993\n    \
+             imap_username: u\n    from: a@x\nhighlights:\n  - name: Urgent\n    \
+             when: {{ header: {{ X-Severity: '1' }} }}\n    style: {{ sidebar_badge: true }}\n  \
+             - name: Unread\n    when: {{ unread: true }}\n    style: {{ bold: true }}\n"
+        ))
+        .expect("config");
+        assert!(config.highlights.badged().all_require_a_header("A"));
+        let store = Store::new(config).expect("store");
+        let mut db = store.writer().expect("writer");
+        let urgent_headers = || {
+            Some(ThreadHeaders {
+                extra: vec![("x-severity".to_string(), "1".to_string())],
+                ..ThreadHeaders::default()
+            })
+        };
+        let inbox = db.get_or_create_folder("A", "INBOX").expect("folder");
+        let mut recorded = Message::new(inbox, 1);
+        recorded.headers = urgent_headers();
+        let in_source = Message::new(inbox, 2);
+        let plain = Message::new(inbox, 3);
+        let mut read = Message::new(inbox, 4);
+        read.headers = urgent_headers();
+        read.flags = vec!["\\Seen".to_string()];
+        let ids: Vec<i64> = [&recorded, &in_source, &plain, &read]
+            .iter()
+            .map(|m| db.insert_message(m).expect("insert"))
+            .collect();
+        db.set_message_source(ids[1], b"Subject: Issue\r\nX-Severity: 1\r\n\r\nBody\r\n")
+            .expect("source");
+
+        let with_headers: Vec<i64> = db
+            .unread_message_list_with_headers(inbox)
+            .expect("list")
+            .iter()
+            .map(|item| item.id)
+            .collect();
+        assert_eq!(with_headers.len(), 2, "{with_headers:?}");
+        assert!(with_headers.contains(&ids[0]) && with_headers.contains(&ids[1]));
+
+        let badges = store.highlight_badges().expect("badges");
+        assert_eq!(badges.len(), 1, "{badges:?}");
+        assert_eq!(
+            (
+                badges[0].folder.as_str(),
+                badges[0].rule.as_str(),
+                badges[0].count
+            ),
+            ("INBOX", "Urgent", 2)
+        );
+    }
+
+    /// A badged rule that asks for no header is counted over all the unread
+    /// mail, also beside one that does.
+    #[test]
+    fn a_badged_rule_without_a_header_counts_mail_that_has_none() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("db.sqlite").to_str().unwrap().to_string();
+        let config: crate::Config = serde_saphyr::from_str(&format!(
+            "db_path: {db_path}\naccounts:\n  - name: A\n    imap_server: x\n    imap_port: 993\n    \
+             imap_username: u\n    from: a@x\nhighlights:\n  - name: Urgent\n    \
+             when: {{ header: {{ X-Severity: '1' }} }}\n    style: {{ sidebar_badge: true }}\n  \
+             - name: Builds\n    when: {{ subject: 'Build*' }}\n    style: {{ sidebar_badge: true }}\n"
+        ))
+        .expect("config");
+        assert!(!config.highlights.badged().all_require_a_header("A"));
+        let store = Store::new(config).expect("store");
+        let mut db = store.writer().expect("writer");
+        let inbox = db.get_or_create_folder("A", "INBOX").expect("folder");
+        let mut build = Message::new(inbox, 1);
+        build.subject = Some("Build failed".to_string());
+        db.insert_message(&build).expect("insert");
+        db.insert_message(&Message::new(inbox, 2)).expect("insert");
+
+        let badges = store.highlight_badges().expect("badges");
+        assert_eq!(badges.len(), 1, "{badges:?}");
+        assert_eq!((badges[0].rule.as_str(), badges[0].count), ("Builds", 1));
     }
 
     /// Without a rule that breaks a focus, nothing does.

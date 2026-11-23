@@ -31,6 +31,29 @@ const CONVERSATION_ROUNDS: usize = 4;
 /// Ids per statement, below what SQLite lets one bind.
 const KEY_CHUNK: usize = 400;
 
+/// The condition for the messages of an account that some identifier links
+/// to a conversation: by their own id, by the one they answer, or by their
+/// thread. Binds the account and then the identifiers, three times over.
+///
+/// Three lookups joined rather than one `OR`: asked in one condition, SQLite
+/// reads every message of the account to answer it, which takes seconds on a
+/// large one.
+fn linked_elsewhere(placeholders: &str) -> String {
+    let lookup = |column: &str| {
+        format!(
+            "SELECT id FROM messages
+             WHERE folder_id IN (SELECT id FROM folders WHERE account_name = ?)
+               AND {column} IN ({placeholders})"
+        )
+    };
+    format!(
+        "m.id IN ({} UNION {} UNION {})",
+        lookup("message_id"),
+        lookup("in_reply_to"),
+        lookup(THREAD_KEY)
+    )
+}
+
 /// A row of the threaded list: a thread, or a member of an expanded one.
 #[derive(Debug, Clone)]
 pub struct ThreadRow {
@@ -386,19 +409,10 @@ impl Store {
                 let placeholders = vec!["?"; chunk.len()].join(",");
                 // The first round is the thread here; the later ones follow
                 // the identifiers into the other folders.
-                // The later rounds are confined to the account's folders
-                // first, so each of the three lookups walks an index of
-                // those rows rather than the whole table.
                 let scope = if seed {
                     format!("m.folder_id = {folder_id} AND {M_THREAD_KEY} IN ({placeholders})")
                 } else {
-                    format!(
-                        "f.account_name = ?
-                         AND m.folder_id IN (SELECT id FROM folders WHERE account_name = ?)
-                         AND (m.message_id IN ({placeholders})
-                              OR m.in_reply_to IN ({placeholders})
-                              OR {M_THREAD_KEY} IN ({placeholders}))"
-                    )
+                    linked_elsewhere(&placeholders)
                 };
                 let mut stmt = db.conn.prepare(&format!(
                     "SELECT m.id, m.folder_id, m.uid, m.message_id, m.subject, m.from_addr,
@@ -408,12 +422,11 @@ impl Store {
                      WHERE {scope}"
                 ))?;
                 let mut parameters: Vec<rusqlite::types::Value> = Vec::new();
-                if !seed {
-                    parameters.push(account.clone().into());
-                    parameters.push(account.clone().into());
-                }
                 let repeats = if seed { 1 } else { 3 };
                 for _ in 0..repeats {
+                    if !seed {
+                        parameters.push(account.clone().into());
+                    }
                     parameters.extend(
                         chunk
                             .iter()
@@ -1146,6 +1159,36 @@ mod tests {
                 .unwrap(),
             vec![0, 3, 0]
         );
+    }
+
+    /// The lookup that follows a conversation into the other folders runs
+    /// on every conversation opened, over the whole account: it must be
+    /// answered from the indexes, never by reading the account's messages.
+    #[test]
+    fn a_conversation_s_links_elsewhere_are_found_by_index() {
+        let (_dir, store) = store_with(&[]);
+        let db = store.reader().unwrap();
+        let sql = format!(
+            "EXPLAIN QUERY PLAN SELECT m.id FROM messages m
+             JOIN folders f ON f.id = m.folder_id WHERE {}",
+            linked_elsewhere("?,?").replace('?', "'x'")
+        );
+        let mut stmt = db.conn.prepare(&sql).unwrap();
+        let plan = stmt
+            .query_map([], |row| row.get::<_, String>(3))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap()
+            .join("\n");
+        for index in [
+            "idx_messages_folder_message",
+            "idx_messages_folder_reply",
+            "idx_messages_folder_thread",
+        ] {
+            assert!(plan.contains(index), "{index} is not used:\n{plan}");
+        }
+        assert!(!plan.contains("idx_messages_folder_id"), "{plan}");
+        assert!(!plan.contains("SCAN"), "{plan}");
     }
 
     #[test]

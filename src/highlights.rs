@@ -84,6 +84,28 @@ impl HighlightSet {
         }
     }
 
+    /// The rules the sidebar counts unread mail for, and nothing else of the
+    /// set.
+    pub fn badged(&self) -> HighlightSet {
+        HighlightSet {
+            rules: self
+                .rules
+                .iter()
+                .filter(|rule| rule.style.sidebar_badge)
+                .cloned()
+                .collect(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// Whether every rule for `account` asks for a header beyond the
+    /// envelope, so that a message with none stored can match none of them.
+    pub fn all_require_a_header(&self, account: &str) -> bool {
+        self.for_account(account)
+            .iter()
+            .all(|rule| rule.when.requires_a_header())
+    }
+
     /// Every `body` text some rule looks for, lower-cased: what the store has
     /// to ask the database about before the rules can be evaluated.
     pub fn body_needles(&self) -> Vec<String> {
@@ -301,6 +323,13 @@ impl HighlightConditions {
 
     fn needs_headers(&self) -> bool {
         !self.base.header_names().is_empty() || self.any.iter().any(|one| one.needs_headers())
+    }
+
+    /// Whether a message has to carry a header beyond the envelope to match:
+    /// a header is asked for outright, or by every one of the alternatives.
+    fn requires_a_header(&self) -> bool {
+        !self.base.header_names().is_empty()
+            || (!self.any.is_empty() && self.any.iter().all(|one| one.requires_a_header()))
     }
 
     fn collect_header_names(&self, names: &mut Vec<String>) {
@@ -798,6 +827,44 @@ mod tests {
             set.matching("A", &read).is_empty(),
             "`unread` still has to hold"
         );
+    }
+
+    /// A rule needs a header to match when it asks for one outright or in
+    /// every alternative; one alternative without a header is a way to match
+    /// without any.
+    #[test]
+    fn a_rule_requires_a_header_only_when_no_alternative_does_without() {
+        let set = set("
+- name: Outright
+  when: { header: { X-Severity: '1' }, unread: true }
+  style: { sidebar_badge: true }
+- name: Every alternative
+  accounts: [B]
+  when:
+    any:
+      - list_id: '*'
+      - header: { X-Owner: 'me' }
+  style: { sidebar_badge: true }
+- name: One alternative without
+  accounts: [C]
+  when:
+    any:
+      - list_id: '*'
+      - subject: 'Build*'
+  style: { sidebar_badge: true }
+- name: Not badged
+  when: { subject: '*' }
+  style: { bold: true }
+");
+        assert!(
+            !set.all_require_a_header("A"),
+            "the unbadged rule asks for none"
+        );
+        let badged = set.badged();
+        assert_eq!(badged.rules.len(), 3);
+        assert!(badged.all_require_a_header("A"));
+        assert!(badged.all_require_a_header("B"));
+        assert!(!badged.all_require_a_header("C"));
     }
 
     #[test]
