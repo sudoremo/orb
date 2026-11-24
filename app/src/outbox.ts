@@ -4,7 +4,7 @@ import { escape, formatDate, icon, keyValue } from "./format";
 import { QueuedSend } from "./model";
 import { showPanel } from "./panels";
 import { renderFolders } from "./sidebar";
-import { el, state } from "./state";
+import { el, openPanel, state } from "./state";
 import { renderSteady } from "./statusline";
 
 const PANEL = "Outbox";
@@ -19,7 +19,7 @@ export async function refreshOutbox(): Promise<void> {
   state.outbox = (await call<QueuedSend[]>("outbox").catch(() => null)) ?? [];
   renderFolders();
   renderSteady();
-  if (state.info?.title === PANEL) showOutbox();
+  if (openPanel()?.title === PANEL) showOutbox();
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

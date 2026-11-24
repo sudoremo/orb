@@ -19,7 +19,7 @@ import { showTodaySection } from "./panes";
 import { syncSearchBox } from "./search";
 import { clearSelection } from "./selection";
 import { folderEntry, inTaskView, selectableFolders } from "./sidebar";
-import { state, todayHasMail } from "./state";
+import { openPanel, state, todayHasMail } from "./state";
 import { loadedIndexOf } from "./targets";
 import { TaskListView } from "./tasklist";
 import { keyFor, loadInboxes, openTaskView, previewTaskCursor } from "./taskview";
@@ -44,7 +44,7 @@ const MAX_ORIGINS = 100;
 
 /** Where the list is now, or null in a view `jump-back` could not return to. */
 function here(): Origin | null {
-  if (inChatView() || state.info) return null;
+  if (inChatView() || openPanel()) return null;
   const message = rowAt(state.messageCursor);
   return {
     view: state.tasks.view,

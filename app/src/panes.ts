@@ -9,14 +9,14 @@
  */
 
 import { chatActive, moveChatSectionCursor } from "./chat";
-import { cancelMarkRead, cursorMessageId, openMessage, previewCursor, scrollCursorIntoView, scrollTaskCursorIntoView } from "./actions";
+import { cancelMarkRead, cursorMessageId, followCursor, openMessage, previewCursor, scrollCursorIntoView, scrollTaskCursorIntoView } from "./actions";
 import { call, setStatus } from "./bridge";
 import { Direction } from "./keys";
 import { applyListSectionClass, render, renderRows } from "./list";
 import { applyMaximize } from "./maximize";
 import { hasMailHalf, renderFolders } from "./sidebar";
 import { moveReadingCursor } from "./reading";
-import { el, state } from "./state";
+import { el, openPanel, state } from "./state";
 import { canPutAway, firstSection, keepInToday, shownSections, todayKeeps, TodaySection } from "./today";
 import { renderToolbar } from "./toolbar";
 import { loadTaskDetail, previewTaskCursor, renderTaskList, todayColumns } from "./taskview";
@@ -150,7 +150,7 @@ export function setTodayKept(section: "mail" | "tasks", on = !todayKeeps(section
 async function enter(region: Region): Promise<void> {
   if (region === "reader") {
     state.focus = "reader";
-    if (state.info || chatActive()) return render();
+    if (openPanel() || chatActive()) return render();
     if (state.tasks.view && (!hasMailHalf() || state.tasks.section === "tasks")) {
       return loadTaskDetail(true);
     }
@@ -159,8 +159,12 @@ async function enter(region: Region): Promise<void> {
     return render();
   }
   if (region === "folders" || region === "list") {
+    const hadPanel = openPanel() !== null;
     state.focus = region;
-    return render();
+    render();
+    // The rows may have moved under the cursor while the panel had the reader.
+    if (hadPanel) followCursor();
+    return;
   }
   state.focus = "list";
   render();

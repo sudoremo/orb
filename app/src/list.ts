@@ -25,7 +25,7 @@ import { openReading, paintReadingRows, renderReadingSection, setTodayReadingSho
 import { renderReader } from "./reader";
 import { clearSelection, isSelected, reportSelection, selectRange } from "./selection";
 import { hasMailHalf, highlightLook, iconExists, inTaskView, renderFolders, selectableFolders, taskSectionActive } from "./sidebar";
-import { FETCH_DEBOUNCE, OVERSCAN, PAGE_PREFETCH, PAGE_RETENTION, PAGE_SIZE, ITEM, el, state } from "./state";
+import { FETCH_DEBOUNCE, OVERSCAN, PAGE_PREFETCH, PAGE_RETENTION, PAGE_SIZE, ITEM, el, openPanel, state } from "./state";
 import { canGroupByTag, chooseTodayAccount, dueFirst, dueFirstOn, dueNowCount, groupedByTag, setDueFirst, inboxFolders, keyFor, setGroupByTag, toggleSearchCompleted, scheduleTaskCounts, todayAccount, todayColumns, todayInboxes } from "./taskview";
 
 /**
@@ -1118,7 +1118,7 @@ function drawPane(kept: Scrolls): void {
   const view = state.tasks.view;
   const empty = emptyView();
   // The reader pane goes with an empty list, so the keyboard cannot stay in it.
-  if (empty && !state.info && state.focus === "reader") state.focus = "list";
+  if (empty && !openPanel() && state.focus === "reader") state.focus = "list";
   // …and a reader standing alone takes it from the list it hides.
   if (roomAlone() && state.focus === "list") state.focus = "reader";
   el.list.className =

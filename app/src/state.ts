@@ -137,7 +137,8 @@ export const state = {
    * A panel shown in the reader instead of a message: the sync statistics,
    * the staged actions, the account status, the keys. Either plain `text` or
    * `html` built here from escaped parts. Cleared by `back`, by `close` and
-   * by opening a message.
+   * by opening a message. Read through `openPanel`, never directly: a panel
+   * the keyboard has left is no longer one.
    */
   info: null as { title: string; text?: string; html?: string } | null,
   /**
@@ -483,3 +484,16 @@ export const el = {
   searchInput: document.getElementById("search-input") as HTMLInputElement,
   searchClear: document.getElementById("search-clear") as HTMLButtonElement,
 };
+
+/**
+ * The panel that has the reader, if one does.
+ *
+ * A panel has the reader while the reader has the keyboard. Once that is in
+ * the list or the sidebar the reader shows what the cursor is on again, so a
+ * panel never stays over a row it has nothing to do with — and one that could
+ * not be seen never keeps the reader from following the cursor.
+ */
+export function openPanel(): typeof state.info {
+  if (state.info && state.focus !== "reader") state.info = null;
+  return state.info;
+}

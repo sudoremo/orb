@@ -7,7 +7,7 @@ import { openPalette } from "./palette";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Vim } from "./vim";
 import { CHAT_COMMANDS, chatActive, inChatSection } from "./chat";
-import { advance, back, cancelMarkRead, currentFolder, readerHoldsCursor, showConversation, extendSelection, folderTotal, loadMessages, move, navigate, navigateTo, openMessage, openSelection, previewCursor, scrollCursorIntoView, scrollTaskCursorIntoView, toggleRead } from "./actions";
+import { advance, back, cancelMarkRead, currentFolder, followCursor, readerHoldsCursor, showConversation, extendSelection, folderTotal, loadMessages, move, navigate, navigateTo, openMessage, openSelection, previewCursor, scrollCursorIntoView, scrollTaskCursorIntoView, toggleRead } from "./actions";
 import { COLUMNS, chooseLook, currentLook, zoom } from "./appearance";
 import { runBackfill, setBackfillStopped } from "./backfill";
 import { Cancelled, askFirst, call, describeWrite, reportWrite, setStatus } from "./bridge";
@@ -38,7 +38,7 @@ import { focusSearch, renderSearchBox } from "./search";
 import { clearFilter, openFilter } from "./filter";
 import { clearSelection, reportSelection, selectionSize } from "./selection";
 import { hasMailHalf, highlightLook, openPin, pinLabel, showPinKeys, highlightMarks, inTaskSection, inTaskView, refreshFolders, refreshPendingCounts, renderFolders, selectableFolders, taskSectionActive, toggleFold, togglePin } from "./sidebar";
-import { ITEM, SearchKind, WINDOW, el, state, todayHasMail } from "./state";
+import { ITEM, SearchKind, WINDOW, el, openPanel, state, todayHasMail } from "./state";
 import { closeItemWindow } from "./itemwindow";
 import { describeCount, runSync, syncAll, syncCurrentFolder } from "./sync";
 import { toggleSortMenu, toggleTodayMenu } from "./toolbar";
@@ -102,14 +102,14 @@ const MAIL_COMMANDS: Record<string, Command> = {
     if (state.focus === "reader" && closeDrawer()) return;
     state.focus = state.focus === "reader" ? "list" : "reader";
     // Maximized, the reader is not kept up with the cursor while it is away.
-    if (state.focus === "reader" && !state.info && !taskSectionActive() && !readerHoldsCursor()) {
+    if (state.focus === "reader" && !openPanel() && !taskSectionActive() && !readerHoldsCursor()) {
       return openMessage(false);
     }
     render();
   },
   back: () => {
     // A window of one item has no list to go back to.
-    if (ITEM && !state.info) {
+    if (ITEM && !openPanel()) {
       setStatus("q or ⌘W closes the window");
       return;
     }
@@ -300,7 +300,7 @@ const MAIL_COMMANDS: Record<string, Command> = {
     await refreshPendingCounts();
     await refreshList();
     renderFolders();
-    if (state.info?.title === "Staged actions") await showPendingReview();
+    if (openPanel()?.title === "Staged actions") await showPendingReview();
     if (dropped > 0) offerUndo(said());
     else setStatus(said());
   },
@@ -547,7 +547,7 @@ const MAIL_COMMANDS: Record<string, Command> = {
     }
     await refreshFolders();
     await refreshList();
-    if (state.info?.title === "Staged actions") await showPendingReview();
+    if (openPanel()?.title === "Staged actions") await showPendingReview();
     const problems = outcome.warnings.length
       ? `; ${outcome.warnings.length} problem${outcome.warnings.length === 1 ? "" : "s"} (see review-pending)`
       : "";
@@ -766,10 +766,12 @@ const MAIL_COMMANDS: Record<string, Command> = {
     }),
   /** Close the reader, or the panel in it, or a window of one item; never the app. */
   close: () => {
-    if (state.info) {
+    if (openPanel()) {
       state.info = null;
-      if (state.focus === "reader") state.focus = "list";
+      state.focus = "list";
       render();
+      // The rows may have moved under the cursor while the panel had the reader.
+      followCursor();
       return;
     }
     if (ITEM) return closeItemWindow();

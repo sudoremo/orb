@@ -2013,6 +2013,65 @@ test("Today's tasks and mail share the rows' grid, each under a label with its c
     .toBe('"! "');
 });
 
+test("a panel has the reader only while the keyboard is in it: a row clicked or walked to is shown", async ({ page }) => {
+  await page.goto("/harness.html");
+  await settled(page);
+  const title = page.locator("#reader > header h1:not(.h-subj)");
+  const subject = page.locator("#reader .h-subj");
+  await page.locator("#list").focus();
+  await expect(subject).toHaveText("Message #0");
+  await page.keyboard.press("p");
+  await expect(title).toHaveText("Staged actions");
+
+  // A click on a row shows the row.
+  await page.locator('#list .rows .row[data-msg="1"]').click();
+  await expect(subject).toHaveText("Message #1");
+  await expect(title).toHaveCount(0);
+  await page.keyboard.press("k");
+  await expect(subject).toHaveText("Message #0");
+
+  // h goes back to the list, and the panel does not come back with the reader.
+  await page.keyboard.press("p");
+  await expect(title).toHaveText("Staged actions");
+  await page.keyboard.press("h");
+  await expect(subject).toHaveText("Message #0");
+  await page.keyboard.press("j");
+  await expect(subject).toHaveText("Message #1");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#reader")).toHaveClass(/focused/);
+  await expect(subject).toHaveText("Message #1");
+  await expect(title).toHaveCount(0);
+});
+
+test("a panel opened over a task in Today is shown, and gives way to the row clicked", async ({ page }) => {
+  await page.goto("/harness.html?tasks=1");
+  await page.locator("#list .mail-scroll .rows .row").first().waitFor();
+  await settled(page);
+  await intoTasks(page);
+  const title = page.locator("#reader > header h1:not(.h-subj)");
+  await expect(page.locator("#reader")).toHaveClass(/task-detail/);
+  await page.keyboard.press("p");
+  await expect(title).toHaveText("Staged actions");
+  await expect(page.locator("#reader")).not.toHaveClass(/task-detail/);
+
+  // Another task clicked is the task shown.
+  const task = page.locator("#list .tk-row", { hasText: "Renew the domain" });
+  await task.click();
+  await expect(task).toHaveClass(/cursor/);
+  await expect(title).toHaveCount(0);
+  await expect(page.locator("#reader")).toHaveClass(/task-detail/);
+  await expect(page.locator("#reader")).toContainText("Renew the domain");
+
+  // And from there a mail.
+  await page.keyboard.press("p");
+  await expect(title).toHaveText("Staged actions");
+  const mail = page.locator('#list .rows .row[data-msg="1"]');
+  await mail.click();
+  await expect(mail).toHaveClass(/cursor/);
+  await expect(title).toHaveCount(0);
+  await expect(page.locator("#reader .h-subj")).toBeVisible();
+});
+
 test("x in Today applies what is staged in every inbox it shows", async ({ page }) => {
   await page.goto("/harness.html?tasks=1");
   await page.locator("#list .mail-scroll .rows .row").first().waitFor();

@@ -15,7 +15,7 @@ import { syncSearchBox } from "./search";
 import { READING_VIEWS, ReadingView, isReadingFolder, readingFolder, readingViewOf } from "./reading";
 import { readSetting, writeSetting } from "./splitters";
 import { renderSteady } from "./statusline";
-import { WINDOW, el, state, todayHasMail } from "./state";
+import { WINDOW, el, openPanel, state, todayHasMail } from "./state";
 
 /** Selectable folder rows only — account headers are not navigation targets. */
 export const selectableFolders = (): FolderInfo[] =>
@@ -1299,7 +1299,7 @@ export function describeHealth(health: AccountHealth): string {
 export async function refreshHealth(): Promise<void> {
   state.health = (await call<AccountHealth[]>("account_statuses")) ?? [];
   renderFolders();
-  if (state.info?.title === "Accounts") showAccountStatus();
+  if (openPanel()?.title === "Accounts") showAccountStatus();
 }
 /**
  * Re-read the sidebar: the folders with their counts, and what is staged in

@@ -14,7 +14,7 @@ import { applyFilter, syncFilterToView } from "./filter";
 import { moveReadingCursor, openReading, paintReadingRows } from "./reading";
 import { showOutbox } from "./outbox";
 import { currentEntry, folderEntry, hasMailHalf, toggleFold, inTaskSection, inTaskView, openVirtualFolder, renderFolders, selectableFolders, sidebarEntries, taskSectionActive } from "./sidebar";
-import { el, state } from "./state";
+import { el, openPanel, state } from "./state";
 import { shows, TodaySection } from "./today";
 import { todayMixed } from "./layout";
 import { cursorPosition, timelineAt, timelineTotal } from "./mixed";
@@ -427,7 +427,7 @@ async function showBody(id: number, generation: number, moveFocus: boolean): Pro
   // holds a different message.
   if (generation !== state.generation || cursorMessageId() !== id) return;
   // A preview does not take the reader from a panel that opened meanwhile.
-  if (!moveFocus && state.info) {
+  if (!moveFocus && openPanel()) {
     loadingFor = null;
     return;
   }
@@ -478,7 +478,7 @@ async function completeBody(id: number, generation: number): Promise<void> {
 async function openConversation(row: MessageHeader, moveFocus: boolean, generation: number): Promise<void> {
   const conv = conversationFor(row)?.signature === rowKey(row) ? conversationFor(row)! : await readConversation(row);
   if (generation !== state.generation || cursorMessageId() !== row.id) return;
-  if (!moveFocus && state.info) {
+  if (!moveFocus && openPanel()) {
     loadingFor = null;
     return;
   }
@@ -631,7 +631,7 @@ export function cursorMessageId(): number | null | undefined {
  */
 export function followCursor(moved = false): void {
   // A task or a panel has the reader; the message comes back when it goes.
-  if (state.info || taskSectionActive() || chatActive()) return;
+  if (openPanel() || taskSectionActive() || chatActive()) return;
   // A message nobody can see is neither fetched nor counted towards read.
   if (readerHidden()) {
     cancelMarkRead();
@@ -841,6 +841,8 @@ export function back(): void {
   state.info = null;
   state.focus = state.focus === "reader" ? "list" : "folders";
   render();
+  // The rows may have moved under the cursor while a panel had the reader.
+  followCursor();
 }
 export async function toggleRead(): Promise<void> {
   await withMessages(async (t, account, folder) => {

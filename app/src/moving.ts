@@ -10,7 +10,7 @@ import { renderReader } from "./reader";
 import { syncSearchBox } from "./search";
 import { clearSelection, selectionSize } from "./selection";
 import { folderEntry, leaveTaskViewForSearch, refreshFolders, refreshPendingCounts, renderFolders, selectableFolders } from "./sidebar";
-import { ITEM, SearchKind, el, state, todayHasMail } from "./state";
+import { ITEM, SearchKind, el, openPanel, state, todayHasMail } from "./state";
 import { refreshItemMessage } from "./itemwindow";
 import { describeCount } from "./sync";
 import { applyFilter, dropFilter } from "./filter";
@@ -291,7 +291,7 @@ export async function applyPending(
   await refreshPendingCounts();
   await refreshList();
   renderFolders();
-  if (state.info?.title === "Staged actions") await showPendingReview();
+  if (openPanel()?.title === "Staged actions") await showPendingReview();
   const applied = execution.executed;
   const said = describeWrite(
     `executed ${applied} staged action${applied === 1 ? "" : "s"}${folders ? "" : " everywhere"}`,

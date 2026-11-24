@@ -729,6 +729,9 @@ async function moveCursor(to: number, redraw = false, follow = true): Promise<vo
     return;
   }
   state.chat.cursor = next;
+  // The keys are chat's in the reader too, so the cursor can leave a thread
+  // from under a panel: the reader then shows the thread it went to.
+  state.info = null;
   await redrawRows();
   if (follow) void followChatCursor();
 }
@@ -854,6 +857,8 @@ export async function moveChatSectionCursor(to: number): Promise<void> {
   const fromMail = state.tasks.section === "mail";
   state.tasks.section = "chat";
   state.chat.cursor = Math.max(0, Math.min(to, lastRow()));
+  // As in `moveCursor`: a panel does not stay over a thread the cursor came to.
+  state.info = null;
   if (fromMail) {
     const { cancelMarkRead } = await import("./actions");
     cancelMarkRead();

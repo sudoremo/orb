@@ -1739,7 +1739,9 @@ irreversible keypress:
 2. **Review.** `p` (`review-pending`, Mailbox ▸ Review Staged Actions) lists
    everything staged, by folder, with Apply and Discard for each folder and
    for all of it, and below that what the [filter rules](#filter-rules) did in
-   the last sync.
+   the last sync. The list takes the reader's place while the keyboard is in
+   it: `q` or `h` closes it, and so does a click on a row, which the reader
+   then shows.
 3. **Unstage.** `U` (`unmark`) takes the staged action off again; `X`
    (`discard-pending`) drops everything staged in the folder,
    `discard-pending all` everywhere. Nothing reaches the server.

@@ -4,7 +4,7 @@ import { dispatchCommand } from "./commands";
 import { escape } from "./format";
 import { IconName, roleIcon, svgIcon } from "./icons";
 import { spellKey } from "./keys";
-import { el, state, todayHasMail } from "./state";
+import { el, openPanel, state, todayHasMail } from "./state";
 import { shownSections, shows } from "./today";
 import { TaskViewName, isPaged, taskViewLabel } from "./tasklist";
 import { todayAccount } from "./taskview";
@@ -151,7 +151,7 @@ export function emptyView(): string | null {
 
 /** Whether the list stands alone: empty, with no panel open in the reader. */
 export function listStandsAlone(): boolean {
-  return !state.info && emptyView() !== null;
+  return !openPanel() && emptyView() !== null;
 }
 
 el.list.addEventListener("click", (e) => {

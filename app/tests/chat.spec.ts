@@ -1002,6 +1002,56 @@ test("the reader follows the thread clicked, after the one it showed left Waitin
   await page.evaluate(() => localStorage.clear());
 });
 
+test("a panel opened over a thread is shown, and never keeps the reader from the row the cursor is on", async ({ page }) => {
+  await openMixed(page);
+  const title = page.locator("#reader > header h1");
+  for (let i = 0; i < 4; i++) await page.keyboard.press("j");
+  await expect(page.locator("#reader")).toContainText("Can you have a quick look at the PR?");
+
+  // The panel takes the reader from the thread, and q gives it back.
+  await page.keyboard.press("p");
+  await expect(title).toHaveText("Staged actions");
+  await expect(page.locator("#reader")).not.toContainText("Can you have a quick look at the PR?");
+  await page.keyboard.press("q");
+  await expect(title).toHaveCount(0);
+  await expect(page.locator("#reader")).toContainText("Can you have a quick look at the PR?");
+
+  // Open again while every thread leaves Waiting elsewhere: the cursor is
+  // put on the first row, a mail, and a click on another mail shows that mail.
+  await page.keyboard.press("p");
+  await expect(title).toHaveText("Staged actions");
+  await page.evaluate(() => {
+    for (const key of ["r-lukas\u0000", "r-dev\u0000t-rel", "r-sup\u0000t-login"]) {
+      // @ts-expect-error: the harness's own fixture
+      CHAT_DONE.set(key, true);
+    }
+    (window as any).__emit("chat-changed", null);
+  });
+  await expect.poll(async () => (await timelineKinds(page)).filter((k) => k === "chat").length).toBe(0);
+  await expect(title).toHaveText("Staged actions");
+  const mail = page.locator('#list .rows .row[data-msg="2"]');
+  await mail.click();
+  await expect(mail).toHaveClass(/cursor/);
+  await expect(page.locator("#reader")).not.toContainText("Staged actions");
+  await expect(page.locator("#reader .cv-t")).toHaveCount(0);
+  await expect(page.locator("#reader .h-subj")).toHaveText(await mail.locator(".subject").innerText());
+
+  // Moving on from a thread under a panel shows the thread the cursor went to.
+  await page.evaluate(() => {
+    // @ts-expect-error: the harness's own fixture
+    CHAT_DONE.clear();
+    (window as any).__emit("chat-changed", null);
+  });
+  await page.locator("#list .rows .row.chat-row", { hasText: "Release 0.9" }).click();
+  await expect(page.locator("#reader .cv-t")).toHaveText("Release 0.9 — what is still missing?");
+  await page.keyboard.press("p");
+  await expect(title).toHaveText("Staged actions");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#reader .cv-t")).toHaveText("Release 0.9 — what is still missing?");
+  await page.evaluate(() => localStorage.clear());
+});
+
 test("the thread clicked shows what was written in it while the cursor was on mail", async ({ page }) => {
   await openMixed(page);
   for (let i = 0; i < 4; i++) await page.keyboard.press("j");

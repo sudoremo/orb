@@ -26,7 +26,7 @@ import { applyReaderPresence, cursorRow, markTerms } from "./list";
 import { AttachmentMeta, InlineImage, MessageDetail, ViewMode, MessageHeader, SenderCheck } from "./model";
 import { checkedHref, isTrackingPixel, linkSuspicion, openSuspiciousLink } from "./safety";
 import { highlightMarks, taskSectionActive, iconExists } from "./sidebar";
-import { el, state } from "./state";
+import { el, openPanel, state } from "./state";
 import { focusTaskEditor } from "./taskedit";
 import { focusStepEditor, redrawKeepingStepField } from "./stepsui";
 import { openLinkedMessage, taskKeys } from "./taskview";
@@ -87,6 +87,16 @@ export function renderReader(): void {
   }
   // A panel opened over an empty list brings the pane back to hold it.
   applyReaderPresence();
+  // A panel asked for is shown whatever the cursor is on: left under a thread
+  // or a task it would hold the reader without anybody seeing it.
+  const panel = openPanel();
+  if (panel) {
+    el.reader.className = "pane focused";
+    el.reader.innerHTML =
+      `<header><h1>${escape(panel.title)}</h1></header>` +
+      (panel.html ?? `<pre class="raw">${escape(panel.text ?? "")}</pre>`);
+    return;
+  }
   // The reader shows whatever the cursor is on, which in Today's mail half is a
   // message even though a task view is open. A task and a message are both "the
   // thing being looked at", and showing one under the other would leave no
@@ -125,13 +135,6 @@ export function renderReader(): void {
     // write rather than preceding it.
     focusTaskEditor();
     focusStepEditor();
-    return;
-  }
-
-  if (state.info) {
-    el.reader.innerHTML =
-      `<header><h1>${escape(state.info.title)}</h1></header>` +
-      (state.info.html ?? `<pre class="raw">${escape(state.info.text ?? "")}</pre>`);
     return;
   }
 
