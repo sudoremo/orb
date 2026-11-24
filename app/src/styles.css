@@ -6400,12 +6400,18 @@ button.rx {
 
 .mpop .ci {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) fit-content(60%);
   gap: calc(9 * var(--u));
   align-items: center;
   height: calc(28 * var(--u));
   padding: 0 calc(8 * var(--u));
   border-radius: calc(5 * var(--u));
+}
+
+.mpop .ci > * {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .mpop .ci .d {

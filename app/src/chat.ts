@@ -1371,6 +1371,36 @@ function closeCompletion(): void {
   pop.hidden = true;
 }
 
+/** A name `@` can carry: one person's, not the list a group conversation goes by. */
+const MENTIONABLE = /^[\w.-]+$/;
+
+/** How far from the field's left edge the character at `index` is drawn. */
+function offsetInField(index: number): number {
+  const mirror = document.createElement("div");
+  const style = getComputedStyle(field);
+  mirror.style.cssText = "position:absolute;visibility:hidden;top:0;left:0;white-space:pre-wrap;overflow-wrap:break-word";
+  for (const p of ["font", "letterSpacing", "padding", "border", "boxSizing", "tabSize"] as const) {
+    mirror.style[p] = style[p];
+  }
+  mirror.style.width = `${field.clientWidth}px`;
+  mirror.textContent = field.value.slice(0, index);
+  const mark = document.createElement("span");
+  mark.textContent = field.value.slice(index) || ".";
+  mirror.appendChild(mark);
+  field.parentElement?.appendChild(mirror);
+  const left = mark.offsetLeft;
+  mirror.remove();
+  return left;
+}
+
+/** Put the list over the word it completes, as far as the composer has room. */
+function placeCompletion(): void {
+  const box = pop.offsetParent;
+  if (!completion || !box) return;
+  const at = field.getBoundingClientRect().left - box.getBoundingClientRect().left + offsetInField(completion.start);
+  pop.style.left = `${Math.max(0, Math.min(at, box.clientWidth - pop.offsetWidth))}px`;
+}
+
 /** People the composer can name: those in the conversation and in direct messages. */
 function knownPeople(term: string): { label: string; detail: string; insert: string }[] {
   const people = new Map<string, string>();
@@ -1381,6 +1411,7 @@ function knownPeople(term: string): { label: string; detail: string; insert: str
     if (r.kind === "d" && r.label === "Direct" && r.name) people.set(r.name, r.fname ?? r.name);
   }
   return [...people]
+    .filter(([username]) => MENTIONABLE.test(username))
     .filter(([username, name]) => username.toLowerCase().includes(term) || name.toLowerCase().includes(term))
     .slice(0, 8)
     .map(([username, name]) => ({ label: name, detail: `@${username}`, insert: `@${username} ` }));
@@ -1413,7 +1444,7 @@ async function updateCompletion(): Promise<void> {
     const found = await call<ChatPick[]>("chat_find", { term }).catch(() => [] as ChatPick[]);
     if (field.value.slice(0, field.selectionStart ?? 0) !== before) return;
     const more = found
-      .filter((p) => p.username && !items.some((i) => i.insert === `@${p.username} `))
+      .filter((p) => p.username && MENTIONABLE.test(p.username) && !items.some((i) => i.insert === `@${p.username} `))
       .map((p) => ({ label: p.label, detail: `@${p.username}`, insert: `@${p.username} ` }));
     items = [...items, ...more].slice(0, 8);
     completion = items.length ? { start, items, index: completion?.index ?? 0 } : null;
@@ -1433,6 +1464,7 @@ function drawCompletion(): void {
         `<div class="ci${i === completion!.index ? " on" : ""}" data-complete="${i}"><span>${escape(item.label)}</span><span class="d">${escape(item.detail)}</span></div>`,
     )
     .join("");
+  placeCompletion();
 }
 
 function acceptCompletion(index = completion?.index ?? 0): void {

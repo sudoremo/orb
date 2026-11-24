@@ -643,6 +643,44 @@ test("a room is left after asking, and a new one is created by name", async ({ p
   await expect(page.locator("#toolbar .tb-t")).toHaveText("#release-0.9");
 });
 
+test("the completion opens over the word it completes, one line a person", async ({ page }) => {
+  await openWaiting(page);
+  // A group conversation goes by the names of all its people: nobody to name with @.
+  await page.evaluate(() =>
+    (window as any).__TAURI_INTERNALS__.invoke("chat_harness_rejoin", {
+      room: { rid: "r-trio", kind: "d", name: "lukas,lucia,nora", fname: "Lukas Meier, Lucia Ferri, Nora Keller", label: "Direct", unread: 0, mentions: 0 },
+    }),
+  );
+  await page.keyboard.press("r");
+  const field = page.locator("#reader .cc-field");
+  await expect(field).toBeFocused();
+  const pop = page.locator("#reader .mpop");
+  const left = async () => (await pop.boundingBox())!.x - (await field.boundingBox())!.x;
+
+  await page.keyboard.type("@lu");
+  await expect(pop.locator(".ci").first()).toContainText("lukas");
+  const atStart = await left();
+  expect(atStart).toBeLessThan(20);
+  await expect(pop.locator(".ci", { hasText: "lucia" })).toHaveCount(1);
+  await expect(pop.locator(".ci", { hasText: "," })).toHaveCount(0);
+  const heights = await pop.locator(".ci > *").evaluateAll((cells) => cells.map((c) => c.scrollHeight - c.clientHeight));
+  expect(Math.max(...heights)).toBeLessThanOrEqual(0);
+
+  await field.fill("");
+  await page.keyboard.type("Thanks for this, @lu");
+  await expect(pop.locator(".ci").first()).toContainText("lukas");
+  expect(await left()).toBeGreaterThan(atStart + 80);
+
+  // Far to the right, it stays inside the composer.
+  await field.fill("");
+  await page.keyboard.type(`${"word ".repeat(40)}@lu`);
+  await expect(pop.locator(".ci").first()).toContainText("lukas");
+  const box = (await pop.boundingBox())!;
+  const composer = (await page.locator("#reader .cc").boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(composer.x - 1);
+  expect(box.x + box.width).toBeLessThanOrEqual(composer.x + composer.width + 1);
+});
+
 test("@, : and # complete people, emoji and rooms in the composer", async ({ page }) => {
   await openWaiting(page);
   await page.keyboard.press("r");
