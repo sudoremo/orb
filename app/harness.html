@@ -950,11 +950,23 @@
 
             // The usual rules by their words, and one only typing reaches.
             case "suggest_recurrence": {
-              const input = String(args.input).toLowerCase();
-              if (input.includes("last thursday"))
+              const input = String(args.input).toLowerCase().trim();
+              const usual = {
+                "every day": ["FREQ=DAILY", "Every day"],
+                "every weekday": ["FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", "Every weekday"],
+                "every week": ["FREQ=WEEKLY", "Every week"],
+                "every 2 weeks": ["FREQ=WEEKLY;INTERVAL=2", "Every 2 weeks"],
+                "every month": ["FREQ=MONTHLY", "Every month"],
+                "monthly on the 1st": ["FREQ=MONTHLY;BYMONTHDAY=1", "Every month on the 1st"],
+                "monthly on the last day": ["FREQ=MONTHLY;BYMONTHDAY=-1", "Every month on the last day"],
+                "every month on the last": ["FREQ=MONTHLY;BYMONTHDAY=-1", "Every month on the last day"],
+                "every 3 months": ["FREQ=MONTHLY;INTERVAL=3", "Every 3 months"],
+                "every year": ["FREQ=YEARLY", "Every year"],
+              };
+              if (/last th/.test(input))
                 return [{ rrule: "FREQ=MONTHLY;BYDAY=-1TH", label: "Every month on the last Thursday" }];
-              if (!/^(every|monthly) /.test(input)) return [];
-              return [{ rrule: `X-HARNESS=${input.replaceAll(" ", "-")}`, label: input[0].toUpperCase() + input.slice(1) }];
+              const known = usual[input] ?? (input.startsWith("every month") ? usual["every month"] : null);
+              return known ? [{ rrule: known[0], label: known[1] }] : [];
             }
 
             // Against the day of a series, as the core reads it (todo-spec §32).

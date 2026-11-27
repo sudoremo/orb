@@ -1459,12 +1459,14 @@ export const TASK_COMMANDS: Record<string, Command> = {
           usual.map((input) => call<RecurrenceSuggestion[]>("suggest_recurrence", { input })),
         )
       ).flat();
-      const row = (r: RecurrenceSuggestion) => ({ value: r.rrule, label: r.label, detail: r.rrule });
+      // The rule in words and nothing beside it: its notation took the room the words need.
+      const row = (r: RecurrenceSuggestion) => ({ value: r.rrule, label: r.label });
       const picked = await openPicker({
         title: "Repeat",
         placeholder: "every monday, last thursday of the month, every 2 weeks until June…",
         items: readings.map(row),
         // What is typed is read as a rule too, so the list is not the limit.
+        searchDelay: 0,
         search: async (query) => {
           const typed = await call<RecurrenceSuggestion[]>("suggest_recurrence", { input: query });
           readings.push(...typed);

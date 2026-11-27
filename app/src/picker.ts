@@ -48,6 +48,8 @@ export interface PickerMode {
   items: () => PickerItem[];
   /** More items for what was typed, looked up elsewhere, as `PickerOptions.search`. */
   search?: (query: string) => Promise<PickerItem[]>;
+  /** How long typing has to pause before `search` is asked, as `PickerOptions.searchDelay`. */
+  searchDelay?: number;
 }
 
 export interface PickerOptions {
@@ -59,6 +61,12 @@ export interface PickerOptions {
    * moment after typing stops, and listed after the items that match.
    */
   search?: (query: string) => Promise<PickerItem[]>;
+  /**
+   * How long typing has to pause before `search` is asked, in milliseconds.
+   * The default spares a server a request per key; `0` is for a lookup that
+   * costs nothing, whose rows then follow every key.
+   */
+  searchDelay?: number;
   /**
    * Several rows rather than one: `Enter` adds the row to the chosen ones,
    * shown above the field, and `Enter` on an empty field — or `⌘Enter` —
@@ -134,6 +142,10 @@ class Picker {
   /** What the mode's `search` found for the query typed, and that query. */
   private found: { query: string; items: PickerItem[] } = { query: "", items: [] };
   private searchTimer: number | undefined;
+  /** `search` has not answered for what is typed now: an empty list is not yet "no match". */
+  private searching = false;
+  /** Enter came while it had not: the first row is taken once it has. */
+  private acceptWhenFound = false;
   private highlighted = 0;
   private closed = false;
 
@@ -141,7 +153,14 @@ class Picker {
     this.multiple = options.multiple ?? false;
     this.typed = options.typed;
     this.modes = [
-      { prefix: "", title: options.title, placeholder: options.placeholder, items: () => options.items, search: options.search },
+      {
+        prefix: "",
+        title: options.title,
+        placeholder: options.placeholder,
+        items: () => options.items,
+        search: options.search,
+        searchDelay: options.searchDelay,
+      },
       ...(options.modes ?? []).filter((m) => m.prefix !== ""),
     ];
     const plain = options.modes?.find((m) => m.prefix === "");
@@ -189,8 +208,8 @@ class Picker {
     document.body.append(this.scrim);
 
     this.input.addEventListener("input", () => {
-      this.filter();
       this.askSearch();
+      this.filter();
     });
     this.list.addEventListener("click", (e) => {
       const row = (e.target as HTMLElement).closest<HTMLElement>("[data-index]");
@@ -214,8 +233,8 @@ class Picker {
     this.onKeyDown = (e) => this.handleKey(e);
     window.addEventListener("keydown", this.onKeyDown, true);
 
-    this.filter();
     this.askSearch();
+    this.filter();
     this.input.focus();
   }
 
@@ -229,16 +248,27 @@ class Picker {
   /** Ask the mode's `search` for the query typed, once typing has paused. */
   private askSearch(): void {
     const { mode, query } = this.parse();
-    if (!mode.search) return;
     window.clearTimeout(this.searchTimer);
-    this.searchTimer = window.setTimeout(() => {
-      void mode.search!(query).then((items) => {
+    this.acceptWhenFound = false;
+    this.searching = !!mode.search;
+    if (!mode.search) return;
+    const ask = (): void => {
+      // A lookup that failed has said so in the status line; here it found nothing.
+      void mode.search!(query).catch(() => [] as PickerItem[]).then((items) => {
         const now = this.parse();
         if (this.closed || now.mode !== mode || now.query !== query) return;
         this.found = { query, items };
+        this.searching = false;
         this.filter();
+        if (this.acceptWhenFound) {
+          this.acceptWhenFound = false;
+          this.accept();
+        }
       });
-    }, 250);
+    };
+    const delay = mode.searchDelay ?? 250;
+    if (delay <= 0) ask();
+    else this.searchTimer = window.setTimeout(ask, delay);
   }
 
   private filter(): void {
@@ -284,7 +314,7 @@ class Picker {
       .join("");
     this.chips.hidden = this.chosen.length === 0;
     if (this.shown.length === 0) {
-      this.list.innerHTML = `<li class="dp-empty">no match</li>`;
+      this.list.innerHTML = `<li class="dp-empty">${this.searching ? "…" : "no match"}</li>`;
       this.input.removeAttribute("aria-activedescendant");
       return;
     }
@@ -342,7 +372,9 @@ class Picker {
   private accept(): void {
     const chosen = this.shown[this.highlighted]?.item;
     if (!chosen) {
-      this.finish(null);
+      // Typed and entered in one motion: the answer is taken when it is in.
+      if (this.searching) this.acceptWhenFound = true;
+      else this.finish(null);
       return;
     }
     if (this.choosable(chosen)) this.finish([this.valueOf(chosen)]);

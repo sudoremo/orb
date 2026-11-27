@@ -2900,6 +2900,36 @@ test("R reads what is typed as a rule, beyond the usual ones it lists", async ({
     .toEqual(["FREQ=MONTHLY;BYDAY=-1TH"]);
 });
 
+test("a rule typed into Repeat is read as it is typed, shown whole, and taken by an Enter that follows at once", async ({ page }) => {
+  await page.goto("/harness.html?tasks=1");
+  await intoTasks(page);
+  await page.keyboard.press("R");
+  await page.locator(".dp-input").waitFor();
+  // Never "no match" for what the core can read, not even between two keys.
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { __listSeen: string[] }).__listSeen = seen;
+    new MutationObserver(() => seen.push(document.querySelector(".dp-list")!.textContent ?? "")).observe(
+      document.querySelector(".dp-list")!,
+      { childList: true, subtree: true },
+    );
+  });
+  await page.keyboard.type("every month on the last Thursday", { delay: 20 });
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await callsTo(page, "update_tasks")).map((a) => a.edit.recurrence))
+    .toEqual(["FREQ=MONTHLY;BYDAY=-1TH"]);
+  const seen = await page.evaluate(() => (window as unknown as { __listSeen: string[] }).__listSeen);
+  expect(seen.filter((text) => text.includes("no match"))).toEqual([]);
+
+  // The row says the weekday: nothing of its words is cut off.
+  await page.keyboard.press("R");
+  await page.locator(".dp-input").fill("last thursday");
+  const label = page.locator(".dp-list li .dp-primary", { hasText: "Every month on the last Thursday" });
+  await expect(label).toBeVisible();
+  expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+});
+
 test("a repeating task says its deadline and reminders against its day, and its pickers read them so", async ({ page }) => {
   await page.goto("/harness.html?tasks=1&series=1");
   await intoTasks(page);
