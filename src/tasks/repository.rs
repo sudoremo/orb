@@ -129,7 +129,7 @@ const TASK_COLUMNS: &str = "t.id, t.task_uuid, t.revision, t.subject, t.body_tex
      t.created_at, t.updated_at, t.completed_at, t.deleted_at, \
      t.recurrence, t.recurrence_from_completion, t.position, \
      t.is_working_on, t.is_completed, t.is_dirty, \
-     t.account_name, t.imap_uid, t.message_id, t.modseq, t.steps";
+     t.account_name, t.imap_uid, t.message_id, t.modseq, t.steps, t.recurrence_series";
 
 /// The columns a list view needs: no body, no log, no recurrence rule — only
 /// whether there is one. A list of two hundred tasks should not carry two
@@ -437,6 +437,7 @@ pub struct TaskSnapshot {
     pub tags: Vec<String>,
     pub recurrence: Option<String>,
     pub recurrence_from_completion: bool,
+    pub recurrence_series: Option<String>,
     pub position: f64,
     pub steps: Vec<TaskStep>,
     pub is_working_on: bool,
@@ -464,6 +465,7 @@ impl TaskSnapshot {
             tags: task.tags.clone(),
             recurrence: task.recurrence.clone(),
             recurrence_from_completion: task.recurrence_from_completion,
+            recurrence_series: task.recurrence_series.clone(),
             position: task.position,
             steps: task.steps.clone(),
             is_working_on: task.is_working_on,
@@ -482,6 +484,7 @@ impl TaskSnapshot {
             tags: Some(self.tags.clone()),
             recurrence: Some(self.recurrence.clone()),
             recurrence_from_completion: Some(self.recurrence_from_completion),
+            recurrence_series: Some(self.recurrence_series.clone()),
             is_working_on: Some(self.is_working_on),
             is_completed: Some(self.is_completed),
             is_trashed: Some(self.is_trashed),
@@ -2565,6 +2568,31 @@ impl TaskRepository<'_> {
         })
     }
 
+    /// [`TaskRepository::add_reminder`] on a recurring task, whose series
+    /// then says so too (§32), in the same revision.
+    pub fn add_reminder_in_series(
+        &self,
+        task_id: i64,
+        remind_at: &str,
+        series: &str,
+        ctx: &ChangeContext<'_>,
+    ) -> Result<i64> {
+        self.in_transaction(|conn| {
+            Self::write_series(conn, task_id, Some(series))?;
+            self.add_reminder(task_id, remind_at, ctx)
+        })
+    }
+
+    /// The series of a task, written beside a change to its reminders. The
+    /// caller bumps the revision, as it does for the reminders.
+    fn write_series(conn: &Connection, task_id: i64, series: Option<&str>) -> Result<()> {
+        conn.execute(
+            "UPDATE tasks SET recurrence_series = ?1 WHERE id = ?2",
+            params![series, task_id],
+        )?;
+        Ok(())
+    }
+
     /// Add a reminder from an RFC3339 timestamp.
     pub fn add_reminder(
         &self,
@@ -2743,6 +2771,39 @@ impl TaskRepository<'_> {
             }
             Self::touch_task(conn, task_id, ctx)?;
             Ok(reminders.len())
+        })
+    }
+
+    /// [`TaskRepository::replace_reminders`] with the series they are an
+    /// occurrence of (§32), or with none: a recurrence advance stating what it
+    /// moved, and an undo putting both back.
+    pub fn replace_reminders_in_series(
+        &self,
+        task_id: i64,
+        reminders: &[TaskReminder],
+        series: Option<&str>,
+        ctx: &ChangeContext<'_>,
+    ) -> Result<usize> {
+        self.in_transaction(|conn| {
+            Self::write_series(conn, task_id, series)?;
+            self.replace_reminders(task_id, reminders, ctx)
+        })
+    }
+
+    /// [`TaskRepository::delete_reminder`] on a recurring task, whose series
+    /// then loses it too (§32), in the same revision.
+    pub fn delete_reminder_in_series(
+        &self,
+        reminder_id: i64,
+        series: &str,
+        ctx: &ChangeContext<'_>,
+    ) -> Result<bool> {
+        self.in_transaction(|conn| {
+            let Some(task_id) = self.reminder_task(reminder_id)? else {
+                return Ok(false);
+            };
+            Self::write_series(conn, task_id, Some(series))?;
+            self.delete_reminder(reminder_id, ctx)
         })
     }
 
@@ -3620,6 +3681,7 @@ impl TaskRepository<'_> {
                 .get::<_, Option<String>>(23)?
                 .and_then(|json| serde_json::from_str(&json).ok())
                 .unwrap_or_default(),
+            recurrence_series: row.get(24)?,
             log: Vec::new(),
         })
     }
@@ -3756,9 +3818,9 @@ impl TaskRepository<'_> {
                 (task_uuid, revision, subject, body_text, snooze_until, snooze_until_unix,
                  deadline, deadline_unix, created_at, updated_at, completed_at, deleted_at,
                  recurrence, recurrence_from_completion, position, is_working_on, is_completed,
-                 is_dirty, account_name, imap_uid, message_id, modseq, steps)
+                 is_dirty, account_name, imap_uid, message_id, modseq, steps, recurrence_series)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
-                     ?18, ?19, ?20, ?21, ?22, ?23)",
+                     ?18, ?19, ?20, ?21, ?22, ?23, ?24)",
             params![
                 task.task_uuid,
                 task.revision,
@@ -3783,6 +3845,7 @@ impl TaskRepository<'_> {
                 task.message_id,
                 task.modseq,
                 steps_json(&task.steps),
+                task.recurrence_series,
             ],
         )?;
         Ok(conn.last_insert_rowid())
@@ -3801,7 +3864,7 @@ impl TaskRepository<'_> {
                 recurrence = ?12, recurrence_from_completion = ?13, position = ?14,
                 is_working_on = ?15, is_completed = ?16, is_dirty = ?17,
                 account_name = ?18, imap_uid = ?19, message_id = ?20, modseq = ?21,
-                steps = ?23
+                steps = ?23, recurrence_series = ?24
              WHERE id = ?22",
             params![
                 task.revision,
@@ -3827,6 +3890,7 @@ impl TaskRepository<'_> {
                 task.modseq,
                 task_id,
                 steps_json(&task.steps),
+                task.recurrence_series,
             ],
         )?;
         Ok(())

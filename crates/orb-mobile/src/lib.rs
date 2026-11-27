@@ -683,13 +683,21 @@ impl Orb {
 
     /// The readings of a date typed by a person (§12.1); none is "no
     /// matching date".
-    pub fn suggest_dates(&self, input: String) -> Result<Vec<DateSuggestionInfo>, OrbError> {
-        self.handle.suggest_dates(input)
+    pub fn suggest_dates(
+        &self,
+        input: String,
+        day: Option<String>,
+    ) -> Result<Vec<DateSuggestionInfo>, OrbError> {
+        self.handle.suggest_dates(input, day)
     }
 
     /// As [`Orb::suggest_dates`], with a time of day, for reminders.
-    pub fn suggest_datetimes(&self, input: String) -> Result<Vec<DateSuggestionInfo>, OrbError> {
-        self.handle.suggest_datetimes(input)
+    pub fn suggest_datetimes(
+        &self,
+        input: String,
+        day: Option<String>,
+    ) -> Result<Vec<DateSuggestionInfo>, OrbError> {
+        self.handle.suggest_datetimes(input, day)
     }
 
     /// The readings of a recurrence typed by a person (§8).

@@ -219,6 +219,195 @@ pub fn suggest_datetimes(
         .collect()
 }
 
+// ---------------------------------------------------------------------------
+// Against the day of a recurring task (todo-spec §32)
+// ---------------------------------------------------------------------------
+
+/// How far from its day something on a recurring task is, in words: "On the
+/// day", "2 days after", "1 Tag vorher".
+pub fn series_distance(days: i64, locale: DateLocale) -> String {
+    let amount = days.abs();
+    match (locale, days) {
+        (DateLocale::English, 0) => "On the day".to_string(),
+        (DateLocale::German, 0) => "Am Tag".to_string(),
+        (DateLocale::English, _) => format!(
+            "{amount} {} {}",
+            if amount == 1 { "day" } else { "days" },
+            if days < 0 { "before" } else { "after" }
+        ),
+        (DateLocale::German, _) => format!(
+            "{amount} {} {}",
+            if amount == 1 { "Tag" } else { "Tage" },
+            if days < 0 { "vorher" } else { "später" }
+        ),
+    }
+}
+
+/// [`suggest_dates`] for the deadline of a recurring task whose occurrence is
+/// on `day`.
+///
+/// What is typed may say where the deadline is against the day — `on the
+/// day`, `2 days after`, `+3`, `am tag`, `1 woche später` — and such a reading
+/// stands alone. A date said any other way is read as ever, and labelled with
+/// how far from the day it is, since that distance is what the series keeps.
+/// Nothing before the day is offered: a task is not due before it starts.
+pub fn suggest_dates_in_series(
+    input: &str,
+    today: NaiveDate,
+    day: NaiveDate,
+    locale: DateLocale,
+) -> Vec<DateSuggestion> {
+    let ctx = Ctx { today, locale };
+    let norm = normalize(input);
+    let found = match parse_series_distance(&norm, locale) {
+        Some(days) => in_series(day, days, None, &ctx).into_iter().collect(),
+        None => relabelled(collect(&norm, &ctx), day, locale),
+    };
+    found.into_iter().filter(|s| s.date >= day).collect()
+}
+
+/// [`suggest_datetimes`] for a reminder of a recurring task whose occurrence
+/// is on `day`: `on the day 9am`, `day before 18:00`, `-2 14:00`, `am vortag
+/// 18 uhr`, and a time alone, which is that time on the day.
+pub fn suggest_datetimes_in_series(
+    input: &str,
+    now: NaiveDateTime,
+    day: NaiveDate,
+    locale: DateLocale,
+) -> Vec<DateSuggestion> {
+    let ctx = Ctx {
+        today: now.date(),
+        locale,
+    };
+    let norm = normalize(input);
+    let (date_part, time) = split_time(&norm, locale);
+    let days = if date_part.is_empty() && time.is_some() {
+        Some(0)
+    } else {
+        parse_series_distance(&date_part, locale)
+    };
+    match days {
+        Some(days) => in_series(day, days, Some(time.unwrap_or(DEFAULT_REMINDER_TIME)), &ctx)
+            .into_iter()
+            .collect(),
+        None => relabelled(suggest_datetimes(input, now, locale), day, locale),
+    }
+}
+
+/// The suggestion `days` from the day of a series, named by that distance.
+fn in_series(
+    day: NaiveDate,
+    days: i64,
+    time: Option<NaiveTime>,
+    ctx: &Ctx,
+) -> Option<DateSuggestion> {
+    let date = day.checked_add_signed(TimeDelta::try_days(days)?)?;
+    let distance = series_distance(days, ctx.locale);
+    Some(DateSuggestion {
+        date,
+        time,
+        primary: match time {
+            Some(time) => format!("{distance} {}", format_time(time)),
+            None => distance,
+        },
+        secondary: format!(
+            "{} {}",
+            weekday_abbrev(date, ctx.locale),
+            format_short_date(date, ctx)
+        ),
+    })
+}
+
+/// Suggestions read as plain dates, saying how far from the day each is.
+fn relabelled(
+    mut suggestions: Vec<DateSuggestion>,
+    day: NaiveDate,
+    locale: DateLocale,
+) -> Vec<DateSuggestion> {
+    for suggestion in &mut suggestions {
+        suggestion.secondary = series_distance((suggestion.date - day).num_days(), locale);
+    }
+    suggestions
+}
+
+/// `on the day`, `day before`, `2 days after`, `1 week earlier`, `+3`, `-1`,
+/// and in German `am tag`, `vortag`, `2 tage später`, `1 woche vorher`: whole
+/// days from the day of a series. In either language whatever the locale, as
+/// the words do not collide.
+fn parse_series_distance(norm: &str, locale: DateLocale) -> Option<i64> {
+    let mut parts = tokens(norm);
+    while let Some(first) = parts.first()
+        && matches!(*first, "on" | "the" | "am" | "an" | "dem" | "at")
+    {
+        parts.remove(0);
+    }
+    let before = |word: &str| {
+        matches!(
+            word,
+            "before" | "earlier" | "prior" | "vorher" | "davor" | "zuvor" | "frueher"
+        )
+    };
+    let after = |word: &str| {
+        matches!(
+            word,
+            "after" | "later" | "danach" | "spaeter" | "nachher" | "darauf"
+        )
+    };
+    let the_day = |word: &str| matches!(word, "day" | "tag");
+    match parts.as_slice() {
+        [day] if the_day(day) => return Some(0),
+        ["same" | "selben" | "gleichen", day] | [day, "of" | "itself" | "selbst"]
+            if the_day(day) =>
+        {
+            return Some(0);
+        }
+        ["vortag" | "eve"] => return Some(-1),
+        ["folgetag"] => return Some(1),
+        [day, direction] if the_day(day) && before(direction) => return Some(-1),
+        [day, direction] if the_day(day) && after(direction) => return Some(1),
+        _ => {}
+    }
+
+    // A signed number: `+3`, `-1`, `+2w`.
+    if let [signed] = parts.as_slice()
+        && let Some(sign) = signed.chars().next().filter(|c| matches!(c, '+' | '-'))
+    {
+        let rest = &signed[1..];
+        let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+        let amount: i64 = digits.parse().ok()?;
+        let days = match &rest[digits.len()..] {
+            "" => amount,
+            unit => match parse_unit(unit, locale)? {
+                Unit::Day => amount,
+                Unit::Week => amount.checked_mul(7)?,
+                _ => return None,
+            },
+        };
+        return Some(if sign == '-' { -days } else { days });
+    }
+
+    // A number, a unit and a direction: `2 days after`, `1 woche vorher`.
+    let [amount, unit, direction] = parts.as_slice() else {
+        return None;
+    };
+    let amount: i64 = amount.parse().ok()?;
+    let unit = [DateLocale::English, DateLocale::German]
+        .into_iter()
+        .find_map(|locale| parse_unit(unit, locale))?;
+    let days = match unit {
+        Unit::Day => amount,
+        Unit::Week => amount.checked_mul(7)?,
+        _ => return None,
+    };
+    if before(direction) {
+        Some(-days)
+    } else if after(direction) {
+        Some(days)
+    } else {
+        None
+    }
+}
+
 /// Everything the producers need to resolve and render a suggestion.
 struct Ctx {
     today: NaiveDate,
@@ -1376,6 +1565,141 @@ mod tests {
 
     fn dates(suggestions: &[DateSuggestion]) -> Vec<NaiveDate> {
         suggestions.iter().map(|s| s.date).collect()
+    }
+
+    // -- against the day of a recurring task ------------------------------
+
+    /// The Monday after the spec's Thursday.
+    fn the_day() -> NaiveDate {
+        date(2026, 8, 10)
+    }
+
+    fn due(input: &str, locale: DateLocale) -> Vec<(NaiveDate, String, String)> {
+        triples(&suggest_dates_in_series(input, today(), the_day(), locale))
+    }
+
+    fn remind(input: &str, locale: DateLocale) -> Vec<(NaiveDate, Option<NaiveTime>, String)> {
+        suggest_datetimes_in_series(
+            input,
+            today().and_hms_opt(12, 0, 0).unwrap(),
+            the_day(),
+            locale,
+        )
+        .into_iter()
+        .map(|s| (s.date, s.time, s.primary))
+        .collect()
+    }
+
+    #[test]
+    fn a_deadline_is_said_against_the_day_of_the_series() {
+        let en = DateLocale::English;
+        assert_eq!(
+            due("on the day", en),
+            vec![(the_day(), "On the day".into(), "Mon Aug 10".into())]
+        );
+        for input in ["day", "same day", "the day itself"] {
+            assert_eq!(due(input, en)[0].0, the_day(), "{input}");
+        }
+        assert_eq!(
+            due("2 days after", en),
+            vec![(
+                date(2026, 8, 12),
+                "2 days after".into(),
+                "Wed Aug 12".into()
+            )]
+        );
+        assert_eq!(due("+3", en)[0].0, date(2026, 8, 13));
+        assert_eq!(due("day after", en)[0].1, "1 day after");
+        assert_eq!(due("1 week later", en)[0].0, date(2026, 8, 17));
+        assert_eq!(due("+2w", en)[0].1, "14 days after");
+
+        let de = DateLocale::German;
+        assert_eq!(
+            due("am Tag", de),
+            vec![(the_day(), "Am Tag".into(), "Mo 10. Aug".into())]
+        );
+        assert_eq!(due("2 Tage später", de)[0].1, "2 Tage später");
+        assert_eq!(due("1 tag danach", de)[0].1, "1 Tag später");
+        assert_eq!(due("1 Woche später", de)[0].0, date(2026, 8, 17));
+    }
+
+    #[test]
+    fn a_deadline_said_as_a_date_is_labelled_with_its_distance_from_the_day() {
+        // Thursday's "friday" is tomorrow, before the day, and so no deadline.
+        assert!(due("friday", DateLocale::English).is_empty());
+        assert_eq!(
+            due("12.8.", DateLocale::German),
+            vec![(
+                date(2026, 8, 12),
+                "12. August".into(),
+                "2 Tage später".into()
+            )]
+        );
+        // Nothing before the day, however it is said.
+        assert!(due("day before", DateLocale::English).is_empty());
+        assert!(due("-1", DateLocale::English).is_empty());
+    }
+
+    #[test]
+    fn a_reminder_is_said_against_the_day_of_the_series() {
+        let en = DateLocale::English;
+        assert_eq!(
+            remind("on the day 9am", en),
+            vec![(the_day(), Some(time(9, 0)), "On the day 09:00".into())]
+        );
+        assert_eq!(
+            remind("day before 18:00", en),
+            vec![(
+                date(2026, 8, 9),
+                Some(time(18, 0)),
+                "1 day before 18:00".into()
+            )]
+        );
+        assert_eq!(remind("-2 14:00", en)[0].0, date(2026, 8, 8));
+        assert_eq!(remind("2 days before", en)[0].1, Some(time(9, 0)));
+        // A time alone is that time on the day, not today or tomorrow.
+        assert_eq!(
+            remind("7:30", en),
+            vec![(the_day(), Some(time(7, 30)), "On the day 07:30".into())]
+        );
+
+        let de = DateLocale::German;
+        assert_eq!(
+            remind("am Vortag 18 Uhr", de),
+            vec![(
+                date(2026, 8, 9),
+                Some(time(18, 0)),
+                "1 Tag vorher 18:00".into()
+            )]
+        );
+        assert_eq!(remind("am Tag 9:00", de)[0].2, "Am Tag 09:00");
+        assert_eq!(remind("1 Tag vorher 18:00", de)[0].0, date(2026, 8, 9));
+        assert_eq!(remind("2 Tage früher 8 Uhr", de)[0].0, date(2026, 8, 8));
+    }
+
+    #[test]
+    fn a_reminder_said_as_a_date_keeps_its_reading_and_names_its_distance() {
+        let found = suggest_datetimes_in_series(
+            "tomorrow 9am",
+            today().and_hms_opt(12, 0, 0).unwrap(),
+            the_day(),
+            DateLocale::English,
+        );
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].date, date(2026, 8, 7));
+        assert_eq!(found[0].primary, "Tomorrow 09:00");
+        assert_eq!(found[0].secondary, "3 days before");
+    }
+
+    #[test]
+    fn what_is_no_distance_from_the_day_is_not_read_as_one() {
+        for input in ["day by day", "2 months after", "+x", "after", "3 days"] {
+            assert_eq!(
+                parse_series_distance(&normalize(input), DateLocale::English),
+                None,
+                "{input}"
+            );
+        }
     }
 
     #[test]

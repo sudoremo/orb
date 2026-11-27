@@ -44,7 +44,7 @@ import { describeCount, runSync, syncAll, syncCurrentFolder } from "./sync";
 import { toggleSortMenu, toggleTodayMenu } from "./toolbar";
 import { nextSection, todayKeeps } from "./today";
 import { queuedWrite, refreshList, settleWrites, withCursorMessage, withMessages } from "./targets";
-import { acceptTaskEdit, attachFilesToTask, beginTaskEdit, cancelTaskEdit, findTag, moveTaskEditField, newTaskPostponeDate, offerTags, pickDate, setBothTaskDates, setTaskDate } from "./taskedit";
+import { acceptTaskEdit, attachFilesToTask, beginTaskEdit, cancelTaskEdit, findTag, moveTaskEditField, newTaskPostponeDate, offerTags, pickDate, seriesOf, setBothTaskDates, setTaskDate } from "./taskedit";
 import { moveTaskBy, selectTaskRange } from "./taskpointer";
 import { showIphoneSetup } from "./iphonesetup";
 import { dueFirstOn, setDueFirst, groupByTagOn, setGroupByTag, chooseTodayAccount, clearCompletedFromToday, previewTaskCursor, showSearchKind, toggleSearchCompleted, createTasksFromMessages, cursorTask, loadInboxes, loadTaskDetail, openLinkedMessage, openTaskById, openTaskView, paintTaskCursor, refreshTasks, renderTaskList, setTodayColumns, setTodayLayout, setTodayThreads, targetTaskIds, targetTasksAreAllComplete, withTasks } from "./taskview";
@@ -1655,7 +1655,15 @@ export const TASK_COMMANDS: Record<string, Command> = {
       setStatus("no task selected");
       return;
     }
-    const chosen = await pickDate("reminder", "Remind me", task.due_date ?? task.postpone_date);
+    // A recurring task's reminder is one of its series, said against its day (§32).
+    const day = (await seriesOf(task.id))?.day ?? null;
+    const chosen = await pickDate(
+      "reminder",
+      day ? "Remind me, from its day" : "Remind me",
+      day ?? task.due_date ?? task.postpone_date,
+      undefined,
+      day,
+    );
     if (!chosen || chosen.kind === "clear" || !chosen.at) return;
     await call("add_task_reminder", { task: task.id, at: chosen.at });
     await refreshTasks();

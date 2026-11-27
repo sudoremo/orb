@@ -2900,6 +2900,52 @@ test("R reads what is typed as a rule, beyond the usual ones it lists", async ({
     .toEqual(["FREQ=MONTHLY;BYDAY=-1TH"]);
 });
 
+test("a repeating task says its deadline and reminders against its day, and its pickers read them so", async ({ page }) => {
+  await page.goto("/harness.html?tasks=1&series=1");
+  await intoTasks(page);
+  await page.locator("#list [data-task]", { hasText: "Buy groceries" }).click();
+  const props = page.locator("#reader .props");
+  // What the series keeps first, where that falls this time after it.
+  await expect(props.locator('.p[data-k="Due"] .pv')).toHaveText("on the day 7 Aug");
+  await expect(props.locator('.p[data-k="Remind"] .pv')).toContainText("1 day before 18:00");
+  await expect(props.locator('.p[data-k="Repeat"]')).toContainText("Every week");
+
+  // The deadline: read against the day, and set as the date that comes to.
+  await page.locator("#list").focus();
+  await page.keyboard.press("D");
+  await expect(page.locator(".dp-title")).toHaveText("Due, from its day");
+  await expect(page.locator(".dp-input")).toHaveAttribute("placeholder", /2 days after/);
+  await page.locator(".dp-input").fill("+2");
+  await expect(page.locator(".dp-list li").first()).toContainText("2 days after");
+  await page.keyboard.press("Enter");
+  expect((await callsTo(page, "suggest_dates")).at(-1)).toEqual({ input: "+2", day: "2026-08-07" });
+  await expect
+    .poll(async () => (await callsTo(page, "set_task_due_date")).map((a) => a.date))
+    .toEqual(["2026-08-09"]);
+
+  // A reminder likewise.
+  await page.keyboard.press("r");
+  await expect(page.locator(".dp-title")).toHaveText("Remind me, from its day");
+  await page.locator(".dp-input").fill("day before 7:30");
+  await expect(page.locator(".dp-list li").first()).toContainText("1 day before 07:30");
+  await page.keyboard.press("Enter");
+  expect((await callsTo(page, "suggest_datetimes")).at(-1)).toEqual({ input: "day before 7:30", day: "2026-08-07" });
+  await expect.poll(async () => (await callsTo(page, "add_task_reminder")).length).toBe(1);
+});
+
+test("a task that does not repeat has its dates read as plain dates", async ({ page }) => {
+  await page.goto("/harness.html?tasks=1");
+  await intoTasks(page);
+  await page.locator("#list [data-task]", { hasText: "Buy groceries" }).click();
+  await expect(page.locator('#reader .props .p[data-k="Due"] .pv')).toHaveText("7 Aug");
+  await page.locator("#list").focus();
+  await page.keyboard.press("D");
+  await expect(page.locator(".dp-title")).toHaveText("Due");
+  await page.locator(".dp-input").fill("thu");
+  await expect(page.locator(".dp-list li").first()).toContainText("Thursday");
+  expect((await callsTo(page, "suggest_dates")).at(-1)).toEqual({ input: "thu" });
+});
+
 test("a task says when macOS blocks its reminders, and the notice leaves once they are allowed", async ({ page }) => {
   await page.goto("/harness.html?tasks=1");
   await intoTasks(page);

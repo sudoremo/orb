@@ -29,7 +29,8 @@ mod sync;
 pub mod things;
 
 pub use dates::{
-    DEFAULT_REMINDER_TIME, DateLocale, DateSuggestion, suggest_dates, suggest_datetimes,
+    DEFAULT_REMINDER_TIME, DateLocale, DateSuggestion, series_distance, suggest_dates,
+    suggest_dates_in_series, suggest_datetimes, suggest_datetimes_in_series,
 };
 pub use fuzzy_recurrence::{
     RecurrenceSuggestion, describe as describe_recurrence, suggest as suggest_recurrence,
@@ -42,14 +43,15 @@ pub use model::{
 };
 pub use recurrence::{
     AdvanceFrom, Advancement, ByDay, Frequency, RecurrenceEnd, RecurrenceError, RecurrenceRule,
-    ReminderOffset, TaskSchedule, advance, shift_reminders,
+    ReminderOffset, Series, SeriesAnchor, SeriesError, TaskSchedule, advance, shift_reminders,
 };
 pub use reminders::{
     CollectingNotifier, DueReminder, MISSED_REMINDER_GRACE_HOURS, MissedSummary, MissedTriage,
     NOTIFICATION_ID_PREFIX, NotificationHost, NotificationPlan, NotificationWindow,
     PENDING_NOTIFICATION_LIMIT, ReminderCheckResult, ReminderNotifier, ReminderService,
     ScheduledNotification, StderrNotifier, diff_notifications, is_task_notification,
-    missed_reminder_grace, notification_window, parse_notification_id, triage_missed,
+    local_wall_clock, missed_reminder_grace, notification_window, parse_notification_id,
+    triage_missed,
 };
 pub use repository::{
     COMPLETED_PAGE_SIZE, FixedZone, LocalZone, MutationOutcome, POSITION_STEP, PurgedTask,

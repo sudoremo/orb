@@ -524,7 +524,11 @@ Worth doing, not on the path to daily use.
 - Today in the tasks window grouped into Overdue, Today and Done today, as
   the mockup's Tasks window state draws it.
 - Per-occurrence editing of recurring tasks (out of scope in `todo-spec.md`
-  §15).
+  §15). One occurrence can be moved (§32), but its deadline or a reminder
+  cannot be changed for that occurrence alone: `D` and `r` restate the series.
+- The date picker's calendar for the deadline of a repeating task (§32) still
+  lets a day before the task's day be picked; the core refuses it, and the
+  status line says why.
 - Full article text for feeds that only carry a summary, fetched from the
   publisher's page and reduced to the article, behind a setting: it is a
   request to the publisher for every item.

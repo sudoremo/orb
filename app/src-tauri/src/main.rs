@@ -3093,9 +3093,10 @@ async fn next_task_midnight(orb: State<'_, Handle>) -> Result<String, OrbError> 
 async fn suggest_dates(
     orb: State<'_, Handle>,
     input: String,
+    day: Option<String>,
 ) -> Result<Vec<DateSuggestionInfo>, OrbError> {
     let orb = orb.inner().clone();
-    offload("suggest_dates", move || orb.suggest_dates(input)).await
+    offload("suggest_dates", move || orb.suggest_dates(input, day)).await
 }
 
 /// The readings of a recurrence typed by a person (§8).
@@ -3113,9 +3114,13 @@ async fn suggest_recurrence(
 async fn suggest_datetimes(
     orb: State<'_, Handle>,
     input: String,
+    day: Option<String>,
 ) -> Result<Vec<DateSuggestionInfo>, OrbError> {
     let orb = orb.inner().clone();
-    offload("suggest_datetimes", move || orb.suggest_datetimes(input)).await
+    offload("suggest_datetimes", move || {
+        orb.suggest_datetimes(input, day)
+    })
+    .await
 }
 
 /// One task with everything the detail view shows.

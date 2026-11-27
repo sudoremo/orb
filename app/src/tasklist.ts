@@ -101,6 +101,20 @@ export interface TaskReminderInfo {
   remind_at_unix: number;
   is_triggered: boolean;
   notification_id: string;
+  /** On a recurring task, where it stands against the task's day: "1 day before 18:00" (§32). */
+  series_label?: string | null;
+}
+
+/** The series of a recurring task (§32): what its dates and reminders are said against. */
+export interface TaskSeriesInfo {
+  /** The day of the current occurrence, `YYYY-MM-DD`. */
+  day: string;
+  /** The day the rule gave this occurrence, when it was moved from there. */
+  moved_from: string | null;
+  /** The day is the due date: the deadline is the day, and setting it moves the occurrence. */
+  day_is_due: boolean;
+  /** The deadline against the day: "On the day", "2 days after". */
+  due_label: string | null;
 }
 
 export interface TaskLinkInfo {
@@ -146,6 +160,8 @@ export interface TaskDetail {
   /** The rule in words, in the configured language. */
   recurrence_label: string | null;
   recurrence_from_completion: boolean;
+  /** Set for a recurring task that has a day (§32). */
+  series?: TaskSeriesInfo | null;
   created_at: string;
   updated_at: string;
   revision: number;

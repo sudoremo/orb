@@ -45,7 +45,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Weekday};
+use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
 use thiserror::Error;
 
 /// How many periods the occurrence scanner inspects before giving up.
@@ -870,6 +870,212 @@ pub fn shift_reminders(
                 .unwrap_or(*reminder)
         })
         .collect()
+}
+
+impl fmt::Display for ReminderOffset {
+    /// `-1T18:00`: the evening before. Seconds only when there are any.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let format = if self.time.second() == 0 {
+            "%H:%M"
+        } else {
+            "%H:%M:%S"
+        };
+        write!(f, "{}T{}", self.days, self.time.format(format))
+    }
+}
+
+impl FromStr for ReminderOffset {
+    type Err = SeriesError;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let invalid = || SeriesError::Reminder(text.to_string());
+        let (days, time) = text.trim().split_once('T').ok_or_else(invalid)?;
+        let time = NaiveTime::parse_from_str(time, "%H:%M:%S")
+            .or_else(|_| NaiveTime::parse_from_str(time, "%H:%M"))
+            .map_err(|_| invalid())?;
+        Ok(Self {
+            days: days.parse().map_err(|_| invalid())?,
+            time,
+        })
+    }
+}
+
+/// Which of a recurring task's two dates is its day.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SeriesAnchor {
+    /// The task is postponed to its day, and due on it or some days after.
+    #[default]
+    Postpone,
+    /// The task is due on its day and shown before it. A postpone date then
+    /// hides one occurrence and is gone with the next.
+    Due,
+}
+
+/// What a recurring task's dates and reminders are, said against its day (§32).
+///
+/// The rule yields one day per occurrence; this says what hangs on it. The
+/// task's own dates and reminders are the current occurrence worked out from
+/// here, so moving that occurrence by hand changes neither the series nor
+/// where the next one falls: the next is counted from `day`, not from wherever
+/// the current one was put.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Series {
+    /// The day the rule gave the current occurrence.
+    pub day: NaiveDate,
+    pub anchor: SeriesAnchor,
+    /// Days from the day to the deadline, for a series anchored on its
+    /// postpone date. `None` is no deadline.
+    pub due_after: Option<i64>,
+    /// The reminders, each against the day. `None` while nobody has stated
+    /// them: they are then whatever the task's reminders are at the time.
+    pub reminders: Option<Vec<ReminderOffset>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum SeriesError {
+    #[error("a series needs its day, as day=YYYY-MM-DD: '{0}'")]
+    Day(String),
+    #[error("unreadable part of a series: '{0}'")]
+    Part(String),
+    #[error("unreadable reminder of a series: '{0}'")]
+    Reminder(String),
+}
+
+impl Series {
+    /// The series a task's dates amount to, for one that states none: what
+    /// completing it did before a series was written down.
+    pub fn derive(schedule: TaskSchedule, today: NaiveDate) -> Self {
+        let (anchor, due_after) = match (schedule.postpone, schedule.due) {
+            (Some(postpone), Some(due)) => {
+                (SeriesAnchor::Postpone, Some((due - postpone).num_days()))
+            }
+            (None, Some(_)) => (SeriesAnchor::Due, None),
+            _ => (SeriesAnchor::Postpone, None),
+        };
+        Self {
+            day: schedule.anchor().unwrap_or(today),
+            anchor,
+            due_after,
+            reminders: None,
+        }
+    }
+
+    /// The day the current occurrence is on: where its dates put it, which
+    /// is the series' day unless it was moved.
+    pub fn occurrence_day(&self, schedule: TaskSchedule) -> NaiveDate {
+        match self.anchor {
+            SeriesAnchor::Postpone => schedule.postpone,
+            SeriesAnchor::Due => schedule.due,
+        }
+        .unwrap_or(self.day)
+    }
+
+    /// The dates of an occurrence on `day`.
+    pub fn schedule_on(&self, day: NaiveDate) -> TaskSchedule {
+        match self.anchor {
+            SeriesAnchor::Postpone => TaskSchedule {
+                postpone: Some(day),
+                due: self
+                    .due_after
+                    .map(|days| shift_days(day, days).unwrap_or(day)),
+            },
+            SeriesAnchor::Due => TaskSchedule {
+                postpone: None,
+                due: Some(day),
+            },
+        }
+    }
+
+    /// The reminders of an occurrence on `day`, soonest first, once they are
+    /// stated. One that no calendar holds is left out.
+    pub fn reminders_on(&self, day: NaiveDate) -> Option<Vec<NaiveDateTime>> {
+        let mut at: Vec<NaiveDateTime> = self
+            .reminders
+            .as_ref()?
+            .iter()
+            .filter_map(|offset| offset.apply(day))
+            .collect();
+        at.sort();
+        at.dedup();
+        Some(at)
+    }
+}
+
+impl fmt::Display for Series {
+    /// `day=2026-11-30; due=2; reminders=-1T18:00,0T09:00`, the form the
+    /// header and the column hold.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "day={}", self.day)?;
+        if self.anchor == SeriesAnchor::Due {
+            write!(f, "; anchor=due")?;
+        }
+        if let Some(days) = self.due_after {
+            write!(f, "; due={days}")?;
+        }
+        if let Some(reminders) = &self.reminders {
+            let list: Vec<String> = reminders.iter().map(ReminderOffset::to_string).collect();
+            write!(
+                f,
+                "; reminders={}",
+                if list.is_empty() {
+                    "none".to_string()
+                } else {
+                    list.join(",")
+                }
+            )?;
+        }
+        Ok(())
+    }
+}
+
+impl FromStr for Series {
+    type Err = SeriesError;
+
+    /// A part this version does not know is passed over rather than refused,
+    /// so a later one can add to the series without older machines dropping
+    /// the whole of it.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let mut day = None;
+        let mut anchor = SeriesAnchor::Postpone;
+        let mut due_after = None;
+        let mut reminders = None;
+        for part in text.split(';').map(str::trim).filter(|p| !p.is_empty()) {
+            let invalid = || SeriesError::Part(part.to_string());
+            let (key, value) = part.split_once('=').ok_or_else(invalid)?;
+            match key.trim() {
+                "day" => {
+                    day = Some(
+                        NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d")
+                            .map_err(|_| invalid())?,
+                    );
+                }
+                "anchor" => {
+                    anchor = match value.trim() {
+                        "due" => SeriesAnchor::Due,
+                        "postpone" => SeriesAnchor::Postpone,
+                        _ => return Err(invalid()),
+                    };
+                }
+                "due" => due_after = Some(value.trim().parse().map_err(|_| invalid())?),
+                "reminders" => {
+                    reminders = Some(match value.trim() {
+                        "none" => Vec::new(),
+                        list => list
+                            .split(',')
+                            .map(str::parse)
+                            .collect::<Result<Vec<ReminderOffset>, _>>()?,
+                    });
+                }
+                _ => {}
+            }
+        }
+        Ok(Self {
+            day: day.ok_or_else(|| SeriesError::Day(text.to_string()))?,
+            anchor,
+            due_after,
+            reminders,
+        })
+    }
 }
 
 /// Add a signed number of days to a civil date without panicking on overflow.
@@ -1846,6 +2052,97 @@ mod tests {
             offset.apply(date(2027, 3, 1)),
             Some(at(2027, 2, 27, 21, 45))
         );
+    }
+
+    // ---- the series -----------------------------------------------------
+
+    #[test]
+    fn a_series_reads_back_what_it_wrote() {
+        for text in [
+            "day=2026-11-30",
+            "day=2026-11-30; anchor=due",
+            "day=2026-11-30; due=0",
+            "day=2026-11-30; due=2; reminders=-1T18:00,0T09:00",
+            "day=2026-11-30; reminders=none",
+            "day=2026-11-30; reminders=0T09:00:30",
+        ] {
+            let series: Series = text.parse().unwrap_or_else(|e| panic!("{text}: {e}"));
+            assert_eq!(series.to_string(), text);
+        }
+        let series: Series = "day=2026-11-30; due=2; reminders=-1T18:00".parse().unwrap();
+        assert_eq!(series.day, date(2026, 11, 30));
+        assert_eq!(series.due_after, Some(2));
+        assert_eq!(
+            series.reminders,
+            Some(vec![ReminderOffset {
+                days: -1,
+                time: NaiveTime::from_hms_opt(18, 0, 0).unwrap(),
+            }])
+        );
+    }
+
+    #[test]
+    fn a_series_passes_over_a_part_it_does_not_know_and_refuses_a_broken_one() {
+        let series: Series = "day=2026-11-30; colour=red; due=1".parse().unwrap();
+        assert_eq!(series.due_after, Some(1));
+        assert!("due=1".parse::<Series>().is_err());
+        assert!("day=tomorrow".parse::<Series>().is_err());
+        assert!("day=2026-11-30; reminders=soon".parse::<Series>().is_err());
+        assert!("day=2026-11-30; anchor=moon".parse::<Series>().is_err());
+    }
+
+    #[test]
+    fn a_series_is_derived_from_the_dates_a_task_has() {
+        let both = Series::derive(
+            TaskSchedule::new(Some(date(2026, 8, 3)), Some(date(2026, 8, 7))),
+            date(2026, 8, 1),
+        );
+        assert_eq!(both.to_string(), "day=2026-08-03; due=4");
+        let postponed = Series::derive(
+            TaskSchedule::new(Some(date(2026, 8, 3)), None),
+            date(2026, 8, 1),
+        );
+        assert_eq!(postponed.to_string(), "day=2026-08-03");
+        let due = Series::derive(
+            TaskSchedule::new(None, Some(date(2026, 8, 7))),
+            date(2026, 8, 1),
+        );
+        assert_eq!(due.to_string(), "day=2026-08-07; anchor=due");
+        let undated = Series::derive(TaskSchedule::default(), date(2026, 8, 1));
+        assert_eq!(undated.to_string(), "day=2026-08-01");
+    }
+
+    #[test]
+    fn an_occurrence_is_worked_out_from_the_series_on_any_day() {
+        let series: Series = "day=2026-11-30; due=2; reminders=0T09:00,-1T18:00"
+            .parse()
+            .unwrap();
+        let moved = series.schedule_on(date(2026, 12, 2));
+        assert_eq!(moved.postpone, Some(date(2026, 12, 2)));
+        assert_eq!(moved.due, Some(date(2026, 12, 4)));
+        // Where the occurrence was put, not where the series has it.
+        assert_eq!(series.occurrence_day(moved), date(2026, 12, 2));
+        assert_eq!(
+            series.occurrence_day(TaskSchedule::default()),
+            date(2026, 11, 30)
+        );
+        assert_eq!(
+            series.reminders_on(date(2026, 12, 2)),
+            Some(vec![at(2026, 12, 1, 18, 0), at(2026, 12, 2, 9, 0)])
+        );
+
+        let due: Series = "day=2026-11-30; anchor=due".parse().unwrap();
+        let next = due.schedule_on(date(2026, 12, 7));
+        assert_eq!((next.postpone, next.due), (None, Some(date(2026, 12, 7))));
+        // A postpone date hides an occurrence of it and says nothing of its day.
+        assert_eq!(
+            due.occurrence_day(TaskSchedule::new(
+                Some(date(2026, 11, 20)),
+                Some(date(2026, 11, 30))
+            )),
+            date(2026, 11, 30)
+        );
+        assert_eq!(due.reminders_on(date(2026, 12, 7)), None);
     }
 
     #[test]

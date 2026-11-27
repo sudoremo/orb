@@ -1095,10 +1095,10 @@ Active in a task list: Today's tasks and the task views
 | `x` / `X` | Complete / reopen | `complete-task`, `uncomplete-task` |
 | `w` | Mark as being worked on, or not (`work-on clear` takes the mark off every task) | `work-on [clear]` |
 | `d` / `U` | Move to the trash / restore; with steps selected, remove those steps | `delete-task`, `restore-task` |
-| `s` / `D` | Postpone date / due date, from the [date picker](#date-picker). A task shows from the earlier of the two | `postpone-task`, `set-due-date` |
+| `s` / `D` | Postpone date / due date, from the [date picker](#date-picker). A task shows from the earlier of the two. On a repeating task, `s` moves this occurrence and `D` says how long after its day it is due | `postpone-task`, `set-due-date` |
 | `S` | Both dates at once | `set-both-dates` |
 | `c` | Clear both dates | `clear-dates` |
-| `r` | Add a reminder | `add-reminder` |
+| `r` | Add a reminder; on a repeating task, one for every occurrence | `add-reminder` |
 | `R` | Make the task repeat: a list of the usual rules, or a rule typed there or as `:set-recurrence every monday`, `monthly on the 1st`, `last thursday of the month`, `every 2 weeks until June`, in English or German | `set-recurrence [rule]` |
 | `a` / `A` | Add / remove a tag | `add-tag`, `remove-tag` |
 | `m` / `M` | Link the message in the reader / open the linked message | `link-message`, `open-linked-message` |
@@ -2114,6 +2114,28 @@ counts from the scheduled date (the default, so a task done late does not
 drift) or from the completion. Completing a repeating task logs the
 completion and moves it to its next date, so it stays one task.
 
+A repeating task has a day, the one its rule gives each occurrence: its
+postpone date, or its due date when it has no postpone date. Its deadline and
+its reminders are kept as their distance from that day, and every occurrence
+gets them at that distance:
+
+- `D` sets the deadline against the day: `on the day`, `2 days after`, `+3`,
+  or `am Tag`, `2 Tage später`. A date typed or picked is kept as its
+  distance, and the task shows both: `Due 2 days after`, then the date that
+  falls on this time.
+- `r` adds a reminder to every occurrence: `on the day 9am`, `day before
+  18:00`, `-2 14:00`, `am Vortag 18 Uhr`. A time alone is that time on the
+  day.
+- `s` moves this occurrence only. Its deadline and its reminders move with
+  it, the task says where it was moved from, and the next occurrence is back
+  on the day the rule gives it.
+- A snoozed reminder belongs to this occurrence; the next one has the
+  reminders of the series again.
+
+A task whose day is its due date is due on that day every time: `D` moves this
+occurrence, and `s` hides it until then without moving it. `S` gives it a
+postpone date as its day from then on.
+
 ### Mail and chat integration
 
 `t` on a message, or on a selection, creates one task each, titled from the
@@ -2216,7 +2238,9 @@ On the iPhone, *Select* in a list's ⋯ menu picks several tasks; the bar below
 completes, postpones, merges or deletes them, and dragging one of them moves
 them all. *Hide Completed* in Today's ⋯ menu is `clear-completed`. A step is
 added in the field below the checklist and renamed or deleted from its
-context menu or by a swipe; *Select Steps* picks several.
+context menu or by a swipe; *Select Steps* picks several. The Due and Remind
+sheets of a repeating task read what is typed against its day, as `D` and `r`
+do.
 
 ## Reading
 

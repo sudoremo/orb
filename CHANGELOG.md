@@ -41,6 +41,9 @@ The first release.
 - A task list stored as messages in one IMAP folder, so every machine sees the
   same list: dates, recurrence, tags, steps, reminders, attachments and a log
   per task. One key turns a message or a chat thread into a task.
+- A repeating task keeps its deadline and its reminders as their distance
+  from its day (`on the day`, `2 days after`, `day before 18:00`), so every
+  occurrence gets them, and postponing one occurrence moves only that one.
 - A reading list: newsletters set aside with one key, and RSS, Atom and JSON
   feeds, kept in two IMAP folders.
 - Rocket.Chat: the threads that wait for your answer, one row each, with the

@@ -65,7 +65,7 @@ use chrono::{
 use serde::{Deserialize, Serialize};
 
 use super::model::{ChangeContext, ReminderShift, TaskEvent, TaskLogEntry, TaskReminder};
-use super::recurrence::shift_reminders;
+use super::recurrence::ReminderOffset;
 use super::repository::{LocalZone, TaskRepository};
 use crate::Result;
 use crate::db::Database;
@@ -114,6 +114,14 @@ pub fn parse_notification_id(identifier: &str) -> Option<(&str, i64)> {
 }
 
 /// The grace period of §5.2 as a duration.
+/// The wall clock of an instant on this machine, as the reminders are read.
+pub fn local_wall_clock(unix: i64) -> NaiveDateTime {
+    DateTime::from_timestamp(unix, 0)
+        .unwrap_or_default()
+        .with_timezone(&Local)
+        .naive_local()
+}
+
 pub fn missed_reminder_grace() -> Duration {
     Duration::hours(MISSED_REMINDER_GRACE_HOURS)
 }
@@ -851,15 +859,16 @@ where
 
     // -- recurrence --------------------------------------------------------
 
-    /// Drag a recurring task's reminders to its next occurrence (§8).
+    /// Drag a recurring task's reminders to the day its occurrence is on now
+    /// (§8, §32).
     ///
-    /// The shifts come from a completion that advanced a recurring task —
-    /// `MutationOutcome::reminder_shifts` — because the mutation path owns the
-    /// task row and this module owns the reminder rows. Each reminder keeps its
-    /// distance in whole days and its wall-clock time, so "the evening before"
-    /// stays the evening before; the arithmetic is
-    /// [`shift_reminders`], on civil dates, and only the conversion back to an
-    /// instant consults the zone — which is what keeps a shift across a DST
+    /// The shifts come from whatever moved that day — a completion, a postpone
+    /// date, an undo of either — as `MutationOutcome::reminder_shifts`, because
+    /// the mutation path owns the task row and this module owns the reminder
+    /// rows. Each reminder keeps its distance in whole days and its wall-clock
+    /// time, so "the evening before" stays the evening before; the arithmetic
+    /// is [`ReminderOffset`]'s, on civil dates, and only the conversion back to
+    /// an instant consults the zone — which is what keeps a shift across a DST
     /// boundary from sliding every reminder by an hour.
     ///
     /// The moved reminders are un-fired. They have to be: a reminder marked
@@ -880,6 +889,12 @@ where
 
     /// [`ReminderService::follow_recurrence`] for one task.
     ///
+    /// The reminders of the occurrence on `shift.to` are what the series says
+    /// they are (§32). A series that does not say yet takes them from where
+    /// they stand against `shift.from`, and says so from then on, so that a
+    /// reminder that fired and was cleared away, or one a snooze added, does
+    /// not change what the next occurrence gets.
+    ///
     /// The moved set is published: reminders travel inside the task message, so
     /// a machine that never completes this occurrence has to learn the new times
     /// from the wire rather than recompute them — it does not know the rule was
@@ -895,36 +910,131 @@ where
         }
         let repo = self.repository();
         let reminders = repo.get_reminders(task_id)?;
-        if reminders.is_empty() {
+        let mut series = match repo.get_task(task_id)? {
+            Some(task) => task.series()?,
+            None => return Ok(0),
+        };
+        let stated = series.as_ref().and_then(|series| series.reminders.clone());
+        if reminders.is_empty() && stated.is_none() {
             return Ok(0);
         }
 
-        let before: Vec<NaiveDateTime> = reminders
+        let offsets = stated
+            .clone()
+            .unwrap_or_else(|| self.offsets(&reminders, shift.from));
+        let mut wanted: Vec<NaiveDateTime> = offsets
             .iter()
-            .map(|reminder| self.wall_clock(reminder.remind_at_unix))
+            .filter_map(|offset| offset.apply(shift.to))
             .collect();
-        let after = shift_reminders(shift.from, shift.to, &before);
+        wanted.sort();
+        wanted.dedup();
 
+        // A reminder that stays where it is keeps its row, and with it whether
+        // it has fired here.
         let mut moved = 0;
-        let mut next = Vec::with_capacity(reminders.len());
-        for ((reminder, old), new) in reminders.iter().zip(&before).zip(after) {
-            if new == *old {
-                next.push(reminder.clone());
-                continue;
+        let mut next = Vec::with_capacity(wanted.len());
+        for local in wanted {
+            let at = self.instant_of(local);
+            match reminders
+                .iter()
+                .find(|r| r.remind_at_unix == at.timestamp())
+            {
+                Some(kept) => next.push(kept.clone()),
+                None => {
+                    next.push(TaskReminder::new(
+                        task_id,
+                        self.format_local(at),
+                        at.timestamp(),
+                    ));
+                    moved += 1;
+                }
             }
-            let at = self.instant_of(new);
-            next.push(TaskReminder::new(
-                task_id,
-                self.format_local(at),
-                at.timestamp(),
-            ));
-            moved += 1;
         }
-        if moved == 0 {
+        let states = stated.is_none() && series.is_some();
+        if moved == 0 && next.len() == reminders.len() && !states {
             return Ok(0);
         }
-        repo.replace_reminders(task_id, &next, ctx)?;
+        match &mut series {
+            Some(series) => {
+                series.reminders = Some(offsets);
+                repo.replace_reminders_in_series(task_id, &next, Some(&series.to_string()), ctx)?;
+            }
+            None => {
+                repo.replace_reminders(task_id, &next, ctx)?;
+            }
+        }
         Ok(moved)
+    }
+
+    /// Add a reminder to a task. On a recurring task it is one of the series
+    /// (§32): every occurrence gets it, as far from its day as this one is.
+    pub fn add_reminder(
+        &self,
+        task_id: i64,
+        remind_at: &str,
+        ctx: &ChangeContext<'_>,
+    ) -> Result<i64> {
+        let repo = self.repository();
+        let series = match repo.get_task(task_id)? {
+            Some(task) => task
+                .series_in_effect()?
+                .map(|series| (series.occurrence_day(task.dates().into()), series)),
+            None => None,
+        };
+        let Some((day, mut series)) = series else {
+            return repo.add_reminder(task_id, remind_at, ctx);
+        };
+        let at = DateTime::parse_from_rfc3339(remind_at)
+            .map_err(|e| crate::Error::InvalidInput(format!("'{remind_at}': {e}")))?;
+        let mut offsets = match series.reminders.take() {
+            Some(offsets) => offsets,
+            None => self.offsets(&repo.get_reminders(task_id)?, day),
+        };
+        let added = ReminderOffset::between(day, self.wall_clock(at.timestamp()));
+        if !offsets.contains(&added) {
+            offsets.push(added);
+        }
+        series.reminders = Some(offsets);
+        repo.add_reminder_in_series(task_id, remind_at, &series.to_string(), ctx)
+    }
+
+    /// Remove a reminder, from the series as well when its task repeats.
+    pub fn delete_reminder(&self, reminder_id: i64, ctx: &ChangeContext<'_>) -> Result<bool> {
+        let repo = self.repository();
+        let Some(reminder) = repo.get_reminder(reminder_id)? else {
+            return Ok(false);
+        };
+        let series = match repo.get_task(reminder.task_id)? {
+            Some(task) => task
+                .series_in_effect()?
+                .map(|series| (series.occurrence_day(task.dates().into()), series)),
+            None => None,
+        };
+        let Some((day, mut series)) = series else {
+            return repo.delete_reminder(reminder_id, ctx);
+        };
+        let mut offsets = match series.reminders.take() {
+            Some(offsets) => offsets,
+            None => self.offsets(&repo.get_reminders(reminder.task_id)?, day),
+        };
+        let removed = ReminderOffset::between(day, self.wall_clock(reminder.remind_at_unix));
+        if let Some(at) = offsets.iter().position(|offset| *offset == removed) {
+            offsets.remove(at);
+        }
+        series.reminders = Some(offsets);
+        repo.delete_reminder_in_series(reminder_id, &series.to_string(), ctx)
+    }
+
+    /// Where a task's reminders stand against a day.
+    fn offsets(&self, reminders: &[TaskReminder], day: NaiveDate) -> Vec<ReminderOffset> {
+        let mut offsets: Vec<ReminderOffset> = Vec::new();
+        for reminder in reminders {
+            let offset = ReminderOffset::between(day, self.wall_clock(reminder.remind_at_unix));
+            if !offsets.contains(&offset) {
+                offsets.push(offset);
+            }
+        }
+        offsets
     }
 
     // -- plumbing ----------------------------------------------------------
@@ -1060,7 +1170,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::super::model::Task;
+    use super::super::model::{Task, TaskUpdates};
     use super::*;
     use chrono::FixedOffset;
     use std::sync::Mutex;
@@ -1778,6 +1888,209 @@ mod tests {
         assert_eq!(
             times,
             vec!["2026-09-05T18:00:00+02:00", "2026-09-06T09:00:00+02:00"]
+        );
+    }
+
+    // -- the series of a recurring task (§32) -----------------------------
+
+    const NOW: &str = "2026-08-06T10:00:00+00:00";
+
+    /// A task postponed to Monday 2026-08-10 that repeats weekly.
+    fn weekly(db: &Database) -> i64 {
+        let id = create(db, "Water the plants").id.expect("id");
+        let updates = TaskUpdates::new()
+            .with_postpone_date(Some(day("2026-08-10")))
+            .with_recurrence(Some(&"FREQ=WEEKLY".parse().expect("rule")));
+        repo(db).apply(id, &updates, &ctx(NOW)).expect("repeat");
+        id
+    }
+
+    /// Apply an edit and let the reminders follow it, as the app does.
+    fn edit(db: &Database, id: i64, updates: TaskUpdates, now: &str) {
+        let outcome = repo(db).apply(id, &updates, &ctx(now)).expect("edit");
+        service(db)
+            .follow_recurrence(&outcome.reminder_shifts, &ctx(now))
+            .expect("follow");
+    }
+
+    fn series(db: &Database, id: i64) -> Option<String> {
+        repo(db)
+            .get_task(id)
+            .expect("task")
+            .expect("there")
+            .recurrence_series
+    }
+
+    fn times(db: &Database, id: i64) -> Vec<String> {
+        repo(db)
+            .get_reminders(id)
+            .expect("reminders")
+            .into_iter()
+            .map(|reminder| reminder.remind_at)
+            .collect()
+    }
+
+    #[test]
+    fn a_reminder_on_a_recurring_task_is_one_of_its_series() {
+        let db = database();
+        let id = weekly(&db);
+        let revision = repo(&db).get_task(id).unwrap().unwrap().revision;
+
+        service(&db)
+            .add_reminder(id, "2026-08-09T18:00:00+02:00", &ctx(NOW))
+            .expect("add");
+        let on_the_day = service(&db)
+            .add_reminder(id, "2026-08-10T09:00:00+02:00", &ctx(NOW))
+            .expect("add");
+        assert_eq!(
+            series(&db, id).as_deref(),
+            Some("day=2026-08-10; reminders=-1T18:00,0T09:00")
+        );
+        // One revision each, as for any reminder (§16).
+        let task = repo(&db).get_task(id).unwrap().unwrap();
+        assert_eq!(task.revision, revision + 2);
+        assert!(task.is_dirty);
+
+        assert!(
+            service(&db)
+                .delete_reminder(on_the_day, &ctx(NOW))
+                .expect("delete")
+        );
+        assert_eq!(
+            series(&db, id).as_deref(),
+            Some("day=2026-08-10; reminders=-1T18:00")
+        );
+        assert_eq!(times(&db, id), vec!["2026-08-09T18:00:00+02:00"]);
+    }
+
+    #[test]
+    fn a_reminder_on_a_task_that_does_not_repeat_states_no_series() {
+        let db = database();
+        let id = create(&db, "Call the plumber").id.expect("id");
+        let reminder = service(&db)
+            .add_reminder(id, "2026-08-09T18:00:00+02:00", &ctx(NOW))
+            .expect("add");
+        assert_eq!(series(&db, id), None);
+        assert!(service(&db).delete_reminder(reminder, &ctx(NOW)).unwrap());
+        assert!(times(&db, id).is_empty());
+    }
+
+    #[test]
+    fn the_reminders_go_with_an_occurrence_moved_by_hand_and_back_to_the_series_after_it() {
+        let db = database();
+        let id = weekly(&db);
+        service(&db)
+            .add_reminder(id, "2026-08-09T18:00:00+02:00", &ctx(NOW))
+            .expect("add");
+
+        // Wednesday instead of Monday, this once.
+        edit(
+            &db,
+            id,
+            TaskUpdates::new().with_postpone_date(Some(day("2026-08-12"))),
+            NOW,
+        );
+        assert_eq!(times(&db, id), vec!["2026-08-11T18:00:00+02:00"]);
+
+        // Done that Wednesday: the next one is Monday again, the evening before.
+        edit(
+            &db,
+            id,
+            TaskUpdates::new().with_is_completed(true),
+            "2026-08-12T10:00:00+00:00",
+        );
+        assert_eq!(times(&db, id), vec!["2026-08-16T18:00:00+02:00"]);
+        assert_eq!(
+            series(&db, id).as_deref(),
+            Some("day=2026-08-17; reminders=-1T18:00")
+        );
+    }
+
+    #[test]
+    fn the_next_occurrence_has_the_series_reminders_whatever_became_of_this_ones() {
+        let db = database();
+        let id = weekly(&db);
+        let reminder = service(&db)
+            .add_reminder(id, "2026-08-10T09:00:00+02:00", &ctx(NOW))
+            .expect("add");
+
+        // It fires, is snoozed by an hour, and both are long cleared away by
+        // the time the task is done.
+        service(&db)
+            .snooze_reminder(reminder, 60, at("2026-08-10T07:00:00Z"), Some("device-a"))
+            .expect("snooze");
+        assert_eq!(times(&db, id).len(), 2);
+        db.conn
+            .execute("DELETE FROM task_reminders WHERE task_id = ?1", [id])
+            .expect("clear");
+
+        edit(
+            &db,
+            id,
+            TaskUpdates::new().with_is_completed(true),
+            "2026-08-14T10:00:00+00:00",
+        );
+        assert_eq!(times(&db, id), vec!["2026-08-17T09:00:00+02:00"]);
+        assert!(!repo(&db).get_reminders(id).unwrap()[0].is_triggered);
+    }
+
+    #[test]
+    fn a_series_that_states_no_reminders_takes_them_as_they_stand_and_states_them_then() {
+        // A task written before there were series: its rule, its dates and a
+        // reminder, as they come off the wire.
+        let db = database();
+        let id = create(&db, "Water the plants").id.expect("id");
+        db.conn
+            .execute(
+                "UPDATE tasks SET recurrence = 'FREQ=WEEKLY', snooze_until = '2026-08-10',
+                 snooze_until_unix = 1786320000 WHERE id = ?1",
+                [id],
+            )
+            .expect("an older task");
+        repo(&db)
+            .add_reminder(id, "2026-08-09T18:00:00+02:00", &ctx(NOW))
+            .expect("add");
+        assert_eq!(series(&db, id), None);
+
+        edit(
+            &db,
+            id,
+            TaskUpdates::new().with_is_completed(true),
+            "2026-08-10T10:00:00+00:00",
+        );
+        assert_eq!(times(&db, id), vec!["2026-08-16T18:00:00+02:00"]);
+        assert_eq!(
+            series(&db, id).as_deref(),
+            Some("day=2026-08-17; reminders=-1T18:00")
+        );
+    }
+
+    #[test]
+    fn undoing_a_completion_puts_the_reminders_back_on_the_occurrence_it_left() {
+        let db = database();
+        let id = weekly(&db);
+        service(&db)
+            .add_reminder(id, "2026-08-09T18:00:00+02:00", &ctx(NOW))
+            .expect("add");
+
+        let done = repo(&db)
+            .complete_tasks(&[id], &ctx("2026-08-10T10:00:00+00:00"))
+            .expect("complete");
+        service(&db)
+            .follow_recurrence(&done.reminder_shifts, &ctx("2026-08-10T10:00:00+00:00"))
+            .expect("follow");
+        assert_eq!(times(&db, id), vec!["2026-08-16T18:00:00+02:00"]);
+
+        let undone = repo(&db)
+            .undo(&done.undo, &ctx("2026-08-10T10:01:00+00:00"))
+            .expect("undo");
+        service(&db)
+            .follow_recurrence(&undone.reminder_shifts, &ctx("2026-08-10T10:01:00+00:00"))
+            .expect("follow");
+        assert_eq!(times(&db, id), vec!["2026-08-09T18:00:00+02:00"]);
+        assert_eq!(
+            series(&db, id).as_deref(),
+            Some("day=2026-08-10; reminders=-1T18:00")
         );
     }
 

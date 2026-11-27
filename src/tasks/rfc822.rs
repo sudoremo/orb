@@ -73,7 +73,7 @@ use super::model::{
     Task, TaskAttachment, TaskDates, TaskEvent, TaskLinkedEmail, TaskLogEntry, TaskReminder,
     TaskTag, format_timestamp, is_wire_id, parse_civil_date,
 };
-use super::recurrence::RecurrenceRule;
+use super::recurrence::{RecurrenceRule, Series};
 use crate::{Result, logger};
 
 /// Prefix shared by every Orb task header.
@@ -106,6 +106,8 @@ const H_DUE: &str = "X-Orb-Task-Due";
 const H_TAGS: &str = "X-Orb-Task-Tags";
 const H_RECURRENCE: &str = "X-Orb-Task-Recurrence";
 const H_RECURRENCE_FROM: &str = "X-Orb-Task-Recurrence-From";
+/// The series (§32), in the text form of [`Series`].
+const H_RECURRENCE_SERIES: &str = "X-Orb-Task-Recurrence-Series";
 const H_POSITION: &str = "X-Orb-Task-Position";
 const H_REMINDERS: &str = "X-Orb-Task-Reminders";
 const H_PART: &str = "X-Orb-Task-Part";
@@ -387,6 +389,9 @@ impl TaskEmailBuilder {
             email.push_str(&header_line(H_RECURRENCE, recurrence));
             if task.recurrence_from_completion {
                 email.push_str(&header_line(H_RECURRENCE_FROM, RECURRENCE_FROM_COMPLETION));
+            }
+            if let Some(series) = &task.recurrence_series {
+                email.push_str(&header_line(H_RECURRENCE_SERIES, series));
             }
         }
         email.push_str(&header_line(H_POSITION, &format_position(task.position)));
@@ -884,6 +889,19 @@ fn parse_task(
             value
                 .trim()
                 .eq_ignore_ascii_case(RECURRENCE_FROM_COMPLETION)
+        });
+    // A series only with a rule, and only one this build can read: the task
+    // then repeats by its dates, as one written before there were series.
+    task.recurrence_series = task_header(headers, H_RECURRENCE_SERIES)
+        .filter(|_| task.recurrence.is_some())
+        .filter(|series| match series.parse::<Series>() {
+            Ok(_) => true,
+            Err(error) => {
+                logger::warn(&format!(
+                    "task {task_uuid}: dropping an unreadable series: {error}"
+                ));
+                false
+            }
         });
     task.tags = task_header(headers, H_TAGS)
         .map(|value| {
@@ -1872,6 +1890,8 @@ mod tests {
         task.tags = vec!["tag-a".to_string(), "tag-b".to_string()];
         task.recurrence = Some("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO".to_string());
         task.recurrence_from_completion = true;
+        task.recurrence_series =
+            Some("day=2026-08-10; due=2; reminders=-1T18:00,0T09:00".to_string());
         task.position = 2048.5;
 
         let parsed = build_and_parse(&task);
@@ -1893,6 +1913,7 @@ mod tests {
             Some("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")
         );
         assert!(parsed.task.recurrence_from_completion);
+        assert_eq!(parsed.task.recurrence_series, task.recurrence_series);
         assert_eq!(parsed.task.position, 2048.5);
         assert_eq!(parsed.task.created_at, task.created_at);
         assert_eq!(parsed.task.updated_at, task.updated_at);
@@ -1903,6 +1924,40 @@ mod tests {
 
     /// A rule the build cannot read is dropped on arrival, as an unreadable
     /// date is, rather than kept to fail every open of the task.
+    #[test]
+    fn a_series_is_read_only_with_a_rule_and_only_when_it_can_be() {
+        let message = |extra: &str| {
+            format!("X-Orb-Task-Version: 2\r\nX-Orb-Task-Id: task-a\r\n{extra}Subject: s\r\n\r\n")
+        };
+        let series = |extra: &str| {
+            let TaskMessage::Task(parsed) =
+                TaskEmailParser::parse(message(extra).as_bytes(), "Work", None).unwrap()
+            else {
+                panic!("a task");
+            };
+            parsed.task.recurrence_series
+        };
+        let rule = "X-Orb-Task-Recurrence: FREQ=WEEKLY\r\n";
+        assert_eq!(
+            series(&format!(
+                "{rule}X-Orb-Task-Recurrence-Series: day=2026-08-10; due=2\r\n"
+            ))
+            .as_deref(),
+            Some("day=2026-08-10; due=2")
+        );
+        assert_eq!(
+            series("X-Orb-Task-Recurrence-Series: day=2026-08-10\r\n"),
+            None
+        );
+        assert_eq!(
+            series(&format!(
+                "{rule}X-Orb-Task-Recurrence-Series: day=someday\r\n"
+            )),
+            None
+        );
+        assert_eq!(series(rule), None);
+    }
+
     #[test]
     fn an_unreadable_recurrence_rule_is_dropped_on_arrival() {
         for rule in ["FREQ=WEEKLY;BYDAY=aéa", "FREQ=NEVER", "x"] {

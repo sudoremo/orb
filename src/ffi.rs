@@ -1578,17 +1578,82 @@ pub struct TaskReminderInfo {
     /// The identifier this reminder is scheduled under with the OS, so the
     /// platform layer can correlate a delivered notification with a row.
     pub notification_id: String,
+    /// On a recurring task, where it stands against the task's day, in the
+    /// configured language: "1 day before 18:00" (§32).
+    pub series_label: Option<String>,
 }
 
 impl TaskReminderInfo {
-    fn new(reminder: &TaskReminder, task_uuid: &str) -> Self {
+    /// `series` is the day of a recurring task's occurrence and the language
+    /// to say the distance from it in.
+    fn new(
+        reminder: &TaskReminder,
+        task_uuid: &str,
+        series: Option<(chrono::NaiveDate, crate::tasks::DateLocale)>,
+    ) -> Self {
         TaskReminderInfo {
             id: reminder.id.unwrap_or_default(),
             remind_at: reminder.remind_at.clone(),
             remind_at_unix: reminder.remind_at_unix,
             is_triggered: reminder.is_triggered,
             notification_id: reminder.notification_id(task_uuid),
+            series_label: series.map(|(day, locale)| {
+                let at = crate::tasks::local_wall_clock(reminder.remind_at_unix);
+                format!(
+                    "{} {}",
+                    crate::tasks::series_distance((at.date() - day).num_days(), locale),
+                    at.format("%H:%M")
+                )
+            }),
         }
+    }
+
+    /// A task's reminders, said against its day when it repeats.
+    fn of(task: &Task, reminders: &[TaskReminder], locale: crate::tasks::DateLocale) -> Vec<Self> {
+        let series = task
+            .series_in_effect()
+            .ok()
+            .flatten()
+            .map(|series| (series.occurrence_day(task.dates().into()), locale));
+        reminders
+            .iter()
+            .map(|reminder| TaskReminderInfo::new(reminder, &task.task_uuid, series))
+            .collect()
+    }
+}
+
+/// The series of a recurring task (§32), as the detail view shows it.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct TaskSeriesInfo {
+    /// The day of the current occurrence, `YYYY-MM-DD`: what its deadline and
+    /// its reminders are said against.
+    pub day: String,
+    /// The day the rule gave this occurrence, when it was moved from there.
+    pub moved_from: Option<String>,
+    /// Whether the day is the due date rather than the postpone date. The
+    /// deadline is then the day itself, and setting it moves the occurrence.
+    pub day_is_due: bool,
+    /// The deadline against the day, in the configured language: "On the
+    /// day", "2 days after". `None` without one.
+    pub due_label: Option<String>,
+}
+
+impl TaskSeriesInfo {
+    fn of(task: &Task, locale: crate::tasks::DateLocale) -> Option<Self> {
+        let series = task.series_in_effect().ok().flatten()?;
+        let dates = task.dates();
+        let day = series.occurrence_day(dates.into());
+        let day_is_due = series.anchor == crate::tasks::SeriesAnchor::Due;
+        Some(TaskSeriesInfo {
+            day: day.to_string(),
+            moved_from: (day != series.day).then(|| series.day.to_string()),
+            day_is_due,
+            due_label: dates
+                .due()
+                .filter(|_| !day_is_due)
+                .map(|due| crate::tasks::series_distance((due - day).num_days(), locale)),
+        })
     }
 }
 
@@ -1778,6 +1843,9 @@ pub struct TaskDetail {
     pub recurrence_label: Option<String>,
     /// Advance from the completion date rather than the scheduled one.
     pub recurrence_from_completion: bool,
+    /// What the dates and reminders of a recurring task are against its day
+    /// (§32). `None` for a one-off task, and for one that repeats undated.
+    pub series: Option<TaskSeriesInfo>,
     pub created_at: String,
     pub updated_at: String,
     pub revision: i64,
@@ -7196,16 +7264,21 @@ impl OrbHandle {
                 };
                 (back, String::new())
             }
-            UndoAction::Reminders { task_id, reminders } => {
+            UndoAction::Reminders {
+                task_id,
+                reminders,
+                series,
+            } => {
                 let before = self.with_tasks(|_, repo, ctx| {
-                    let before = repo.get_reminders(*task_id)?;
-                    repo.replace_reminders(*task_id, reminders, ctx)?;
+                    let before = reminders_before(repo, *task_id)?;
+                    repo.replace_reminders_in_series(*task_id, reminders, series.as_deref(), ctx)?;
                     Ok(before)
                 })?;
                 self.refresh_notifications();
                 let back = UndoAction::Reminders {
                     task_id: *task_id,
-                    reminders: before,
+                    reminders: before.0,
+                    series: before.1,
                 };
                 (back, String::new())
             }
@@ -7337,6 +7410,28 @@ fn link_metadata(link: &TaskLinkedEmail) -> CachedEmailMetadata {
         account: link.cached_account.clone(),
         folder: link.cached_folder.clone(),
     }
+}
+
+/// The day of a series a picker was opened against, off the wire.
+fn series_day(day: Option<String>) -> Result<Option<chrono::NaiveDate>, OrbError> {
+    day.map(|day| {
+        chrono::NaiveDate::parse_from_str(&day, "%Y-%m-%d").map_err(|_| OrbError::InvalidInput {
+            message: format!("'{day}' is not a day of the form YYYY-MM-DD"),
+        })
+    })
+    .transpose()
+}
+
+/// A task's reminders and the series they are an occurrence of (§32), as an
+/// undo puts them back: together.
+fn reminders_before(
+    repo: &TaskRepository<'_>,
+    task_id: i64,
+) -> Result<(Vec<TaskReminder>, Option<String>), OrbError> {
+    let series = repo
+        .get_task(task_id)?
+        .and_then(|task| task.recurrence_series);
+    Ok((repo.get_reminders(task_id)?, series))
 }
 
 /// Whether an undo step names a task, and so can only be a no-op once the
@@ -8177,12 +8272,21 @@ impl OrbHandle {
     /// account meant that a config with no `tasks` in it made every keystroke
     /// in the picker fail, and "could not read the date" for `tomorrow` sends
     /// somebody off inventing spellings for a phrase that parses perfectly well.
-    pub fn suggest_dates(&self, input: String) -> Result<Vec<DateSuggestionInfo>, OrbError> {
+    ///
+    /// With `day`, the date is the deadline of a recurring task whose
+    /// occurrence is on that day (§32): it may be said against the day, is
+    /// labelled by its distance from it, and is never before it.
+    pub fn suggest_dates(
+        &self,
+        input: String,
+        day: Option<String>,
+    ) -> Result<Vec<DateSuggestionInfo>, OrbError> {
         let (today, locale) = self.picker_context();
-        Ok(crate::tasks::suggest_dates(&input, today, locale)
-            .iter()
-            .map(DateSuggestionInfo::from)
-            .collect())
+        let found = match series_day(day)? {
+            Some(day) => crate::tasks::suggest_dates_in_series(&input, today, day, locale),
+            None => crate::tasks::suggest_dates(&input, today, locale),
+        };
+        Ok(found.iter().map(DateSuggestionInfo::from).collect())
     }
 
     /// The language a task's recurrence is described in.
@@ -8272,7 +8376,14 @@ impl OrbHandle {
     /// Anchored on the current local instant rather than on midnight, so a bare
     /// `9am` typed at noon means tomorrow morning and `in 2 hours` means
     /// something at all.
-    pub fn suggest_datetimes(&self, input: String) -> Result<Vec<DateSuggestionInfo>, OrbError> {
+    ///
+    /// With `day`, the reminder is one of a recurring task whose occurrence is
+    /// on that day (§32), and may be said against it: `day before 18:00`.
+    pub fn suggest_datetimes(
+        &self,
+        input: String,
+        day: Option<String>,
+    ) -> Result<Vec<DateSuggestionInfo>, OrbError> {
         let locale = self
             .config()
             .tasks
@@ -8283,10 +8394,11 @@ impl OrbHandle {
             Ok(db) => TaskRepository::new(&db).local_now(Utc::now()),
             Err(_) => crate::tasks::LocalZone::local_now(&crate::tasks::SystemZone, Utc::now()),
         };
-        Ok(crate::tasks::suggest_datetimes(&input, local_now, locale)
-            .iter()
-            .map(DateSuggestionInfo::from)
-            .collect())
+        let found = match series_day(day)? {
+            Some(day) => crate::tasks::suggest_datetimes_in_series(&input, local_now, day, locale),
+            None => crate::tasks::suggest_datetimes(&input, local_now, locale),
+        };
+        Ok(found.iter().map(DateSuggestionInfo::from).collect())
     }
 
     /// One task with everything the detail view shows.
@@ -8339,14 +8451,12 @@ impl OrbHandle {
                 .map(|rule| crate::tasks::describe_recurrence(&rule, locale)),
             recurrence: task.recurrence.clone(),
             recurrence_from_completion: task.recurrence_from_completion,
+            series: TaskSeriesInfo::of(&task, locale),
             created_at: task.created_at.clone(),
             updated_at: task.updated_at.clone(),
             revision: task.revision,
             account_name: task.account_name.clone(),
-            reminders: reminders
-                .iter()
-                .map(|reminder| TaskReminderInfo::new(reminder, &task.task_uuid))
-                .collect(),
+            reminders: TaskReminderInfo::of(&task, &reminders, locale),
             links: links
                 .iter()
                 .map(|link| with_reply_status(store, TaskLinkInfo::from(link)))
@@ -8986,11 +9096,11 @@ impl OrbHandle {
             let task = repo.get_task(task_id)?.ok_or_else(|| OrbError::NotFound {
                 message: format!("Task {task_id} not found"),
             })?;
-            Ok(repo
-                .get_reminders(task_id)?
-                .iter()
-                .map(|reminder| TaskReminderInfo::new(reminder, &task.task_uuid))
-                .collect())
+            Ok(TaskReminderInfo::of(
+                &task,
+                &repo.get_reminders(task_id)?,
+                self.detail_locale(),
+            ))
         })
     }
 
@@ -8999,15 +9109,17 @@ impl OrbHandle {
     /// Scheduled locally regardless of sync state (§3.6): a task created offline
     /// is fully usable, reminders included.
     pub fn add_task_reminder(&self, task_id: i64, remind_at: String) -> Result<i64, OrbError> {
-        let (before, id) = self.with_tasks(|_, repo, ctx| {
-            let before = repo.get_reminders(task_id)?;
-            Ok((before, repo.add_reminder(task_id, &remind_at, ctx)?))
+        let (before, id) = self.with_tasks(|db, repo, ctx| {
+            let before = reminders_before(repo, task_id)?;
+            let id = ReminderService::new(db).add_reminder(task_id, &remind_at, ctx)?;
+            Ok((before, id))
         })?;
         self.history().record(
             "add a reminder",
             vec![UndoAction::Reminders {
                 task_id,
-                reminders: before,
+                reminders: before.0,
+                series: before.1,
             }],
         );
         self.refresh_notifications();
@@ -9016,19 +9128,23 @@ impl OrbHandle {
 
     /// Remove a reminder.
     pub fn delete_task_reminder(&self, reminder_id: i64) -> Result<(), OrbError> {
-        let before = self.with_tasks(|_, repo, ctx| {
+        let before = self.with_tasks(|db, repo, ctx| {
             let task_id: Option<i64> = repo.reminder_task(reminder_id)?;
             let before = match task_id {
-                Some(task_id) => Some((task_id, repo.get_reminders(task_id)?)),
+                Some(task_id) => Some((task_id, reminders_before(repo, task_id)?)),
                 None => None,
             };
-            repo.delete_reminder(reminder_id, ctx)?;
+            ReminderService::new(db).delete_reminder(reminder_id, ctx)?;
             Ok(before)
         })?;
-        if let Some((task_id, reminders)) = before {
+        if let Some((task_id, (reminders, series))) = before {
             self.history().record(
                 "remove a reminder",
-                vec![UndoAction::Reminders { task_id, reminders }],
+                vec![UndoAction::Reminders {
+                    task_id,
+                    reminders,
+                    series,
+                }],
             );
         }
         self.refresh_notifications();
@@ -12655,7 +12771,9 @@ mod task_tests {
         let today = crate::tasks::TaskRepository::new(&orb.task_db().expect("db")).today();
         let tomorrow = today.succ_opt().expect("tomorrow");
 
-        let suggestions = orb.suggest_dates("tomorr".to_string()).expect("suggest");
+        let suggestions = orb
+            .suggest_dates("tomorr".to_string(), None)
+            .expect("suggest");
         assert!(!suggestions.is_empty(), "'tomorr' has a reading");
         assert_eq!(suggestions[0].date, tomorrow.format("%Y-%m-%d").to_string());
         assert_eq!(
@@ -12665,24 +12783,26 @@ mod task_tests {
 
         // Anchored on the machine's local day, which is the day the views are
         // evaluated against — not on the WebView's idea of one.
-        let same_day = orb.suggest_dates("today".to_string()).expect("suggest");
+        let same_day = orb
+            .suggest_dates("today".to_string(), None)
+            .expect("suggest");
         assert_eq!(same_day[0].date, today.format("%Y-%m-%d").to_string());
 
         // Unparseable input is an empty list, never a guess (§12.1).
         assert!(
-            orb.suggest_dates("qwertyuiop".to_string())
+            orb.suggest_dates("qwertyuiop".to_string(), None)
                 .expect("suggest")
                 .is_empty()
         );
 
         // A reminder is a day *and* a time, defaulting to 09:00 (§5.3).
         let reminder = orb
-            .suggest_datetimes("tomorrow 9am".to_string())
+            .suggest_datetimes("tomorrow 9am".to_string(), None)
             .expect("suggest");
         assert_eq!(reminder[0].date, tomorrow.format("%Y-%m-%d").to_string());
         assert_eq!(reminder[0].time.as_deref(), Some("09:00"));
         assert!(
-            orb.suggest_datetimes("tomorrow".to_string())
+            orb.suggest_datetimes("tomorrow".to_string(), None)
                 .expect("suggest")
                 .iter()
                 .all(|s| s.time.is_some()),
@@ -12699,13 +12819,15 @@ mod task_tests {
         config.tasks.as_mut().expect("tasks").locale = "de-CH".to_string();
         let orb = handle(config);
 
-        let german = orb.suggest_dates("morgen".to_string()).expect("suggest");
+        let german = orb
+            .suggest_dates("morgen".to_string(), None)
+            .expect("suggest");
         assert!(!german.is_empty(), "'morgen' is tomorrow in German");
 
         let dir = tempfile::tempdir().expect("tempdir");
         let orb = handle(task_config(&dir));
         assert!(
-            orb.suggest_dates("morgen".to_string())
+            orb.suggest_dates("morgen".to_string(), None)
                 .expect("suggest")
                 .is_empty(),
             "and means nothing in English"
@@ -12760,7 +12882,7 @@ mod task_tests {
         let orb = handle(config);
 
         let suggestions = orb
-            .suggest_dates("tomorrow".to_string())
+            .suggest_dates("tomorrow".to_string(), None)
             .expect("a date parses without a tasks account");
         assert!(
             suggestions.iter().any(|s| s.primary == "Tomorrow"),
@@ -12769,14 +12891,14 @@ mod task_tests {
         );
 
         let reminders = orb
-            .suggest_datetimes("tomorrow 9am".to_string())
+            .suggest_datetimes("tomorrow 9am".to_string(), None)
             .expect("a reminder parses without a tasks account");
         assert!(!reminders.is_empty(), "reminders parse without one too");
 
         // And nonsense is still nonsense rather than an error, so the picker can
         // go on telling the two apart.
         assert!(
-            orb.suggest_dates("qwertyuiop".to_string())
+            orb.suggest_dates("qwertyuiop".to_string(), None)
                 .expect("suggest")
                 .is_empty()
         );
@@ -13568,6 +13690,100 @@ mod task_tests {
     }
 
     /// Reminders, links and the working-on mark are put back as they were.
+    /// §32, through the calls the app makes: the deadline and the reminders of
+    /// a recurring task are said against its day, go with an occurrence moved
+    /// by hand, and come back with an undo.
+    #[test]
+    fn a_recurring_task_says_its_deadline_and_reminders_against_its_day() {
+        use chrono::TimeZone;
+        let local = |day: u32, hour: u32| {
+            chrono::Local
+                .with_ymd_and_hms(2030, 1, day, hour, 0, 0)
+                .single()
+                .expect("a local time")
+                .to_rfc3339()
+        };
+        let dir = tempfile::tempdir().expect("tempdir");
+        let orb = handle(task_config(&dir));
+        let id = orb
+            .create_task(
+                "Water the plants".to_string(),
+                Some("2030-01-07".to_string()),
+            )
+            .unwrap()
+            .task
+            .id;
+        orb.update_tasks(
+            vec![id],
+            TaskEdit {
+                recurrence: Some("FREQ=WEEKLY".to_string()),
+                ..TaskEdit::default()
+            },
+        )
+        .unwrap();
+        orb.set_task_due_date(vec![id], Some("2030-01-09".to_string()))
+            .unwrap();
+        orb.add_task_reminder(id, local(6, 18)).unwrap();
+
+        let detail = orb.get_task(id).unwrap();
+        let series = detail.series.expect("a series");
+        assert_eq!(series.day, "2030-01-07");
+        assert_eq!(series.moved_from, None);
+        assert!(!series.day_is_due);
+        assert_eq!(series.due_label.as_deref(), Some("2 days after"));
+        assert_eq!(
+            detail.reminders[0].series_label.as_deref(),
+            Some("1 day before 18:00")
+        );
+
+        // Moved by two days, this once: the deadline and the reminder go along.
+        orb.set_task_postpone_date(vec![id], Some("2030-01-09".to_string()))
+            .unwrap();
+        let moved = orb.get_task(id).unwrap();
+        assert_eq!(moved.task.due_date.as_deref(), Some("2030-01-11"));
+        let series = moved.series.expect("a series");
+        assert_eq!(series.day, "2030-01-09");
+        assert_eq!(series.moved_from.as_deref(), Some("2030-01-07"));
+        assert_eq!(series.due_label.as_deref(), Some("2 days after"));
+        assert_eq!(moved.reminders.len(), 1);
+        assert_eq!(moved.reminders[0].remind_at, local(8, 18));
+        assert_eq!(
+            moved.reminders[0].series_label.as_deref(),
+            Some("1 day before 18:00")
+        );
+
+        undo(&orb).unwrap();
+        let back = orb.get_task(id).unwrap();
+        assert_eq!(back.task.postpone_date.as_deref(), Some("2030-01-07"));
+        assert_eq!(back.task.due_date.as_deref(), Some("2030-01-09"));
+        assert_eq!(back.reminders[0].remind_at, local(6, 18));
+
+        // What the pickers offer against that day.
+        let due = orb
+            .suggest_dates("+3".to_string(), Some("2030-01-07".to_string()))
+            .unwrap();
+        assert_eq!(due[0].date, "2030-01-10");
+        assert_eq!(due[0].primary, "3 days after");
+        let remind = orb
+            .suggest_datetimes(
+                "day before 18:00".to_string(),
+                Some("2030-01-07".to_string()),
+            )
+            .unwrap();
+        assert_eq!(remind[0].date, "2030-01-06");
+        assert!(
+            orb.suggest_dates("x".to_string(), Some("soon".to_string()))
+                .is_err()
+        );
+
+        // A task that does not repeat says none of it.
+        let once = orb.create_task("Call".to_string(), None).unwrap().task.id;
+        orb.add_task_reminder(once, local(6, 18)).unwrap();
+        let once = orb.get_task(once).unwrap();
+        assert!(once.series.is_none());
+        assert_eq!(once.reminders[0].series_label, None);
+    }
+
     #[test]
     fn reminders_links_and_working_on_are_undone() {
         let dir = tempfile::tempdir().expect("tempdir");

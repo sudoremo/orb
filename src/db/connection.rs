@@ -23,7 +23,7 @@ pub struct ReconcileReport {
 /// Unchanged by the vector index: it adds no column to any table, is created
 /// idempotently beside the full-text index, and holds only data derived from
 /// `messages`. There is nothing for a migration to do.
-const SCHEMA_VERSION: i32 = 38;
+const SCHEMA_VERSION: i32 = 39;
 
 /// Make `vec0` available to every connection opened from here on.
 ///
@@ -659,6 +659,10 @@ const TASK_TABLES_SCHEMA: &str = "
 
         -- The checklist of §17 as JSON, NULL when there is none.
         steps TEXT,
+
+        -- What a recurring task's dates and reminders are against its day
+        -- (todo-spec §32), NULL when it states none.
+        recurrence_series TEXT,
 
         UNIQUE(account_name, imap_uid)
     );
@@ -2161,6 +2165,22 @@ impl Database {
             )?;
             tx.execute_batch(FOCUS_SCHEMA)?;
             tx.execute_batch("PRAGMA user_version = 38;")?;
+            tx.commit()?;
+        }
+
+        // Migration from version 38 to 39: a recurring task's series
+        // (todo-spec §32). A task without one keeps repeating by its dates.
+        if from_version < 39 {
+            let tx = rusqlite::Transaction::new_unchecked(
+                &self.conn,
+                rusqlite::TransactionBehavior::Immediate,
+            )?;
+            if Database::table_exists(&tx, "tasks")?
+                && !Database::column_exists(&tx, "tasks", "recurrence_series")?
+            {
+                tx.execute_batch("ALTER TABLE tasks ADD COLUMN recurrence_series TEXT;")?;
+            }
+            tx.execute_batch("PRAGMA user_version = 39;")?;
             tx.commit()?;
         }
 

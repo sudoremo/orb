@@ -170,6 +170,21 @@
         return !task.completed_at && !dated;
       };
 
+      // ?series=1: the groceries repeat every week, due on their day, with a
+      // reminder the evening before (todo-spec §32).
+      if (new URLSearchParams(location.search).get("series") === "1") {
+        Object.assign(TASKS[0], {
+          recurrence: "FREQ=WEEKLY",
+          recurrence_label: "Every week",
+          series: { day: TODAY, moved_from: null, day_is_due: false, due_label: "On the day" },
+          reminders: [{
+            id: 31, remind_at: "2026-08-06T18:00:00+00:00", remind_at_unix: 1786039200,
+            is_triggered: false, notification_id: "orb.task.uuid-1.1786039200",
+            series_label: "1 day before 18:00",
+          }],
+        });
+      }
+
       const summary = (task) => ({
         id: task.id,
         uuid: `uuid-${task.id}`,
@@ -179,7 +194,7 @@
         completed_at: task.completed_at,
         deleted_at: task.deleted_at,
         tags: TASK_TAGS[task.id] ?? [],
-        is_recurring: !!task.recurring,
+        is_recurring: !!task.recurring || !!task.recurrence,
         position: task.id,
         is_working_on: !!task.working,
         is_completed: !!task.completed_at,
@@ -195,13 +210,15 @@
       const detail = (task) => ({
         task: summary(task),
         body: task.body,
-        recurrence: null,
+        recurrence: task.recurrence ?? null,
+        recurrence_label: task.recurrence_label ?? null,
         recurrence_from_completion: false,
+        series: task.series ?? null,
         created_at: "2026-08-07T09:00:00Z",
         updated_at: "2026-08-07T09:00:00Z",
         revision: 1,
         account_name: "Work",
-        reminders: [],
+        reminders: task.reminders ?? [],
         links: LINKS[task.id] ?? [],
         steps: TASK_STEPS[task.id] ?? [],
         attachments: [],
@@ -940,8 +957,16 @@
               return [{ rrule: `X-HARNESS=${input.replaceAll(" ", "-")}`, label: input[0].toUpperCase() + input.slice(1) }];
             }
 
+            // Against the day of a series, as the core reads it (todo-spec §32).
             case "suggest_dates":
+              if (args.day)
+                return [{ date: "2026-08-09", time: null, primary: "2 days after", secondary: "Sun Aug 9" }];
               return [{ date: "2026-08-20", time: null, primary: "Thursday", secondary: "20 Aug" }];
+
+            case "suggest_datetimes":
+              if (args.day)
+                return [{ date: "2026-08-06", time: "07:30:00", primary: "1 day before 07:30", secondary: "Thu Aug 6" }];
+              return [{ date: "2026-08-20", time: "09:00:00", primary: "Thursday 09:00", secondary: "20 Aug" }];
 
             case "sync_tasks":
               return { listed: 0, downloaded: 0, uploaded: 0, deleted: 0, purged: 0,

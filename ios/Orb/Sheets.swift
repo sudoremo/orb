@@ -3,7 +3,8 @@ import SwiftUI
 
 /// One sheet for Postpone, Due and Remind, titled by what it sets. Typing
 /// turns the shortcuts and the calendar into the readings of what was typed
-/// (§12.1).
+/// (§12.1). The deadline and the reminders of a repeating task are read
+/// against its day (§32): "on the day", "2 days after", "day before 18:00".
 struct DateSheet: View {
     enum Kind { case postpone, due, remind }
 
@@ -17,12 +18,23 @@ struct DateSheet: View {
     @State private var typed = ""
     @State private var readings: [DateSuggestionInfo] = []
     @State private var busy: Set<String> = []
+    /// The day what is typed is read against, for a repeating task.
+    @State private var seriesDay: String?
+
+    private var placeholder: String {
+        switch (kind, seriesDay) {
+        case (.remind, .some): "on the day 9am, day before 18:00"
+        case (.remind, nil): "tomorrow 9am, fri 14:00"
+        case (_, .some): "on the day, 2 days after, +3"
+        case (_, nil): "tomorrow, fri, in 3 weeks"
+        }
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TextField(kind == .remind ? "tomorrow 9am, fri 14:00" : "tomorrow, fri, in 3 weeks", text: $typed)
+                    TextField(placeholder, text: $typed)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .submitLabel(.done)
@@ -60,8 +72,22 @@ struct DateSheet: View {
             }
             .task(id: typed) { await read() }
             .task { await loadBusy() }
+            .task { await loadSeries() }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    /// The day of a repeating task, for its deadline and its reminders. A
+    /// postpone date moves one occurrence and is a plain date, as is the
+    /// deadline of a task whose day is its due date.
+    private func loadSeries() async {
+        guard task.isRecurring, kind != .postpone, let service = model.service else { return }
+        let id = task.id
+        guard let series = try? await service.run({ try $0.getTask(taskId: id).series }) else { return }
+        if kind == .due && series.dayIsDue { return }
+        seriesDay = series.day
+        if let date = CivilDate.date(series.day), kind == .remind || task.dueDate == nil { day = date }
+        await read()
     }
 
     /// The days that already have a task, postponed or due, for the dots.
@@ -104,8 +130,8 @@ struct DateSheet: View {
     private var title: String {
         switch kind {
         case .postpone: "Postpone"
-        case .due: "Due"
-        case .remind: "Remind"
+        case .due: seriesDay == nil ? "Due" : "Due, From Its Day"
+        case .remind: seriesDay == nil ? "Remind" : "Remind, From Its Day"
         }
     }
 
@@ -115,8 +141,10 @@ struct DateSheet: View {
             readings = []
             return
         }
-        let remind = kind == .remind
-        readings = (try? await service.run { remind ? try $0.suggestDatetimes(input: input) : try $0.suggestDates(input: input) }) ?? []
+        let (remind, day) = (kind == .remind, seriesDay)
+        readings = (try? await service.run {
+            remind ? try $0.suggestDatetimes(input: input, day: day) : try $0.suggestDates(input: input, day: day)
+        }) ?? []
     }
 
     private func take(_ reading: DateSuggestionInfo) {
@@ -478,7 +506,7 @@ struct QuickAddSheet: View {
         for length in stride(from: min(4, plain.count - 1), through: 1, by: -1) {
             let phrase = plain.suffix(length).joined(separator: " ")
             guard !dropped.contains(phrase), !phrase.allSatisfy(\.isNumber) else { continue }
-            if let first = try? await service.run({ try $0.suggestDates(input: phrase) }).first {
+            if let first = try? await service.run({ try $0.suggestDates(input: phrase, day: nil) }).first {
                 reading = DateReading(phrase: phrase, date: first.date, label: CivilDate.label(first.date))
                 return
             }

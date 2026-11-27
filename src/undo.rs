@@ -49,10 +49,12 @@ pub enum Step {
         tag_uuid: String,
         tag: Option<TaskTag>,
     },
-    /// Give a task exactly these reminders (§8).
+    /// Give a task exactly these reminders (§8), and the series they are an
+    /// occurrence of (§32).
     Reminders {
         task_id: i64,
         reminders: Vec<TaskReminder>,
+        series: Option<String>,
     },
     /// Give a task exactly these attachments (§9).
     Attachments {

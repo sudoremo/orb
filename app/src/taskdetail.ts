@@ -129,6 +129,15 @@ function renderBlockedNotice(permission: NotificationPermission): string {
   return "";
 }
 
+/**
+ * A value of a recurring task (§32): where it stands against the task's day,
+ * which is what the series keeps, then where that puts it this time.
+ */
+function inSeries(label: string | null | undefined, value: string): string {
+  if (!label) return escape(value);
+  return `${escape(label.charAt(0).toLowerCase() + label.slice(1))} <span class="dim">${escape(value)}</span>`;
+}
+
 /** A reminder (§5) as a chip; snoozing and removing it are its own buttons. */
 function reminderChip(reminder: TaskReminderInfo): string {
   const id = ` data-reminder="${reminder.id}"`;
@@ -137,7 +146,7 @@ function reminderChip(reminder: TaskReminderInfo): string {
   const fired = reminder.is_triggered ? ` <span class="dim">fired here</span>` : "";
   return `<span class="p${reminder.is_triggered ? " fired" : ""}" data-k="Remind"><button type="button" class="p-open" data-task-action="snooze-reminder"${id} title="Snooze this reminder">${svgIcon(
     "bell",
-  )}<span class="pk">Remind</span><span class="pv">${escape(formatInstant(reminder.remind_at))}${fired}</span></button>${fieldButton(
+  )}<span class="pk">Remind</span><span class="pv">${inSeries(reminder.series_label, formatInstant(reminder.remind_at))}${fired}</span></button>${fieldButton(
     "delete-reminder",
     "fa-xmark",
     "Remove this reminder",
@@ -313,10 +322,16 @@ export function renderTaskDetail(detail: TaskDetail, options: TaskDetailOptions)
   else if (task.is_completed) {
     props.push(chip("State", "done", `Completed ${escape(formatInstant(task.completed_at ?? ""))}`));
   }
+  const series = detail.series ?? null;
   if (task.postpone_date) {
     const today = task.postpone_date <= options.today;
+    // An occurrence moved by hand says so: the next one is back on its day.
+    const moved =
+      series?.moved_from && !series.day_is_due
+        ? ` <span class="dim">moved from ${escape(formatCivilDate(series.moved_from, options.today))}</span>`
+        : "";
     props.push(
-      chip("Postpone", "sun", escape(formatCivilDate(task.postpone_date, options.today)), {
+      chip("Postpone", "sun", escape(formatCivilDate(task.postpone_date, options.today)) + moved, {
         word: today ? "" : "From",
         cls: today ? "warn" : "",
         action: "set-postpone",
@@ -326,8 +341,12 @@ export function renderTaskDetail(detail: TaskDetail, options: TaskDetailOptions)
     );
   }
   if (task.due_date) {
+    const moved =
+      series?.moved_from && series.day_is_due
+        ? ` <span class="dim">moved from ${escape(formatCivilDate(series.moved_from, options.today))}</span>`
+        : "";
     props.push(
-      chip("Due", "cal", escape(formatCivilDate(task.due_date, options.today)), {
+      chip("Due", "cal", inSeries(series?.due_label, formatCivilDate(task.due_date, options.today)) + moved, {
         word: date.kind === "overdue" ? "Overdue since" : "Due",
         cls: deadlineReached(date.kind) ? "late" : "",
         action: "set-due",

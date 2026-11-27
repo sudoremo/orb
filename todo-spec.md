@@ -428,7 +428,8 @@ Semantics:
   so a task done three days late does not drift. An option per task selects
   "advance from completion date" for habit-style tasks.
 - Reminders are expressed as offsets from the task's date when the task
-  recurs, so they follow it forward.
+  recurs, so they follow it forward. §32 says where those offsets and the
+  deadline's are kept, and what moving one occurrence does.
 - The Completed view shows recurring tasks by their logged completions, not as
   a single row.
 - Deleting a recurring task deletes the whole series. There is no
@@ -1201,3 +1202,75 @@ Tasks heading turns it on; it is a preference of the device, not synced.
   group, the due tasks set apart from the rest by a line.
 - A drag or a keyboard move stays within the task's band, and places the task
   between its neighbours there in the global order — as within a tag's group.
+
+## 32. The series of a repeating task
+
+A repeating task (§8) is one occurrence of a series at a time. The rule gives
+each occurrence its **day**; the series says what hangs on that day, so that
+the deadline and the reminders are the same distance from it every time, and
+so that moving one occurrence by hand changes neither the series nor where
+the next one falls.
+
+The series travels in `X-Orb-Task-Recurrence-Series`, beside the rule:
+
+```
+X-Orb-Task-Recurrence-Series: day=2026-11-30; due=2; reminders=-1T18:00,0T09:00
+```
+
+- `day` — the day the rule gave the current occurrence. The next one is
+  counted from it (§8), not from the task's dates.
+- `anchor=due` — the day is the task's due date: it is due on its day and
+  shown before it. Absent, the day is the postpone date.
+- `due=n` — the deadline is `n` days after the day, `0` on it. Absent, there
+  is none. Only with the day on the postpone date.
+- `reminders` — each as `<days>T<HH:MM>`, the days counted from the day and
+  negative before it; `none` for a series said to have no reminders. Absent,
+  nobody has said: the series then takes the task's reminders as they stand
+  when the occurrence next moves, and says so from then on.
+- A part a version does not know is passed over. A series that cannot be read
+  is dropped, and the task repeats by its dates, as one written before there
+  were series.
+
+The task's own dates and reminders stay what they were: the current
+occurrence, worked out from the series. A client that knows nothing of the
+series shows the task on the right days and reminds at the right times.
+
+Rules:
+
+- Making a dated task repeat states its series from its dates: the postpone
+  date is the day and the due date so many days after it; with a due date
+  alone, the due date is the day. A task with no date states none until it
+  has one, and the day it is first completed on is then its day.
+- With the day on the postpone date, setting a **postpone date** moves this
+  occurrence: its deadline and its reminders go with it, the series stays, and
+  the next occurrence is where the rule puts it. Setting a **due date** says
+  how long after its day the series is due, counted from where this
+  occurrence is; a date before that day is refused, and clearing it is a
+  series without a deadline.
+- With the day on the due date, setting a due date moves this occurrence, and
+  a postpone date hides this occurrence only. Setting both at once puts the
+  day on the postpone date from then on.
+- Clearing both dates leaves this occurrence undated and the series as it is.
+- A reminder added to a repeating task is one of the series, as far from the
+  day of this occurrence as it was set; one removed is removed from the
+  series. Either is one revision, the series with the reminder (§16).
+- Whenever the day of the occurrence changes — a completion, a move by hand,
+  an undo of either — the task's reminders are replaced by those of the series
+  on the new day, not yet fired. A reminder that is not of the series, such as
+  a snooze (§5), is not carried over; one that fired and was cleared away is
+  there again.
+- A task that stops repeating has no series. Its dates and reminders stay.
+- The date picker (§12) reads the deadline and the reminders of a repeating
+  task against its day, and labels every reading with its distance from it:
+
+  | Input | Reading |
+  |---|---|
+  | `on the day`, `same day`, `am Tag` | the day |
+  | `2 days after`, `1 week later`, `+3`, `2 Tage später` | after it |
+  | `day before`, `2 days before`, `-1`, `am Vortag`, `1 Tag vorher` | before it, for a reminder |
+  | `on the day 9am`, `day before 18:00`, `7:30` | a reminder; a time alone is on the day |
+
+  A date said any other way is taken as that date and kept as its distance.
+  Nothing before the day is offered for the deadline.
+- An export (§20) carries the series as `recurrence.series`, in the header's
+  form.

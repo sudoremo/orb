@@ -35,7 +35,8 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::recurrence::{
-    AdvanceFrom, Advancement, RecurrenceError, RecurrenceRule, TaskSchedule, advance,
+    AdvanceFrom, Advancement, RecurrenceError, RecurrenceRule, Series, SeriesAnchor, SeriesError,
+    TaskSchedule, advance,
 };
 
 /// Everything that can be wrong with a task edit.
@@ -50,6 +51,14 @@ pub enum TaskError {
 
     #[error("invalid recurrence rule: {0}")]
     InvalidRecurrence(#[from] RecurrenceError),
+
+    #[error("invalid series: {0}")]
+    InvalidSeries(#[from] SeriesError),
+
+    #[error(
+        "a repeating task is due on its day, {day}, or after it, not on {due}; postpone it to move this occurrence"
+    )]
+    DueBeforeDay { day: NaiveDate, due: NaiveDate },
 
     #[error("'{0}' is not a task view")]
     UnknownView(String),
@@ -763,6 +772,12 @@ pub struct Task {
     /// habit-style tasks.
     pub recurrence_from_completion: bool,
 
+    /// What a recurring task's dates and reminders are against its day (§32),
+    /// in the text form of [`Series`], which [`Task::series`] reads. `None`
+    /// for a one-off task, and for a recurring one nobody has dated yet.
+    #[serde(default)]
+    pub recurrence_series: Option<String>,
+
     /// Position in the single global manual order (§4.4).
     pub position: f64,
 
@@ -824,10 +839,11 @@ pub struct TaskChange {
     /// and neither the revision nor the dirty flag was touched.
     pub changed: bool,
 
-    /// Set when a completion advanced a recurring task, naming the anchor the
-    /// reminders move from and to. Feed it to
-    /// [`super::recurrence::shift_reminders`]; reminders live in their own
-    /// table, so the model cannot move them itself.
+    /// Set when the day a recurring task's occurrence is on changed — a
+    /// completion advanced it, it was moved by hand, either was undone —
+    /// naming the day the reminders move from and to (§32). Feed it to
+    /// [`super::reminders::ReminderService::follow_recurrence`]; reminders live
+    /// in their own table, so the model cannot move them itself.
     pub reminder_shift: Option<ReminderShift>,
 }
 
@@ -842,7 +858,7 @@ impl TaskChange {
     }
 }
 
-/// The two anchors a recurrence advance moved a task between.
+/// The two days the occurrence of a recurring task moved between.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ReminderShift {
     pub from: NaiveDate,
@@ -921,6 +937,7 @@ impl Task {
             deleted_at: None,
             recurrence: None,
             recurrence_from_completion: false,
+            recurrence_series: None,
             position,
             steps: Vec::new(),
             is_working_on: false,
@@ -973,6 +990,28 @@ impl Task {
         self.postpone_date_unix = postpone_unix;
         self.due_date = due;
         self.due_date_unix = due_unix;
+    }
+
+    /// The series as stated, if the task states one.
+    pub fn series(&self) -> Result<Option<Series>, TaskError> {
+        match self.recurrence_series.as_deref() {
+            Some(series) => Ok(Some(series.parse()?)),
+            None => Ok(None),
+        }
+    }
+
+    /// The series of a recurring task: the one stated, or what its dates
+    /// amount to. `None` for a one-off task and for a recurring one that has
+    /// neither a series nor a date.
+    pub fn series_in_effect(&self) -> Result<Option<Series>, TaskError> {
+        if self.recurrence.is_none() {
+            return Ok(None);
+        }
+        if let Some(series) = self.series()? {
+            return Ok(Some(series));
+        }
+        let dates = self.dates_checked()?;
+        Ok(dates.anchor().map(|day| Series::derive(dates.into(), day)))
     }
 
     /// The parsed recurrence rule, if the task has one.
@@ -1556,6 +1595,11 @@ pub struct TaskUpdates {
     pub recurrence: Option<Option<String>>,
     pub recurrence_from_completion: Option<bool>,
 
+    /// The series put back as it was, by an undo. With it the dates are taken
+    /// as they come rather than read against the series (§32).
+    #[serde(default)]
+    pub recurrence_series: Option<Option<String>>,
+
     pub is_working_on: Option<bool>,
 
     /// The complete new checklist (§17); the diff against the old one becomes
@@ -1702,11 +1746,24 @@ impl TaskUpdates {
             .as_ref()
             .map(|raw| parse_optional_date(raw.as_deref(), "due"))
             .transpose()?;
-        let after = match (postpone, due) {
-            (Some(postpone), Some(due)) => TaskDates::new(postpone, due),
-            (Some(postpone), None) => before.with_postpone(postpone),
-            (None, Some(due)) => before.with_due(due),
-            (None, None) => before,
+        // A recurring task's dates are an occurrence of its series (§32): a
+        // date set on it moves that occurrence or restates the series, and
+        // only an undo, or the end of the repetition, writes them as they come.
+        let restored = self.recurrence_series.is_some();
+        let mut series = task.series_in_effect()?;
+        let mut moved_from = series
+            .as_ref()
+            .map(|series| series.occurrence_day(before.into()));
+        let after = match &mut series {
+            Some(series) if !restored && self.recurrence != Some(None) => {
+                dates_in_series(series, before, postpone, due)?
+            }
+            _ => match (postpone, due) {
+                (Some(postpone), Some(due)) => TaskDates::new(postpone, due),
+                (Some(postpone), None) => before.with_postpone(postpone),
+                (None, Some(due)) => before.with_due(due),
+                (None, None) => before,
+            },
         };
         if after != before {
             next.set_dates(after);
@@ -1791,7 +1848,9 @@ impl TaskUpdates {
             && is_completed != next.is_completed
         {
             if is_completed {
-                reminder_shift = complete(&mut next, ctx, &mut appended)?;
+                if let Some(from) = complete(&mut next, &mut series, ctx, &mut appended)? {
+                    moved_from = Some(from);
+                }
                 // Done is not in progress (§19).
                 next.is_working_on = false;
             } else {
@@ -1814,6 +1873,37 @@ impl TaskUpdates {
                 appended.push(TaskLogEntry::new(TaskEvent::Restored, ctx));
             }
             changed = true;
+        }
+
+        // The series, last, as everything above can bear on it.
+        let stated = match &self.recurrence_series {
+            Some(restored) => restored.as_deref().map(str::parse::<Series>).transpose()?,
+            None if next.recurrence.is_none() => None,
+            // A task that starts to repeat, or one dated for the first time.
+            None => match series {
+                Some(series) => Some(series),
+                None => {
+                    let dates = next.dates();
+                    dates.anchor().map(|day| Series::derive(dates.into(), day))
+                }
+            },
+        };
+        let stated_text = stated.as_ref().map(Series::to_string);
+        // Writing down what the dates already amounted to is not an edit of
+        // its own, and rides along with one.
+        let restated = stated != task.series_in_effect()?;
+        if stated_text != next.recurrence_series && (changed || restated) {
+            next.recurrence_series = stated_text;
+            changed = true;
+        }
+        if let Some(from) = moved_from
+            && task.recurrence.is_some()
+            && let Some(series) = next.series_in_effect()?
+        {
+            let to = series.occurrence_day(next.dates().into());
+            if from != to {
+                reminder_shift = Some(ReminderShift { from, to });
+            }
         }
 
         if changed {
@@ -1841,9 +1931,10 @@ impl TaskUpdates {
 /// [`Advancement::Finished`] reports, and then the ordinary completion applies.
 fn complete(
     task: &mut Task,
+    series: &mut Option<Series>,
     ctx: &ChangeContext<'_>,
     appended: &mut Vec<TaskLogEntry>,
-) -> Result<Option<ReminderShift>, TaskError> {
+) -> Result<Option<NaiveDate>, TaskError> {
     appended.push(TaskLogEntry::new(
         TaskEvent::Completed {
             on: ctx.today.to_string(),
@@ -1859,6 +1950,10 @@ fn complete(
     };
 
     let schedule = task.dates_checked()?;
+    // A task nobody dated has the day it is done on for its day.
+    let current = series
+        .clone()
+        .unwrap_or_else(|| Series::derive(schedule.into(), ctx.today));
     let mode = if task.recurrence_from_completion {
         AdvanceFrom::Completion
     } else {
@@ -1869,10 +1964,18 @@ fn complete(
     // the occurrence the task is sitting on.
     let elapsed = task.current_occurrence();
 
-    match advance(&rule, schedule.into(), elapsed, ctx.today, mode) {
+    // Counted from the series' day, not from where this occurrence was moved
+    // to, so that moving one leaves the others where they were.
+    let slot = TaskSchedule::new(Some(current.day), None);
+    match advance(&rule, slot, elapsed, ctx.today, mode) {
         Advancement::Next(advanced) => {
-            let from = schedule.anchor().unwrap_or(ctx.today);
-            task.set_dates(advanced.schedule.into());
+            let from = current.occurrence_day(schedule.into());
+            let next = Series {
+                day: advanced.anchor,
+                ..current
+            };
+            task.set_dates(next.schedule_on(advanced.anchor).into());
+            *series = Some(next);
             task.is_completed = false;
             task.completed_at = None;
             // The next occurrence starts its checklist afresh (§17).
@@ -1887,10 +1990,7 @@ fn complete(
                 },
                 ctx,
             ));
-            Ok(Some(ReminderShift {
-                from,
-                to: advanced.anchor,
-            }))
+            Ok(Some(from))
         }
         Advancement::Finished => {
             task.is_completed = true;
@@ -1898,6 +1998,65 @@ fn complete(
             Ok(None)
         }
     }
+}
+
+/// The dates of a recurring task after a date was set on it (§32).
+///
+/// With its day on the postpone date, a postpone date moves this occurrence,
+/// deadline and all, and a due date says how long after its day the series is
+/// due. With its day on the due date, a due date moves this occurrence and a
+/// postpone date hides it; set both, and its day is the postpone date from
+/// then on.
+fn dates_in_series(
+    series: &mut Series,
+    before: TaskDates,
+    postpone: Option<Option<NaiveDate>>,
+    due: Option<Option<NaiveDate>>,
+) -> Result<TaskDates, TaskError> {
+    // Both taken away is this occurrence with no date; the series stays.
+    let cleared = postpone == Some(None) && due == Some(None);
+    let postpone = postpone.filter(|date| *date != before.postpone());
+    let due = due.filter(|date| *date != before.due());
+
+    let mut dates = before;
+    if series.anchor == SeriesAnchor::Due {
+        if let (Some(Some(_)), Some(Some(_))) = (postpone, due) {
+            series.anchor = SeriesAnchor::Postpone;
+        } else {
+            if let Some(postpone) = postpone {
+                dates = dates.with_postpone(postpone);
+            }
+            if let Some(due) = due {
+                dates = dates.with_due(due);
+            }
+            return Ok(dates);
+        }
+    }
+
+    match postpone {
+        Some(Some(day)) => dates = series.schedule_on(day).into(),
+        Some(None) => dates = dates.with_postpone(None),
+        None => {}
+    }
+    match due {
+        Some(Some(due)) => {
+            let day = series.occurrence_day(dates.into());
+            let days = (due - day).num_days();
+            if days < 0 {
+                return Err(TaskError::DueBeforeDay { day, due });
+            }
+            series.due_after = Some(days);
+            dates = dates.with_due(Some(due));
+        }
+        Some(None) => {
+            if !cleared {
+                series.due_after = None;
+            }
+            dates = dates.with_due(None);
+        }
+        None => {}
+    }
+    Ok(dates)
 }
 
 /// One entry per date that moved.
@@ -2233,6 +2392,311 @@ mod tests {
         assert!(change.task.is_completed);
         assert!(change.task.completed_at.is_some());
         assert!(change.reminder_shift.is_none());
+    }
+
+    // --- the series of a recurring task (§32) ----------------------------
+
+    /// A task that repeats weekly from Monday 2026-08-10, due two days on.
+    fn weekly() -> Task {
+        let mut task = task();
+        task.set_dates(TaskDates::new(
+            Some(date("2026-08-10")),
+            Some(date("2026-08-12")),
+        ));
+        TaskUpdates::new()
+            .with_recurrence(Some(&RecurrenceRule::parse("FREQ=WEEKLY").unwrap()))
+            .apply(&task, &[], &ctx())
+            .unwrap()
+            .task
+    }
+
+    fn dates_of(task: &Task) -> (Option<&str>, Option<&str>) {
+        (task.postpone_date.as_deref(), task.due_date.as_deref())
+    }
+
+    #[test]
+    fn a_task_made_to_repeat_states_its_series_from_its_dates() {
+        assert_eq!(
+            weekly().recurrence_series.as_deref(),
+            Some("day=2026-08-10; due=2")
+        );
+
+        let mut due_only = task();
+        due_only.set_dates(TaskDates::new(None, Some(date("2026-08-12"))));
+        let change = TaskUpdates::new()
+            .with_recurrence(Some(&RecurrenceRule::parse("FREQ=WEEKLY").unwrap()))
+            .apply(&due_only, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            change.task.recurrence_series.as_deref(),
+            Some("day=2026-08-12; anchor=due")
+        );
+
+        // With no date there is no day to state yet.
+        let change = TaskUpdates::new()
+            .with_recurrence(Some(&RecurrenceRule::parse("FREQ=WEEKLY").unwrap()))
+            .apply(&task(), &[], &ctx())
+            .unwrap();
+        assert_eq!(change.task.recurrence_series, None);
+    }
+
+    #[test]
+    fn postponing_a_recurring_task_moves_this_occurrence_and_its_deadline_only() {
+        let task = weekly();
+        let moved = TaskUpdates::new()
+            .with_postpone_date(Some(date("2026-08-12")))
+            .apply(&task, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            dates_of(&moved.task),
+            (Some("2026-08-12"), Some("2026-08-14"))
+        );
+        // The series is as it was, and the reminders go with the occurrence.
+        assert_eq!(
+            moved.task.recurrence_series.as_deref(),
+            Some("day=2026-08-10; due=2")
+        );
+        assert_eq!(
+            moved.reminder_shift,
+            Some(ReminderShift {
+                from: date("2026-08-10"),
+                to: date("2026-08-12"),
+            })
+        );
+
+        // Done on the day it was moved to, the next one is the Monday after,
+        // with the gap the series has.
+        let ctx = ChangeContext::new(instant("2026-08-12T10:00:00+00:00"), date("2026-08-12"));
+        let next = TaskUpdates::new()
+            .with_is_completed(true)
+            .apply(&moved.task, &[], &ctx)
+            .unwrap();
+        assert_eq!(
+            dates_of(&next.task),
+            (Some("2026-08-17"), Some("2026-08-19"))
+        );
+        assert_eq!(
+            next.task.recurrence_series.as_deref(),
+            Some("day=2026-08-17; due=2")
+        );
+        assert_eq!(
+            next.reminder_shift,
+            Some(ReminderShift {
+                from: date("2026-08-12"),
+                to: date("2026-08-17"),
+            })
+        );
+    }
+
+    #[test]
+    fn a_due_date_on_a_recurring_task_says_how_long_after_its_day_it_is_due() {
+        let task = weekly();
+        let change = TaskUpdates::new()
+            .with_due_date(Some(date("2026-08-10")))
+            .apply(&task, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            dates_of(&change.task),
+            (Some("2026-08-10"), Some("2026-08-10"))
+        );
+        assert_eq!(
+            change.task.recurrence_series.as_deref(),
+            Some("day=2026-08-10; due=0")
+        );
+        // The day did not move, so neither do the reminders.
+        assert_eq!(change.reminder_shift, None);
+
+        // Counted from where the occurrence is, when it was moved.
+        let moved = TaskUpdates::new()
+            .with_postpone_date(Some(date("2026-08-12")))
+            .apply(&task, &[], &ctx())
+            .unwrap()
+            .task;
+        let change = TaskUpdates::new()
+            .with_due_date(Some(date("2026-08-13")))
+            .apply(&moved, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            change.task.recurrence_series.as_deref(),
+            Some("day=2026-08-10; due=1")
+        );
+
+        // No deadline is the series without one.
+        let change = TaskUpdates::new()
+            .with_due_date(None)
+            .apply(&task, &[], &ctx())
+            .unwrap();
+        assert_eq!(dates_of(&change.task), (Some("2026-08-10"), None));
+        assert_eq!(
+            change.task.recurrence_series.as_deref(),
+            Some("day=2026-08-10")
+        );
+    }
+
+    #[test]
+    fn a_recurring_task_is_not_due_before_its_day() {
+        let error = TaskUpdates::new()
+            .with_due_date(Some(date("2026-08-09")))
+            .apply(&weekly(), &[], &ctx())
+            .unwrap_err();
+        assert_eq!(
+            error,
+            TaskError::DueBeforeDay {
+                day: date("2026-08-10"),
+                due: date("2026-08-09"),
+            }
+        );
+    }
+
+    #[test]
+    fn clearing_the_dates_of_a_recurring_task_leaves_its_series() {
+        let task = weekly();
+        let cleared = TaskUpdates::new()
+            .with_postpone_date(None)
+            .with_due_date(None)
+            .apply(&task, &[], &ctx())
+            .unwrap();
+        assert_eq!(dates_of(&cleared.task), (None, None));
+        assert_eq!(
+            cleared.task.recurrence_series.as_deref(),
+            Some("day=2026-08-10; due=2")
+        );
+        let next = TaskUpdates::new()
+            .with_is_completed(true)
+            .apply(&cleared.task, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            dates_of(&next.task),
+            (Some("2026-08-17"), Some("2026-08-19"))
+        );
+    }
+
+    #[test]
+    fn a_series_on_its_due_date_moves_with_it_and_a_postpone_date_hides_one_occurrence() {
+        let mut task = task();
+        task.set_dates(TaskDates::new(None, Some(date("2026-08-12"))));
+        let task = TaskUpdates::new()
+            .with_recurrence(Some(&RecurrenceRule::parse("FREQ=WEEKLY").unwrap()))
+            .apply(&task, &[], &ctx())
+            .unwrap()
+            .task;
+
+        let hidden = TaskUpdates::new()
+            .with_postpone_date(Some(date("2026-08-11")))
+            .apply(&task, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            dates_of(&hidden.task),
+            (Some("2026-08-11"), Some("2026-08-12"))
+        );
+        assert_eq!(hidden.reminder_shift, None);
+
+        let moved = TaskUpdates::new()
+            .with_due_date(Some(date("2026-08-14")))
+            .apply(&hidden.task, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            moved.reminder_shift,
+            Some(ReminderShift {
+                from: date("2026-08-12"),
+                to: date("2026-08-14"),
+            })
+        );
+        assert_eq!(
+            moved.task.recurrence_series.as_deref(),
+            Some("day=2026-08-12; anchor=due")
+        );
+
+        // The next one is due a week after the series' day, and not hidden.
+        let ctx = ChangeContext::new(instant("2026-08-14T10:00:00+00:00"), date("2026-08-14"));
+        let next = TaskUpdates::new()
+            .with_is_completed(true)
+            .apply(&moved.task, &[], &ctx)
+            .unwrap();
+        assert_eq!(dates_of(&next.task), (None, Some("2026-08-19")));
+    }
+
+    #[test]
+    fn a_recurring_task_without_a_series_repeats_by_its_dates_and_states_one_then() {
+        // As a task written before there were series comes off the wire.
+        let mut task = task();
+        task.recurrence = Some("FREQ=WEEKLY".to_string());
+        task.set_dates(TaskDates::new(
+            Some(date("2026-08-06")),
+            Some(date("2026-08-07")),
+        ));
+        // An edit that changes nothing still changes nothing.
+        let same = TaskUpdates::new()
+            .with_postpone_date(Some(date("2026-08-06")))
+            .apply(&task, &[], &ctx())
+            .unwrap();
+        assert!(same.is_noop());
+        assert_eq!(same.task.recurrence_series, None);
+
+        let next = TaskUpdates::new()
+            .with_is_completed(true)
+            .apply(&task, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            dates_of(&next.task),
+            (Some("2026-08-13"), Some("2026-08-14"))
+        );
+        assert_eq!(
+            next.task.recurrence_series.as_deref(),
+            Some("day=2026-08-13; due=1")
+        );
+    }
+
+    #[test]
+    fn an_undo_puts_the_series_and_the_dates_back_as_they_were() {
+        let task = weekly();
+        let next = TaskUpdates::new()
+            .with_is_completed(true)
+            .apply(&task, &[], &ctx())
+            .unwrap()
+            .task;
+        assert_eq!(next.postpone_date.as_deref(), Some("2026-08-17"));
+
+        let undo = TaskUpdates {
+            postpone_date: Some(task.postpone_date.clone()),
+            due_date: Some(task.due_date.clone()),
+            recurrence: Some(task.recurrence.clone()),
+            recurrence_series: Some(task.recurrence_series.clone()),
+            ..TaskUpdates::new()
+        };
+        let back = undo.apply(&next, &[], &ctx()).unwrap();
+        assert_eq!(
+            dates_of(&back.task),
+            (Some("2026-08-10"), Some("2026-08-12"))
+        );
+        assert_eq!(back.task.recurrence_series, task.recurrence_series);
+        assert_eq!(
+            back.reminder_shift,
+            Some(ReminderShift {
+                from: date("2026-08-17"),
+                to: date("2026-08-10"),
+            })
+        );
+    }
+
+    #[test]
+    fn a_task_that_stops_repeating_has_no_series_and_plain_dates_again() {
+        let task = weekly();
+        let stopped = TaskUpdates::new()
+            .with_recurrence(None)
+            .apply(&task, &[], &ctx())
+            .unwrap()
+            .task;
+        assert_eq!(stopped.recurrence_series, None);
+        let change = TaskUpdates::new()
+            .with_due_date(Some(date("2026-08-01")))
+            .apply(&stopped, &[], &ctx())
+            .unwrap();
+        assert_eq!(
+            dates_of(&change.task),
+            (Some("2026-08-10"), Some("2026-08-01"))
+        );
+        assert_eq!(change.reminder_shift, None);
     }
 
     #[test]

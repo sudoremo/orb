@@ -97,6 +97,8 @@ export interface DatePickerOptions {
    * unused.
    */
   fields?: DatePickerField[];
+  /** What the empty field shows instead of the usual examples. */
+  placeholder?: string;
   /**
    * Where the calendar starts and which day is marked as the current value.
    * `YYYY-MM-DD`, or null for "no date set", which starts on today.
@@ -430,9 +432,10 @@ class DatePicker {
     // grammar: four examples from §12.1 say more about what may be typed than
     // any label would.
     this.input.placeholder =
-      this.mode === "reminder"
+      options.placeholder ??
+      (this.mode === "reminder"
         ? "tomorrow 9am, next tuesday 14:00, in 2 hours"
-        : "tomorrow, 3d, next tuesday, 12.9.";
+        : "tomorrow, 3d, next tuesday, 12.9.");
 
     this.list = document.createElement("ul");
     this.list.className = "dp-list";

@@ -117,8 +117,8 @@ struct TaskDetailView: View {
             }
 
             Section {
-                field("Postpone", "sun.max", task.postponeDate.map(CivilDate.label)) { sheet = .postpone }
-                field("Due", "calendar", task.dueDate.map(CivilDate.label), late: deadlineReached(task)) { sheet = .due }
+                field("Postpone", "sun.max", task.postponeDate.map { moved(CivilDate.label($0), detail.series, due: false) }) { sheet = .postpone }
+                field("Due", "calendar", task.dueDate.map { inSeries(detail.series?.dueLabel, moved(CivilDate.label($0), detail.series, due: true)) }, late: deadlineReached(task)) { sheet = .due }
                 field("Remind", "bell", reminderSummary(detail.reminders)) { sheet = .remind }
                 field("Repeat", "repeat", detail.recurrenceLabel) { sheet = .repeatRule }
                 field("Tags", "tag", task.tags.isEmpty ? nil : task.tags.map(\.name).joined(separator: ", ")) { sheet = .tags }
@@ -475,11 +475,26 @@ struct TaskDetailView: View {
     private func reminderSummary(_ reminders: [TaskReminderInfo]) -> String? {
         let pending = reminders.filter { !$0.isTriggered }
         guard let first = pending.min(by: { $0.remindAtUnix < $1.remindAtUnix }) else { return nil }
-        return pending.count == 1 ? reminderLabel(first) : "\(reminderLabel(first)) +\(pending.count - 1)"
+        let label = first.seriesLabel ?? reminderLabel(first)
+        return pending.count == 1 ? label : "\(label) +\(pending.count - 1)"
     }
 
     private func reminderLabel(_ reminder: TaskReminderInfo) -> String {
-        Date(timeIntervalSince1970: TimeInterval(reminder.remindAtUnix)).formatted(date: .abbreviated, time: .shortened)
+        inSeries(reminder.seriesLabel, Date(timeIntervalSince1970: TimeInterval(reminder.remindAtUnix)).formatted(date: .abbreviated, time: .shortened))
+    }
+
+    /// A value of a repeating task (§32): where it stands against the task's
+    /// day, which the series keeps, then where that puts it this time.
+    private func inSeries(_ label: String?, _ value: String) -> String {
+        guard let label else { return value }
+        return "\(label) · \(value)"
+    }
+
+    /// The date of an occurrence moved by hand says where it was moved from:
+    /// the next one is back on its day.
+    private func moved(_ value: String, _ series: TaskSeriesInfo?, due: Bool) -> String {
+        guard let series, series.dayIsDue == due, let from = series.movedFrom else { return value }
+        return "\(value), moved from \(CivilDate.label(from))"
     }
 }
 

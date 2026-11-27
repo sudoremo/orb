@@ -460,6 +460,7 @@
   }
   .chip .ic { width: 13px; height: 13px; }
   .chip .dim { color: var(--fg3); font-family: var(--mono); font-size: 11px; }
+  .props .p .dim { color: var(--fg3); }
   .chip.acc { color: var(--accent); background: var(--accent-soft); }
   .chip.acc .dim { color: inherit; opacity: .75; }
   .chip.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 20%, transparent); font-weight: 500; }
@@ -1215,6 +1216,7 @@ const P = {
   search: '<circle cx="11" cy="11" r="7"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>',
+  repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
   mute: '<path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5"/><path d="M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   mail: '<rect x="2" y="4" width="20" height="16" rx="2"/>',
   thread: '<rect x="2" y="8" width="16" height="12" rx="2"/><path d="M6 4h14a2 2 0 0 1 2 2v10"/>',
@@ -1840,11 +1842,12 @@ function taskDetail() {
     <div class="props">
       ${p('saved', 'cloud', 'Not yet on the server', '', 'warn')}
       ${p('postpone', 'sun', 'Today', '', 'warn')}
-      ${p('due', 'cal', 'Fri 23 Oct', 'Due')}
-      ${p('remind', 'bell', 'Thu 22 Oct, 09:00', 'Remind')}
+      ${p('due', 'cal', '3 days after <span class="dim">Fri 23 Oct</span>', 'Due')}
+      ${p('remind', 'bell', '2 days after 09:00 <span class="dim">Thu 22 Oct, 09:00</span>', 'Remind')}
+      ${p('repeat', 'repeat', 'Every week')}
       ${p('tags', 'tag', '#work')}
     </div>
-    <div class="td-hints">${lbl('Add:')}<span><kbd>R</kbd>${lbl('Repeat')}</span><span><kbd>+</kbd>${lbl('Step')}</span></div>
+    <div class="td-hints">${lbl('Add:')}<span><kbd>+</kbd>${lbl('Step')}</span></div>
     <div class="td-notes">Focus on sync (section 2) and hiring (section 4). Comments go to Sara before the design review on Thursday.</div>
     <div class="td-h">${lbl('Steps')}<span class="n">2/4</span><span class="pbar"><i style="width:50%"></i></span></div>
     <div class="steps">${STEPS.map(([t, d], i) => `<div class="step${d ? ' done' : ''}${i === 2 ? ' next' : ''}"><span class="chk${d ? ' on' : ''}"></span><span>${t}</span></div>`).join('')}<div class="step adding"><span class="chk"></span><span class="st-input">Send the deck to Lea<span class="caret"></span></span></div></div>

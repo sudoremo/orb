@@ -1885,6 +1885,93 @@ async fn reminders_are_scheduled_moved_and_cancelled_by_reconciliation() {
     );
 }
 
+/// §32: the series of a repeating task travels with it, and the machine that
+/// did not complete an occurrence has the next one exactly as the machine that
+/// did — dates, series and reminders — from the message alone.
+#[tokio::test]
+#[ignore = "requires Docker"]
+async fn a_series_travels_and_both_machines_agree_on_the_next_occurrence() {
+    let container = DovecotContainer::start()
+        .await
+        .expect("Failed to start container");
+
+    let mut a = Device::start(&container, "device-a").await;
+    let mut b = Device::start(&container, "device-b").await;
+
+    // A: a weekly task from a week today, with a reminder the evening before.
+    let created = a.create_task("Water the plants");
+    let uuid = created.task_uuid.clone();
+    let a_id = created.id.expect("row id");
+    let ctx = a.change_context();
+    let day = ctx.today + chrono::Duration::days(7);
+    let updates = TaskUpdates::new()
+        .with_postpone_date(Some(day))
+        .with_recurrence(Some(&"FREQ=WEEKLY".parse().expect("rule")));
+    a.repo().apply(a_id, &updates, &ctx).expect("repeat");
+    let evening_before = chrono::Local
+        .from_local_datetime(
+            &(day - chrono::Duration::days(1))
+                .and_hms_opt(18, 0, 0)
+                .unwrap(),
+        )
+        .single()
+        .expect("a local time");
+    ReminderService::new(a.service.database())
+        .add_reminder(a_id, &evening_before.to_rfc3339(), &ctx)
+        .expect("adding a reminder");
+    let stated = a.task(&uuid).recurrence_series.expect("a series");
+    assert_eq!(stated, format!("day={day}; reminders=-1T18:00"));
+    a.sync().await;
+
+    b.sync().await;
+    assert_eq!(
+        b.task(&uuid).recurrence_series.as_deref(),
+        Some(stated.as_str()),
+        "the series must reach the other machine"
+    );
+
+    // B completes it: the next occurrence, a week on.
+    let b_id = b.task_id(&uuid);
+    let ctx = b.change_context();
+    let done = b.repo().complete_tasks(&[b_id], &ctx).expect("complete");
+    ReminderService::new(b.service.database())
+        .follow_recurrence(&done.reminder_shifts, &ctx)
+        .expect("follow");
+    b.sync().await;
+    a.sync().await;
+
+    let next = day + chrono::Duration::days(7);
+    for device in [&a, &b] {
+        let task = device.task(&uuid);
+        assert_eq!(
+            task.postpone_date,
+            Some(next.to_string()),
+            "{}",
+            device.label
+        );
+        assert_eq!(
+            task.recurrence_series,
+            Some(format!("day={next}; reminders=-1T18:00")),
+            "{}",
+            device.label
+        );
+        let reminders = device
+            .repo()
+            .get_reminders(device.task_id(&uuid))
+            .expect("reminders");
+        assert_eq!(reminders.len(), 1, "{}", device.label);
+        assert_eq!(
+            orb_core::tasks::local_wall_clock(reminders[0].remind_at_unix),
+            (next - chrono::Duration::days(1))
+                .and_hms_opt(18, 0, 0)
+                .unwrap(),
+            "{}",
+            device.label
+        );
+    }
+    assert!(!a.task(&uuid).is_dirty && !b.task(&uuid).is_dirty);
+}
+
 /// Truncate to whole seconds.
 ///
 /// A notification identifier is derived from a unix timestamp, so a reminder

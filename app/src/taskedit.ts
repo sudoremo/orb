@@ -1,4 +1,4 @@
-import { TaskEdit, TaskTagInfo, describeTasks } from "./tasklist";
+import { TaskDetail, TaskEdit, TaskSeriesInfo, TaskTagInfo, describeTasks } from "./tasklist";
 import { groupUndo, offerUndo } from "./moving";
 import { runTask } from "./tasks";
 import { openPicker } from "./picker";
@@ -244,19 +244,43 @@ export function pickDate(
   title: string,
   initial: string | null,
   fields?: DatePickerField[],
+  /**
+   * The day of a recurring task's occurrence (§32), when the date is its
+   * deadline or a reminder of it: what is typed may then be said against that
+   * day, and every reading says how far from it it is.
+   */
+  day: string | null = null,
 ): Promise<DatePickerResult | null> {
   return openDatePicker({
     mode,
     title,
     fields,
     initial,
+    placeholder: !day
+      ? undefined
+      : mode === "reminder"
+        ? "on the day 9am, day before 18:00, -2 14:00"
+        : "on the day, 2 days after, +3",
     suggest: (input, which) =>
       call<DateSuggestion[]>(
         which === "reminder" ? "suggest_datetimes" : "suggest_dates",
-        { input },
+        day ? { input, day } : { input },
       ),
     onProblem: setStatus,
   });
+}
+/**
+ * The series of a task (§32), or null for one that does not repeat or has no
+ * day yet. The rows say whether a task repeats; the series is on its detail.
+ */
+export async function seriesOf(id: number): Promise<TaskSeriesInfo | null> {
+  const row = state.tasks.rows.find((r) => r.id === id);
+  if (row && !row.is_recurring) return null;
+  const detail =
+    state.tasks.detail?.task.id === id
+      ? state.tasks.detail
+      : await call<TaskDetail>("get_task", { id }).catch(() => null);
+  return detail?.series ?? null;
 }
 /**
  * The date a task created right now should be scheduled for.
@@ -287,10 +311,16 @@ export async function setTaskDate(which: "postpone" | "due"): Promise<void> {
   }
   const task = state.tasks.rows.find((row) => row.id === ids[0]);
   const initial = which === "postpone" ? task?.postpone_date : task?.due_date;
+  // The deadline of one recurring task is said against its day (§32); over
+  // several tasks there is no one day to say it against.
+  const series = which === "due" && ids.length === 1 ? await seriesOf(ids[0]!) : null;
+  const day = series && !series.day_is_due ? series.day : null;
   const chosen = await pickDate(
     "date",
-    which === "postpone" ? "Postpone until" : "Due",
-    initial ?? null,
+    which === "postpone" ? "Postpone until" : day ? "Due, from its day" : "Due",
+    initial ?? day,
+    undefined,
+    day,
   );
   if (!chosen) return;
 

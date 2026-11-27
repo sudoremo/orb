@@ -87,6 +87,10 @@ pub struct ExportReminder {
 pub struct ExportRecurrence {
     pub rule: String,
     pub from_completion: bool,
+    /// The series (§32), in its text form; absent from a task that states
+    /// none and from an export written before there were series.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub series: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -393,6 +397,7 @@ fn export_task(source: &SourceTask, attachments: Vec<ExportAttachment>) -> Expor
         recurrence: task.recurrence.as_ref().map(|rule| ExportRecurrence {
             rule: rule.clone(),
             from_completion: task.recurrence_from_completion,
+            series: task.recurrence_series.clone(),
         }),
         position: task.position,
         steps: task
@@ -578,6 +583,11 @@ pub fn imported(root: &Path, exported: &ExportTask, account: &str) -> ImportedTa
         .recurrence
         .as_ref()
         .is_some_and(|r| r.from_completion);
+    task.recurrence_series = exported
+        .recurrence
+        .as_ref()
+        .and_then(|r| r.series.clone())
+        .filter(|series| series.parse::<super::recurrence::Series>().is_ok());
     task.steps = exported
         .steps
         .iter()
@@ -1414,6 +1424,29 @@ mod tests {
         assert!(last.path.exists());
     }
 
+    #[test]
+    fn a_series_goes_out_with_its_rule_and_comes_back_when_it_can_be_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = ChangeContext::new(Utc::now(), Utc::now().date_naive());
+        let mut task = Task::create("Water the plants".into(), "Work".into(), 1.0, &ctx).task;
+        task.recurrence = Some("FREQ=WEEKLY".to_string());
+        task.recurrence_series = Some("day=2026-08-10; due=2; reminders=-1T18:00".to_string());
+        let source = SourceTask {
+            task,
+            reminders: Vec::new(),
+            links: Vec::new(),
+            attachments: Vec::new(),
+        };
+        let mut exported = export_task(&source, Vec::new());
+        let back = imported(dir.path(), &exported, "Work");
+        assert_eq!(back.task.recurrence_series, source.task.recurrence_series);
+
+        exported.recurrence.as_mut().unwrap().series = Some("day=someday".to_string());
+        let back = imported(dir.path(), &exported, "Work");
+        assert_eq!(back.task.recurrence.as_deref(), Some("FREQ=WEEKLY"));
+        assert_eq!(back.task.recurrence_series, None);
+    }
+
     /// A `tasks.json` as version 1 writes it, kept verbatim: every build must
     /// read it, whatever the format becomes (§21).
     #[test]
@@ -1456,6 +1489,8 @@ mod tests {
         assert_eq!(task.task.revision, 7);
         assert_eq!(task.task.due_date.as_deref(), Some("2026-10-23"));
         assert_eq!(task.task.steps[0].title, "Read it");
+        assert_eq!(task.task.recurrence.as_deref(), Some("FREQ=WEEKLY"));
+        assert_eq!(task.task.recurrence_series, None);
         assert!(matches!(task.task.log[0].event, TaskEvent::Created { .. }));
         assert_eq!(task.reminders.len(), 1);
         assert_eq!(task.links[0].message_id, "<a@example.com>");
