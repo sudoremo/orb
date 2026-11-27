@@ -2886,6 +2886,20 @@ test("Ctrl-T's picker switches to a due date with Ctrl-E, and the task is made d
   await expect(page.locator("#status")).toContainText('created task "Message #0" due 2026-08-20');
 });
 
+test("R reads what is typed as a rule, beyond the usual ones it lists", async ({ page }) => {
+  await page.goto("/harness.html?tasks=1");
+  await intoTasks(page);
+  await page.keyboard.press("R");
+  const picker = page.locator(".dp.picker");
+  await expect(picker).toContainText("Every weekday");
+  await page.locator(".dp-input").fill("last thursday of the month");
+  await expect(page.locator(".dp-list li")).toHaveText(/Every month on the last Thursday/);
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await callsTo(page, "update_tasks")).map((a) => a.edit.recurrence))
+    .toEqual(["FREQ=MONTHLY;BYDAY=-1TH"]);
+});
+
 test("a task says when macOS blocks its reminders, and the notice leaves once they are allowed", async ({ page }) => {
   await page.goto("/harness.html?tasks=1");
   await intoTasks(page);

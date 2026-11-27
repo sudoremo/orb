@@ -1099,7 +1099,7 @@ Active in a task list: Today's tasks and the task views
 | `S` | Both dates at once | `set-both-dates` |
 | `c` | Clear both dates | `clear-dates` |
 | `r` | Add a reminder | `add-reminder` |
-| `R` | Make the task repeat: a list of the usual rules, or `:set-recurrence every monday`, `monthly on the 1st`, `every 2 weeks until June`, in English or German | `set-recurrence [rule]` |
+| `R` | Make the task repeat: a list of the usual rules, or a rule typed there or as `:set-recurrence every monday`, `monthly on the 1st`, `last thursday of the month`, `every 2 weeks until June`, in English or German | `set-recurrence [rule]` |
 | `a` / `A` | Add / remove a tag | `add-tag`, `remove-tag` |
 | `m` / `M` | Link the message in the reader / open the linked message | `link-message`, `open-linked-message` |
 | `f` | Attach files; files dropped on the detail are attached too | `attach-file` |
@@ -2104,9 +2104,11 @@ whether or not Orb runs, and clicking one names the task. A reminder missed
 while the machine slept fires at the next launch if it is less than 24 hours
 overdue; older ones are collected into one summary notification.
 
-`R` makes a task repeat, from a list of the usual rules or spelled out:
-`:set-recurrence every monday`, `monthly on the 1st`, `every 2 weeks until
-June`, `every day 5 times`, in English or German. `clear-recurrence` stops
+`R` makes a task repeat, from a list of the usual rules or spelled out, in
+the list's field or as `:set-recurrence every monday`: `monthly on the 1st`,
+`last thursday of the month`, `every 2 weeks until June`, `every day 5
+times`, in English or German (`am letzten Donnerstag des Monats`).
+`clear-recurrence` stops
 it, and `recurrence-from-completion on|off` says whether the next date
 counts from the scheduled date (the default, so a task done late does not
 drift) or from the completion. Completing a repeating task logs the

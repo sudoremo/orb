@@ -77,11 +77,21 @@ fn parse_body(text: &str, locale: DateLocale) -> Option<RecurrenceRule> {
         return None;
     }
     // A leading "every"/"each"/"jeden"/"jede"/"alle" is the usual opener.
-    let opener = matches!(
-        words[0],
-        "every" | "each" | "jeden" | "jede" | "jedes" | "alle" | "all"
-    );
-    if opener {
+    while !words.is_empty()
+        && matches!(
+            words[0],
+            "every"
+                | "each"
+                | "always"
+                | "jeden"
+                | "jede"
+                | "jedes"
+                | "alle"
+                | "all"
+                | "jeweils"
+                | "immer"
+        )
+    {
         words.remove(0);
     }
     if words.is_empty() {
@@ -101,11 +111,14 @@ fn parse_body(text: &str, locale: DateLocale) -> Option<RecurrenceRule> {
     if let Some(freq) = period(rest[0]) {
         let mut rule = RecurrenceRule::new(freq);
         rule.interval = interval;
-        // `every month on the 15th`, `monthly on the last day`.
-        if freq == Frequency::Monthly
-            && let Some(day) = month_day(&rest[1..])
-        {
-            rule.by_month_day = vec![day];
+        // `monthly on the last thursday`, `every month on the 15th`, `monthly
+        // on the last day`.
+        if freq == Frequency::Monthly {
+            if let Some(day) = weekday_of_month(&rest[1..], locale) {
+                rule.by_day = vec![day];
+            } else if let Some(day) = month_day(&rest[1..]) {
+                rule.by_month_day = vec![day];
+            }
         }
         return Some(rule);
     }
@@ -133,13 +146,10 @@ fn parse_body(text: &str, locale: DateLocale) -> Option<RecurrenceRule> {
     // `first monday [of the month]`, `2nd tuesday`, `last friday`, and in
     // German `ersten montag`, `letzten freitag`. Before the day of the month,
     // since `last friday` and `last day` both begin with `last`.
-    if let Some(ordinal) = ordinal(rest[0])
-        && rest.len() >= 2
-        && let Some(weekday) = weekday(rest[1], locale)
-    {
+    if let Some(day) = weekday_of_month(rest, locale) {
         let mut rule = RecurrenceRule::new(Frequency::Monthly);
         rule.interval = interval;
-        rule.by_day = vec![ByDay::nth(ordinal, weekday)];
+        rule.by_day = vec![day];
         return Some(rule);
     }
 
@@ -180,6 +190,18 @@ fn period(word: &str) -> Option<Frequency> {
     })
 }
 
+/// `last thursday`, `on the 2nd tuesday of the month`, `am letzten donnerstag
+/// des monats`: a weekday counted through the month, whatever leads it in.
+fn weekday_of_month(words: &[&str], locale: DateLocale) -> Option<ByDay> {
+    let mut words = words
+        .iter()
+        .copied()
+        .skip_while(|w| matches!(*w, "on" | "the" | "am" | "an" | "jeweils"));
+    let ordinal = ordinal(words.next()?)?;
+    let weekday = weekday(words.next()?, locale)?;
+    Some(ByDay::nth(ordinal, weekday))
+}
+
 /// `on the 15th`, `on the last day`, `am 1.`, `am letzten tag`, or just
 /// `15th`: a day of the month, counted from the end when it says `last`.
 fn month_day(words: &[&str]) -> Option<i8> {
@@ -192,7 +214,7 @@ fn month_day(words: &[&str]) -> Option<i8> {
         return None;
     }
     if matches!(words[0], "last" | "letzten" | "letzter" | "letzte") {
-        return Some(-1);
+        return matches!(words.get(1), None | Some(&"day") | Some(&"tag")).then_some(-1);
     }
     let first = words.remove(0);
     if !words.is_empty() && !matches!(words[0], "day" | "tag") {
@@ -464,6 +486,51 @@ mod tests {
         );
         assert_eq!(rule("every day 5 times"), "FREQ=DAILY;COUNT=5");
         assert_eq!(rule("every day for 3 times"), "FREQ=DAILY;COUNT=3");
+    }
+
+    #[test]
+    fn a_weekday_of_the_month_is_read_however_it_is_led_in() {
+        for input in [
+            "last thursday",
+            "the last thursday",
+            "on the last thursday",
+            "last thursday of the month",
+            "every last thursday of the month",
+            "monthly on the last thursday",
+            "every month on the last thursday",
+        ] {
+            assert_eq!(rule(input), "FREQ=MONTHLY;BYDAY=-1TH", "{input}");
+        }
+        assert_eq!(
+            rule("every 3 months on the 2nd tuesday"),
+            "FREQ=MONTHLY;INTERVAL=3;BYDAY=2TU"
+        );
+        // The day of the month is still its own form.
+        assert_eq!(
+            rule("monthly on the last day"),
+            "FREQ=MONTHLY;BYMONTHDAY=-1"
+        );
+        assert_eq!(rule("on the last"), "FREQ=MONTHLY;BYMONTHDAY=-1");
+
+        let german = |input: &str| {
+            suggest(input, today(), DateLocale::German)
+                .first()
+                .map(|s| s.rule.to_string())
+                .unwrap_or_else(|| panic!("{input:?} makes no rule"))
+        };
+        for input in [
+            "letzten donnerstag",
+            "am letzten donnerstag",
+            "am letzten donnerstag des monats",
+            "jeweils am letzten donnerstag des monats",
+            "jeden letzten donnerstag im monat",
+            "monatlich am letzten donnerstag",
+            "jeden monat am letzten donnerstag",
+        ] {
+            assert_eq!(german(input), "FREQ=MONTHLY;BYDAY=-1TH", "{input}");
+        }
+        assert_eq!(german("am ersten montag"), "FREQ=MONTHLY;BYDAY=1MO");
+        assert_eq!(german("am letzten tag"), "FREQ=MONTHLY;BYMONTHDAY=-1");
     }
 
     #[test]

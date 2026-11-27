@@ -229,6 +229,7 @@
         if (edit.clear_due_date) task.due_date = null;
         else if (edit.due_date !== undefined) task.due_date = edit.due_date;
         if (edit.is_working_on !== undefined) task.working = edit.is_working_on;
+        if (edit.recurrence !== undefined) task.recurrence = edit.recurrence;
       };
 
       // ?chat=1: a chat server with threads waiting (PLAN.md, Phase 15);
@@ -928,6 +929,15 @@
               const to = before >= 0 ? before + 1 : after >= 0 ? after : TASKS.length;
               TASKS.splice(to, 0, ...moving);
               return moving.length;
+            }
+
+            // The usual rules by their words, and one only typing reaches.
+            case "suggest_recurrence": {
+              const input = String(args.input).toLowerCase();
+              if (input.includes("last thursday"))
+                return [{ rrule: "FREQ=MONTHLY;BYDAY=-1TH", label: "Every month on the last Thursday" }];
+              if (!/^(every|monthly) /.test(input)) return [];
+              return [{ rrule: `X-HARNESS=${input.replaceAll(" ", "-")}`, label: input[0].toUpperCase() + input.slice(1) }];
             }
 
             case "suggest_dates":
