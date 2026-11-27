@@ -246,6 +246,9 @@ pub fn series_distance(days: i64, locale: DateLocale) -> String {
 /// [`suggest_dates`] for the deadline of a recurring task whose occurrence is
 /// on `day`.
 ///
+/// With nothing typed, the usual distances are offered, and what is typed
+/// narrows them from its first letter: there is no calendar to fall back on,
+/// as a day picked from one would look like a date for this occurrence alone.
 /// What is typed may say where the deadline is against the day — `on the
 /// day`, `2 days after`, `+3`, `am tag`, `1 woche später` — and such a reading
 /// stands alone. A date said any other way is read as ever, and labelled with
@@ -261,9 +264,44 @@ pub fn suggest_dates_in_series(
     let norm = normalize(input);
     let found = match parse_series_distance(&norm, locale) {
         Some(days) => in_series(day, days, None, &ctx).into_iter().collect(),
-        None => relabelled(collect(&norm, &ctx), day, locale),
+        None => {
+            let mut found: Vec<DateSuggestion> = USUAL_DEADLINES
+                .iter()
+                .filter_map(|days| in_series(day, *days, None, &ctx))
+                .filter(|usual| begun(&norm, &usual.primary))
+                .collect();
+            for reading in relabelled(collect(&norm, &ctx), day, locale) {
+                if !found.iter().any(|usual| usual.date == reading.date) {
+                    found.push(reading);
+                }
+            }
+            found
+        }
     };
     found.into_iter().filter(|s| s.date >= day).collect()
+}
+
+/// The distances from its day a deadline usually has, in days.
+const USUAL_DEADLINES: [i64; 6] = [0, 1, 2, 3, 7, 14];
+
+/// The reminders a series usually has: days from its day, and the hour.
+const USUAL_REMINDERS: [(i64, u32); 5] = [(0, 9), (-1, 18), (-1, 9), (-2, 9), (-7, 9)];
+
+/// Whether what is typed so far could become `label`: nothing, its beginning,
+/// or the beginning of the words after its first — `the d` for "On the day",
+/// `days` for "2 days after".
+fn begun(norm: &str, label: &str) -> bool {
+    let label = normalize(label);
+    let mut rest = label.as_str();
+    loop {
+        if rest.starts_with(norm) {
+            return true;
+        }
+        match rest.split_once(' ') {
+            Some((_, after)) => rest = after,
+            None => return false,
+        }
+    }
 }
 
 /// [`suggest_datetimes`] for a reminder of a recurring task whose occurrence
@@ -290,7 +328,27 @@ pub fn suggest_datetimes_in_series(
         Some(days) => in_series(day, days, Some(time.unwrap_or(DEFAULT_REMINDER_TIME)), &ctx)
             .into_iter()
             .collect(),
-        None => relabelled(suggest_datetimes(input, now, locale), day, locale),
+        None => {
+            // The usual ones, at the time typed when there is one.
+            let mut found: Vec<DateSuggestion> = USUAL_REMINDERS
+                .iter()
+                .filter_map(|(days, hour)| {
+                    let usual = time.or_else(|| NaiveTime::from_hms_opt(*hour, 0, 0))?;
+                    in_series(day, *days, Some(usual), &ctx)
+                })
+                .filter(|usual| begun(&date_part, &usual.primary))
+                .collect();
+            found.dedup_by(|a, b| a.date == b.date && a.time == b.time);
+            for reading in relabelled(suggest_datetimes(input, now, locale), day, locale) {
+                if !found
+                    .iter()
+                    .any(|usual| usual.date == reading.date && usual.time == reading.time)
+                {
+                    found.push(reading);
+                }
+            }
+            found
+        }
     }
 }
 
@@ -1689,6 +1747,68 @@ mod tests {
         assert_eq!(found[0].date, date(2026, 8, 7));
         assert_eq!(found[0].primary, "Tomorrow 09:00");
         assert_eq!(found[0].secondary, "3 days before");
+    }
+
+    #[test]
+    fn the_usual_distances_are_offered_before_anything_is_typed_and_narrowed_by_it() {
+        let en = DateLocale::English;
+        let labels = |input: &str| -> Vec<String> {
+            due(input, en)
+                .into_iter()
+                .map(|(_, primary, _)| primary)
+                .collect()
+        };
+        assert_eq!(
+            labels(""),
+            vec![
+                "On the day",
+                "1 day after",
+                "2 days after",
+                "3 days after",
+                "7 days after",
+                "14 days after"
+            ]
+        );
+        // From the first letter on, and from the words after the first.
+        for typed in ["o", "on", "on the", "on the d", "the d"] {
+            assert_eq!(labels(typed), vec!["On the day"], "{typed}");
+        }
+        // The usual ones first; a date it could also be comes after them.
+        assert_eq!(labels("1")[..2], ["1 day after", "14 days after"]);
+        assert_eq!(
+            due("am", DateLocale::German)[0].1,
+            "Am Tag",
+            "in the language configured"
+        );
+
+        let reminders = |input: &str| -> Vec<String> {
+            remind(input, en)
+                .into_iter()
+                .map(|(_, _, primary)| primary)
+                .collect()
+        };
+        assert_eq!(
+            reminders(""),
+            vec![
+                "On the day 09:00",
+                "1 day before 18:00",
+                "1 day before 09:00",
+                "2 days before 09:00",
+                "7 days before 09:00"
+            ]
+        );
+        assert_eq!(reminders("on t"), vec!["On the day 09:00"]);
+        // A time typed with the beginning of a distance is that time on each.
+        let at_a_time = reminders("1 day 7:30");
+        assert_eq!(at_a_time[0], "1 day before 07:30");
+        assert_eq!(
+            at_a_time
+                .iter()
+                .filter(|label| label.starts_with("1 day before"))
+                .count(),
+            1,
+            "one row for the two usual ones a day before"
+        );
     }
 
     #[test]

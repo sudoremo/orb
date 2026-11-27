@@ -2943,8 +2943,15 @@ test("a repeating task says its deadline and reminders against its day, and its 
   // The deadline: read against the day, and set as the date that comes to.
   await page.locator("#list").focus();
   await page.keyboard.press("D");
-  await expect(page.locator(".dp-title")).toHaveText("Due, from its day");
+  await expect(page.locator(".dp-title")).toHaveText("Due · every occurrence");
   await expect(page.locator(".dp-input")).toHaveAttribute("placeholder", /2 days after/);
+  // No calendar, which would look like a date for this occurrence alone: the
+  // usual distances, there before anything is typed and narrowed by the first letter.
+  await expect(page.locator(".dp-cal")).toBeHidden();
+  await expect(page.locator(".dp-list li .dp-primary")).toHaveText(["On the day", "1 day after", "2 days after"]);
+  await expect(page.locator(".dp-foot")).toContainText("no date");
+  await page.locator(".dp-input").fill("on t");
+  await expect(page.locator(".dp-list li .dp-primary")).toHaveText(["On the day"]);
   await page.locator(".dp-input").fill("+2");
   await expect(page.locator(".dp-list li").first()).toContainText("2 days after");
   await page.keyboard.press("Enter");
@@ -2955,7 +2962,9 @@ test("a repeating task says its deadline and reminders against its day, and its 
 
   // A reminder likewise.
   await page.keyboard.press("r");
-  await expect(page.locator(".dp-title")).toHaveText("Remind me, from its day");
+  await expect(page.locator(".dp-title")).toHaveText("Remind me · every occurrence");
+  await expect(page.locator(".dp-cal")).toBeHidden();
+  await expect(page.locator(".dp-list li .dp-primary")).toHaveText(["On the day 09:00", "1 day before 18:00"]);
   await page.locator(".dp-input").fill("day before 7:30");
   await expect(page.locator(".dp-list li").first()).toContainText("1 day before 07:30");
   await page.keyboard.press("Enter");
@@ -2971,6 +2980,7 @@ test("a task that does not repeat has its dates read as plain dates", async ({ p
   await page.locator("#list").focus();
   await page.keyboard.press("D");
   await expect(page.locator(".dp-title")).toHaveText("Due");
+  await expect(page.locator(".dp-cal")).toBeVisible();
   await page.locator(".dp-input").fill("thu");
   await expect(page.locator(".dp-list li").first()).toContainText("Thursday");
   expect((await callsTo(page, "suggest_dates")).at(-1)).toEqual({ input: "thu" });

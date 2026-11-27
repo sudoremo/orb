@@ -256,6 +256,8 @@ export function pickDate(
     title,
     fields,
     initial,
+    // A day picked from a calendar would look like a date for this occurrence.
+    calendar: !day,
     placeholder: !day
       ? undefined
       : mode === "reminder"
@@ -317,7 +319,7 @@ export async function setTaskDate(which: "postpone" | "due"): Promise<void> {
   const day = series && !series.day_is_due ? series.day : null;
   const chosen = await pickDate(
     "date",
-    which === "postpone" ? "Postpone until" : day ? "Due, from its day" : "Due",
+    which === "postpone" ? "Postpone until" : day ? "Due · every occurrence" : "Due",
     initial ?? day,
     undefined,
     day,

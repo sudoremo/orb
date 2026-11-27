@@ -2119,12 +2119,15 @@ postpone date, or its due date when it has no postpone date. Its deadline and
 its reminders are kept as their distance from that day, and every occurrence
 gets them at that distance:
 
-- `D` sets the deadline against the day: `on the day`, `2 days after`, `+3`,
-  or `am Tag`, `2 Tage später`. A date typed or picked is kept as its
+- `D` sets the deadline of every occurrence, against its day. It lists the
+  usual distances instead of a calendar, and what is typed narrows them or
+  says another: `on the day`, `2 days after`, `+3`, or `am Tag`, `2 Tage
+  später`. A date typed or picked is kept as its
   distance, and the task shows both: `Due 2 days after`, then the date that
   falls on this time.
-- `r` adds a reminder to every occurrence: `on the day 9am`, `day before
-  18:00`, `-2 14:00`, `am Vortag 18 Uhr`. A time alone is that time on the
+- `r` adds a reminder to every occurrence, from a list of the usual ones or
+  typed: `on the day 9am`, `day before 18:00`, `-2 14:00`, `am Vortag 18
+  Uhr`. A time alone is that time on the
   day.
 - `s` moves this occurrence only. Its deadline and its reminders move with
   it, the task says where it was moved from, and the next occurrence is back

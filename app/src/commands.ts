@@ -1661,7 +1661,7 @@ export const TASK_COMMANDS: Record<string, Command> = {
     const day = (await seriesOf(task.id))?.day ?? null;
     const chosen = await pickDate(
       "reminder",
-      day ? "Remind me, from its day" : "Remind me",
+      day ? "Remind me · every occurrence" : "Remind me",
       day ?? task.due_date ?? task.postpone_date,
       undefined,
       day,

@@ -100,6 +100,13 @@ export interface DatePickerOptions {
   /** What the empty field shows instead of the usual examples. */
   placeholder?: string;
   /**
+   * `false` for a picker with no calendar: the suggestions are listed from
+   * the start, for nothing typed as well. For an answer that is not a day of
+   * its own, such as the deadline of a repeating task, which is a distance
+   * from each occurrence's day.
+   */
+  calendar?: boolean;
+  /**
    * Where the calendar starts and which day is marked as the current value.
    * `YYYY-MM-DD`, or null for "no date set", which starts on today.
    */
@@ -357,6 +364,8 @@ class DatePicker {
   private readonly keys: Record<string, string>;
   private readonly done: (result: DatePickerResult | null) => void;
   private readonly fields: DatePickerField[];
+  /** No calendar: the list answers for an empty field too. */
+  private readonly listOnly: boolean;
   private field = 0;
   private readonly title: HTMLSpanElement;
 
@@ -404,6 +413,7 @@ class DatePicker {
     this.keys = keys;
     this.done = done;
     this.fields = options.fields ?? [];
+    this.listOnly = options.calendar === false;
     this.cursor = this.initial ?? this.today;
     this.restoreFocus = document.activeElement;
 
@@ -477,6 +487,7 @@ class DatePicker {
     this.renderCalendar();
     this.renderFooter();
     this.input.focus();
+    if (this.listOnly) this.onTyped();
 
     // The listener is on the window in the capture phase, ahead of the app's
     // own keymap. Nothing here bubbles unless it was ignored, so an unbound key
@@ -543,7 +554,7 @@ class DatePicker {
 
   /** Whether the calendar, rather than the suggestion list, is what is shown. */
   private get onCalendar(): boolean {
-    return this.input.value.trim() === "";
+    return !this.listOnly && this.input.value.trim() === "";
   }
 
   private handleKey(e: KeyboardEvent): void {
@@ -593,7 +604,7 @@ class DatePicker {
         // Only from an empty input, so that `<c-d>` keeps its native meaning
         // (forward delete) while there is text to delete — and so that clearing
         // a date is never something that happens on the way to typing one.
-        if (!this.onCalendar) return false;
+        if (this.input.value.trim() !== "") return false;
         this.finish({ kind: "clear", field: this.fieldId });
         return true;
       case "move-down":
@@ -669,7 +680,7 @@ class DatePicker {
     if (this.timer !== null) window.clearTimeout(this.timer);
     const query = this.input.value.trim();
 
-    if (!query) {
+    if (!query && !this.listOnly) {
       // Back to nothing: the calendar returns, and any answer still in flight
       // is no longer an answer to anything.
       this.outstanding = "";
@@ -685,7 +696,8 @@ class DatePicker {
 
     this.calendar.hidden = true;
     this.list.hidden = false;
-    this.timer = window.setTimeout(() => void this.lookup(query), SUGGEST_DEBOUNCE);
+    // Nothing typed is asked at once: it is what the picker opens on.
+    this.timer = window.setTimeout(() => void this.lookup(query), query ? SUGGEST_DEBOUNCE : 0);
     this.renderFooter();
   }
 
@@ -850,7 +862,7 @@ class DatePicker {
    */
   private renderFooter(): void {
     const hints: string[] = [`${this.keyFor("accept")} select`, `${this.keyFor("cancel")} cancel`];
-    if (this.onCalendar) hints.push(`${this.keyFor("clear-date")} no date`);
+    if (this.input.value.trim() === "") hints.push(`${this.keyFor("clear-date")} no date`);
     const next = this.fields[(this.field + 1) % this.fields.length];
     if (this.fields.length > 1 && next) hints.push(`${this.keyFor("switch-field")} ${next.title.toLowerCase()}`);
     if (this.mode === "reminder" && this.onCalendar) {

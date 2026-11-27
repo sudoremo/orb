@@ -1271,6 +1271,9 @@ Rules:
   | `on the day 9am`, `day before 18:00`, `7:30` | a reminder; a time alone is on the day |
 
   A date said any other way is taken as that date and kept as its distance.
-  Nothing before the day is offered for the deadline.
+  Nothing before the day is offered for the deadline. There is no calendar
+  here, as a day picked from one would read as a date for this occurrence
+  alone: the usual distances are listed before anything is typed, and what
+  is typed narrows them from its first letter.
 - An export (§20) carries the series as `recurrence.series`, in the header's
   form.

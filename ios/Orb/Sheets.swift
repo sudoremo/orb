@@ -40,7 +40,9 @@ struct DateSheet: View {
                         .submitLabel(.done)
                         .onSubmit { if let first = readings.first { take(first) } }
                 }
-                if typed.trimmingCharacters(in: .whitespaces).isEmpty {
+                // No calendar for a repeating task: a day picked from one would
+                // look like a date for this occurrence alone.
+                if typed.trimmingCharacters(in: .whitespaces).isEmpty && seriesDay == nil {
                     picker
                 } else {
                     Section {
@@ -54,6 +56,11 @@ struct DateSheet: View {
                             .tint(.primary)
                         }
                     }
+                    if seriesDay != nil && kind == .due {
+                        Section {
+                            Button("No Deadline", role: .destructive) { set(nil) }
+                        }
+                    }
                 }
             }
             .navigationTitle(title)
@@ -64,6 +71,7 @@ struct DateSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Set", systemImage: "checkmark", role: .confirm) { setPicked() }
+                        .disabled(seriesDay != nil && readings.isEmpty)
                 }
             }
             .onAppear {
@@ -130,14 +138,15 @@ struct DateSheet: View {
     private var title: String {
         switch kind {
         case .postpone: "Postpone"
-        case .due: seriesDay == nil ? "Due" : "Due, From Its Day"
-        case .remind: seriesDay == nil ? "Remind" : "Remind, From Its Day"
+        case .due: seriesDay == nil ? "Due" : "Due, Every Occurrence"
+        case .remind: seriesDay == nil ? "Remind" : "Remind, Every Occurrence"
         }
     }
 
     private func read() async {
         let input = typed.trimmingCharacters(in: .whitespaces)
-        guard !input.isEmpty, let service = model.service else {
+        // Against the day of a series, nothing typed lists the usual distances.
+        guard !input.isEmpty || seriesDay != nil, let service = model.service else {
             readings = []
             return
         }
@@ -156,7 +165,9 @@ struct DateSheet: View {
     }
 
     private func setPicked() {
-        if kind == .remind {
+        if seriesDay != nil {
+            if let first = readings.first { take(first) }
+        } else if kind == .remind {
             remind(date: CivilDate.string(day), time: time.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))
         } else {
             set(CivilDate.string(day))

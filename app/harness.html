@@ -971,11 +971,24 @@
 
             // Against the day of a series, as the core reads it (todo-spec §32).
             case "suggest_dates":
+              if (args.day && !args.input)
+                return [
+                  { date: "2026-08-07", time: null, primary: "On the day", secondary: "Fri Aug 7" },
+                  { date: "2026-08-08", time: null, primary: "1 day after", secondary: "Sat Aug 8" },
+                  { date: "2026-08-09", time: null, primary: "2 days after", secondary: "Sun Aug 9" },
+                ];
+              if (args.day && "on the day".startsWith(args.input.toLowerCase()))
+                return [{ date: "2026-08-07", time: null, primary: "On the day", secondary: "Fri Aug 7" }];
               if (args.day)
                 return [{ date: "2026-08-09", time: null, primary: "2 days after", secondary: "Sun Aug 9" }];
               return [{ date: "2026-08-20", time: null, primary: "Thursday", secondary: "20 Aug" }];
 
             case "suggest_datetimes":
+              if (args.day && !args.input)
+                return [
+                  { date: "2026-08-07", time: "09:00:00", primary: "On the day 09:00", secondary: "Fri Aug 7" },
+                  { date: "2026-08-06", time: "18:00:00", primary: "1 day before 18:00", secondary: "Thu Aug 6" },
+                ];
               if (args.day)
                 return [{ date: "2026-08-06", time: "07:30:00", primary: "1 day before 07:30", secondary: "Thu Aug 6" }];
               return [{ date: "2026-08-20", time: "09:00:00", primary: "Thursday 09:00", secondary: "20 Aug" }];
